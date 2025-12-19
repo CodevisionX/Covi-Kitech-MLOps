@@ -8,11 +8,7 @@
 <mat-sidenav-container class="main-container" [style.height]="layoutService.getBodyHeight()">
   <mat-sidenav #sidenav mode="side" opened class="side-nav">
     <mat-nav-list>
-      <a mat-list-item routerLink="/dataset" routerLinkActive="active-link">
-        <mat-icon matListItemIcon>storage</mat-icon>
-        <span matListItemTitle>Datasets</span>
-      </a>
-      <a mat-list-item routerLink="/train" routerLinkActive="active-link">
+      <a mat-list-item routerLink="/dashboard" routerLinkActive="active-link">
         <mat-icon matListItemIcon>model_training</mat-icon>
         <span matListItemTitle>Training</span>
       </a>
@@ -29,3 +25,5 @@
     </div>
   </mat-sidenav-content>
 </mat-sidenav-container>
+
+<app-terminal></app-terminal>

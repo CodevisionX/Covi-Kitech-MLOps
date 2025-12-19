@@ -1,76 +1,268 @@
-/* 카드 헤더 커스텀 스타일 */
-.custom-header {
-  background-color: var(--main-primary-color);
-  color: white;
-  padding: 16px !important;
-  margin-bottom: 20px;
-  border-radius: 4px 4px 0 0;
-  
-  mat-card-title {
-    font-size: 1.2rem;
-    font-weight: 500;
+/* 1. 공통 트랜지션 및 효과 설정을 위한 지역 변수 (전역 변수 활용) */
+$transition-base: all var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
+
+.train-container {
+  padding: var(--base-padding);
+  background: var(--bg-card);
+  border-radius: var(--card-radius);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-color);
+
+  .train-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--main-primary-color);
+    padding-bottom: 16px;
+    border-bottom: 2px solid var(--border-color);
+
+    mat-icon {
+      font-size: 28px;
+      width: 28px;
+      height: 28px;
+    }
   }
 }
 
-/* 메인 버튼 공통 스타일 */
-.main-btn {
-  background-color: var(--main-primary-color) !important;
-  color: white !important;
-  padding: 0 24px !important;
-}
+/* 2. 데이터셋 경로 카드 */
+.path-card {
+  position: relative;
+  background: var(--bg-body);
+  border: 1px solid var(--border-color);
+  border-radius: var(--card-radius);
+  padding: 18px;
+  transition: $transition-base;
 
-/* 페이지 컨테이너 */
-.page-container {
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
+  &.ready {
+    border-color: var(--main-primary-color);
+    background: var(--main-primary-light);
+    box-shadow: var(--shadow-md);
 
-.train-card {
-  max-width: 600px;
-  margin: 0 auto; // 화면 중앙 정렬을 원할 경우
-}
+    .status-badge.active {
+      background: var(--main-primary-color);
+      color: var(--text-on-primary);
+    }
+  }
 
-.form-container {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  margin-top: 15px;
-}
+  .path-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
 
-.param-row {
-  display: flex;
-  gap: 16px;
+    .title-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+  }
 
-  mat-form-field {
-    flex: 1;
+  .status-badge {
+    font-size: 0.75rem;
+    padding: 4px 10px;
+    border-radius: 20px;
+    background: var(--border-color);
+    color: var(--text-muted);
+    font-weight: 600;
+    transition: $transition-base;
+  }
+
+  .path-text {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-family: 'Fira Code', 'Roboto Mono', monospace;
+    color: var(--text-main);
+    word-break: break-all;
+
+    &.error-text {
+      color: var(--error-color);
+      background: rgba(211, 47, 47, 0.05); // error-color를 살짝 투명하게
+      border-color: var(--error-color);
+    }
+
+    .inline-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+      color: var(--text-muted);
+    }
   }
 }
 
-.start-btn {
-  height: 52px;
-  font-size: 1.1rem;
-  font-weight: 500;
-  letter-spacing: 1px;
+/* 3. 애니메이션 효과 (전역 변수 활용) */
+.path-card.updated {
+  animation: pulse-blue 1s ease-in-out;
 }
 
-// 로딩 섹션 스타일
-.loading-container {
-  padding: 40px 0;
+@keyframes pulse-blue {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 var(--main-primary-light);
+  }
+
+  50% {
+    transform: scale(1.01);
+  }
+
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 10px rgba(0, 35, 135, 0);
+  }
+}
+
+/* 4. 설정 카드 영역 */
+.config-card {
+  border: 1px solid var(--border-color);
+  border-radius: var(--card-radius);
+  padding: var(--base-padding);
+  background: var(--bg-card);
+
+  .full-width {
+    width: 100%;
+  }
+
+  .params-container {
+    margin-top: 20px;
+    padding: 20px;
+    background: var(--bg-body);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+
+    .params-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--main-secondary-color);
+      margin-bottom: 20px;
+
+      mat-icon {
+        color: var(--text-muted);
+      }
+    }
+  }
+
+  .params-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+
+    @media (max-width: 768px) {
+      grid-template-columns: 1fr;
+    }
+
+    .param-item {
+      width: 100%;
+
+      mat-form-field {
+        width: 100%;
+        display: block;
+      }
+    }
+  }
+}
+
+/* 5. 학습 시작 버튼 및 요약 문구 */
+.action-row {
+  margin-top: 32px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 20px;
-  text-align: center;
 
-  h3 {
-    color: var(--main-primary-color);
-    margin: 0;
+  .launch-summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    background: var(--main-primary-light);
+    padding: 10px 20px;
+    border-radius: 30px;
+    border: 1px dashed var(--main-primary-color);
+
+    mat-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+      color: var(--main-primary-color);
+    }
+
+    strong {
+      color: var(--main-primary-color);
+    }
   }
 
-  p {
-    color: #666;
-    margin: 0;
+  .start-btn {
+    min-width: 320px;
+    height: 56px;
+    border-radius: 28px;
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    background: linear-gradient(135deg, var(--main-primary-color) 0%, var(--main-primary-dark) 100%);
+    box-shadow: var(--shadow-md);
+    transition: $transition-base;
+    color: var(--text-on-primary);
+
+    display: inline-flex; // 버튼 자체가 flex 컨테이너가 되도록 설정
+    align-items: center;
+    justify-content: center;
+
+    ::ng-deep .mdc-button__label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px; // 아이콘과 텍스트 사이 간격 (margin-right 대신 사용 권장)
+    }
+
+    &:hover:not(:disabled) {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 24px rgba(0, 35, 135, 0.3);
+      filter: brightness(1.1);
+    }
+
+    &:active:not(:disabled) {
+      transform: translateY(-1px);
+    }
+
+    &:disabled {
+      background: var(--border-color);
+      color: var(--text-muted);
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+
+    mat-spinner {
+      margin: 0 auto;
+
+      ::ng-deep circle {
+        stroke: var(--text-on-primary) !important;
+      }
+    }
+
+    mat-icon {
+      // margin-right: 10px; // gap을 사용하므로 제거하거나 유지
+      font-size: 24px;
+      width: 24px;
+      height: 24px;
+      display: flex; // 아이콘 내부 정렬
+      align-items: center;
+      justify-content: center;
+    }
   }
 }

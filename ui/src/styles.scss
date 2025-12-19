@@ -7,8 +7,39 @@
 @use '@angular/material' as mat;
 
 :root {
+  /* 1. 핵심 색상 (Core Colors) */
   --main-primary-color: #002387;
+  --main-primary-light: rgba(0, 35, 135, 0.1);
+  --main-primary-dark: #001a63;
+  --main-secondary-color: #4b5563; /* 차분한 회색조 */
+
+  /* 2. 상태 색상 (Functional Colors) */
+  --success-color: #2e7d32;   /* 성공/준비됨 */
+  --warning-color: #ffa000;   /* 경고/진행중 */
+  --error-color: #d32f2f;     /* 에러/연결끊김 */
+  --info-color: #0288d1;      /* 정보/안내 */
+
+  /* 3. 배경 및 표면 (Background & Surfaces) */
+  --bg-body: #f5f7fa;         /* 전체 페이지 배경 */
+  --bg-card: #ffffff;         /* 카드/패널 배경 */
   --highlight-bg: rgba(0, 35, 135, 0.08);
+  --border-color: #e5e7eb;    /* 일반적인 구분선 색상 */
+
+  /* 4. 텍스트 (Typography) */
+  --text-main: #1f2937;       /* 기본 본문 텍스트 */
+  --text-muted: #6b7280;      /* 부가 설명/비활성 텍스트 */
+  --text-on-primary: #ffffff; /* 기본색 배경 위의 글자색 */
+
+  /* 5. 레이아웃 수치 (Layout & Spacing) */
+  --sidebar-width: 260px;     /* 사이드바 너비 고정 */
+  --header-height: 64px;      /* 툴바 높이 고정 */
+  --card-radius: 12px;        /* 카드 모서리 곡률 */
+  --base-padding: 24px;       /* 컨테이너 기본 여백 */
+
+  /* 6. 효과 (Effects) */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 12px rgba(0, 35, 135, 0.08); /* 파란색 계열의 부드러운 그림자 */
+  --transition-speed: 0.25s;
 }
 
 html {

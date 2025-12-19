@@ -8,6 +8,8 @@ import { ModelList } from './components/model-list/model-list';
 import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { MaterialModule } from './material-module';
+import { Dashboard } from './components/dashboard/dashboard';
+import { Terminal } from './components/terminal/terminal';
 
 @NgModule({
   declarations: [
@@ -15,6 +17,8 @@ import { MaterialModule } from './material-module';
     Dataset,
     Train,
     ModelList,
+    Dashboard,
+    Terminal,
   ],
   imports: [
     BrowserModule,

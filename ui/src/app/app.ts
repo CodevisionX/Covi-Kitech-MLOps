@@ -11,5 +11,4 @@ export class App {
   
   protected readonly layoutService = inject(Layout);
 
-
 }

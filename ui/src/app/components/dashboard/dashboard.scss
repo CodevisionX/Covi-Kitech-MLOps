@@ -1,0 +1,44 @@
+.dashboard-container {
+  display: flex;
+  gap: 20px;          /* 컴포넌트 사이 간격 */
+  padding: 24px;
+//   background-color: var(--bg-light);
+  align-items: stretch;
+}
+
+.column {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.content-card {
+//   height: 100%;
+  border-top: 5px solid var(--primary-color); /* 카드 상단에 메인 색상 포인트 */
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important;
+  border-radius: 8px !important;
+  display: flex;
+  flex-direction: column; /* 카드 내부 레이아웃 정렬 */
+
+  mat-card-header {
+    margin-bottom: 16px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 8px;
+
+    mat-card-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--primary-color);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+  }
+
+  mat-card-content {
+    flex-grow: 1;
+    overflow-y: auto; 
+    overflow-x: auto; /* 가로로 긴 테이블 등이 있을 경우 대비 */
+  }
+}

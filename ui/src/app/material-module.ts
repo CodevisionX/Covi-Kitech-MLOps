@@ -13,6 +13,8 @@ import { MatRadioModule } from '@angular/material/radio';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatListModule } from '@angular/material/list';
 import { CdkTreeModule } from '@angular/cdk/tree';
+import { MatSnackBarModule } from '@angular/material/snack-bar';
+import { DragDropModule } from '@angular/cdk/drag-drop';
 
 const MaterialComponents = [
   MatTableModule,
@@ -28,6 +30,8 @@ const MaterialComponents = [
   MatSidenavModule,
   MatListModule,
   CdkTreeModule,
+  MatSnackBarModule,
+  DragDropModule,
 ];
 
 @NgModule({

@@ -3,6 +3,8 @@ import { Api } from '../../core/services/api';
 import { ArrayDataSource } from '@angular/cdk/collections';
 import { CdkTree } from '@angular/cdk/tree';
 import { Observable, of, map, tap, catchError } from 'rxjs';
+import { Model } from '../../core/services/model';
+import { MatSnackBar } from '@angular/material/snack-bar';
 
 interface MinioNode {
   name: string;
@@ -27,7 +29,9 @@ export class Dataset implements OnInit {
   dataSource = new ArrayDataSource<MinioNode>([]);
   selectedNode: MinioNode | null = null;
 
+  private snackBar = inject(MatSnackBar);
   private readonly apiService = inject(Api);
+  protected readonly modelService = inject(Model);
 
   ngOnInit() {
     this.loadBuckets();
@@ -67,7 +71,7 @@ export class Dataset implements OnInit {
         const files = res.files.map((f: any) => ({
           name: f.name, type: 'file', bucket: node.bucket, fullPath: f.full_path, level: node.level + 1
         }));
-        
+
         const all = [...folders, ...files];
         node.children = all; // 데이터 저장(캐싱)
         return all;
@@ -81,7 +85,18 @@ export class Dataset implements OnInit {
   };
 
   onNodeClick(node: MinioNode) {
-    this.selectedNode = node;
+    // 학습 가능 레벨(2) 체크 및 Signal 업데이트
+    if (node.level === 2) {
+      const fullPath = `${node.bucket}/${node.fullPath}`;
+      this.modelService.updatePath(fullPath);
+
+      // SnackBar 알림 (Signal 업데이트와 별개로 사용자 피드백)
+      this.snackBar.open(`📁 데이터셋 선정: ${fullPath}`, '확인', { duration: 2000 });
+    } else {
+      // 레벨 2가 아니면 깔끔하게 비움
+      this.modelService.updatePath('');
+    }
+
     if (this.hasChild(0, node)) {
       this.tree.toggle(node);
     }

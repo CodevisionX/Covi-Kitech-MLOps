@@ -1,47 +1,99 @@
-<!-- <div class="page-container">
-  <mat-card class="train-card">
-    <mat-card-header class="custom-header">
-      <mat-card-title>
-        <mat-icon>model_training</mat-icon> New Training Job
-      </mat-card-title>
-    </mat-card-header>
+<div class="train-container">
+  <div class="train-header">
+    <mat-icon>model_training</mat-icon>
+    <span>AI 모델 학습 설정</span>
+  </div>
 
-    <mat-card-content>
-      <div *ngIf="!isTraining" class="form-container">
-        
-        <mat-form-field appearance="outline" style="width: 100%;">
-          <mat-label>Select Dataset</mat-label>
-          <mat-select [(ngModel)]="selectedDataset">
-            <mat-option *ngFor="let d of datasets" [value]="d">{{d}}</mat-option>
+  <div class="info-section">
+    <div class="path-card" [class.ready]="modelService.selectedDatasetPath()">
+      <div class="path-header">
+        <div class="title-group">
+          <mat-icon [color]="modelService.selectedDatasetPath() ? 'primary' : 'warn'">
+            {{ modelService.selectedDatasetPath() ? 'check_circle' : 'error_outline' }}
+          </mat-icon>
+          <span>학습 데이터셋 경로</span>
+        </div>
+        <span class="status-badge" [class.active]="modelService.selectedDatasetPath()">
+          {{ modelService.selectedDatasetPath() ? '준비됨' : '선택 필요' }}
+        </span>
+      </div>
+
+      <div class="path-body">
+        <div class="path-line">
+          <code class="path-text" [class.error-text]="!modelService.selectedDatasetPath()">
+            <mat-icon class="inline-icon">folder</mat-icon>
+            {{ modelService.selectedDatasetPath() || '왼쪽 브라우저에서 학습할 폴더를 선택해주세요.' }}
+          </code>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="config-section">
+    <div class="config-card">
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>학습 알고리즘 선택</mat-label>
+          <mat-select (selectionChange)="onModelChange($event.value)">
+            @for (m of configs | keyvalue; track m.key) {
+            <mat-option [value]="m.key">
+              {{ m.key }} - {{ m.value.description }}
+            </mat-option>
+            }
           </mat-select>
         </mat-form-field>
+      </div>
 
-        <div class="param-row">
-          <mat-form-field appearance="outline">
-            <mat-label>Epochs</mat-label>
-            <input matInput type="number" [(ngModel)]="epochs">
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>Batch Size</mat-label>
-            <input matInput type="number" [(ngModel)]="batchSize">
-          </mat-form-field>
+      @if (selectedModelName) {
+      <div class="params-container">
+        <div class="params-header">
+          <mat-icon>settings</mat-icon>
+          <span>하이퍼파라미터 설정 ({{ selectedModelName }})</span>
         </div>
+        <div class="params-grid">
+          @for (p of configs[selectedModelName].parameters; track p.name) {
+          <div class="param-item">
+            @if (p.type === 'number') {
+            <mat-form-field appearance="outline">
+              <mat-label>{{ p.label }}</mat-label>
+              <input matInput type="number" [(ngModel)]="dynamicParams[p.name]" [min]="p.min ?? null">
+            </mat-form-field>
+            }
+            @if (p.type === 'select') {
+            <mat-form-field appearance="outline">
+              <mat-label>{{ p.label }}</mat-label>
+              <mat-select [(ngModel)]="dynamicParams[p.name]">
+                @for (opt of p.options; track opt) {
+                <mat-option [value]="opt">{{ opt }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            }
+          </div>
+          }
+        </div>
+      </div>
+      }
 
-        <button mat-raised-button class="main-btn start-btn" (click)="startTrain()">
-          <mat-icon>play_arrow</mat-icon> START TRAINING
+      <div class="action-row">
+        <button mat-flat-button color="primary" class="start-btn"
+          [disabled]="!modelService.selectedDatasetPath() || !selectedModelName || isSubmitting"
+          (click)="submitTraining()">
+          @if (isSubmitting) {
+          <mat-spinner diameter="24"></mat-spinner>
+          } @else {
+          <ng-container>
+            <mat-icon>rocket_launch</mat-icon>
+            <span>학습 시작</span>
+          </ng-container>
+          }
+        </button>
+
+        <button mat-stroked-button color="accent" class="mlflow-btn" [disabled]="!mlflowRunUrl" (click)="openMlflow()">
+          <mat-icon>assessment</mat-icon>
+          실시간 분석 차트 (MLflow)
         </button>
       </div>
-
-      <div *ngIf="isTraining" class="loading-container">
-        <mat-progress-spinner 
-          mode="indeterminate" 
-          [diameter]="50">
-        </mat-progress-spinner>
-        <div>
-          <h3>Training in Progress...</h3>
-          <p>YOLOv8 학습 컨테이너를 구동 중입니다. 잠시만 기다려주세요.</p>
-        </div>
-      </div>
-    </mat-card-content>
-  </mat-card>
-</div> -->
+    </div>
+  </div>
+</div>

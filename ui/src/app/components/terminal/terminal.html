@@ -1,0 +1,57 @@
+@if (terminalService.currentContainerId() && !terminalService.isMinimized()) {
+<div class="terminal-container" cdkDrag cdkDragBoundary="body"> <div class="terminal-header" cdkDragHandle>
+    <div class="dots">
+      <span class="dot red" (click)="terminalService.close()"></span>
+      <span class="dot yellow" (click)="terminalService.minimize()"></span>
+      <span class="dot green"></span>
+    </div>
+    
+    <span class="terminal-title">
+      Training Logs - {{ terminalService.currentContainerId()?.substring(0, 12) }}
+    </span>
+
+    <button mat-icon-button (click)="terminalService.minimize()">
+      <mat-icon>remove</mat-icon>
+    </button>
+  </div>
+
+  <div class="terminal-body" #scrollContainer>
+    @for (log of terminalService.logs(); track $index) {
+      <div class="log-line" 
+           [class.error]="log.includes('ERROR')" 
+           [class.success]="log.includes('Successfully')">
+        {{ log }}
+      </div>
+    }
+
+    @if (terminalService.logs().length === 0) {
+      <div class="log-line muted">가동 준비 중... 로그 대기 중...</div>
+    }
+  </div>
+</div>
+}
+
+@if (terminalService.currentContainerId() && !terminalService.isMinimized()) {
+  <div class="terminal-container" cdkDrag cdkDragBoundary="body">
+    </div>
+}
+
+@if (terminalService.currentContainerId() && terminalService.isMinimized()) {
+  <div class="terminal-fab" 
+       (click)="terminalService.restore()" 
+       [class.pulse]="terminalService.status() === 'running'"
+       matTooltip="로그 보기"
+       cdkDrag cdkDragBoundary="body">
+    
+    <div class="fab-content">
+      <mat-icon>terminal</mat-icon>
+      @if (terminalService.status() === 'running') {
+        <span class="status-dot"></span>
+      }
+    </div>
+
+    <button class="fab-close" (click)="terminalService.close(); $event.stopPropagation()">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+}
