@@ -1,0 +1,27 @@
+.active-link {
+//   // 배경색에 살짝 투명도를 주어 하이라이트 효과 (선택사항)
+//   background-color: rgba(0, 35, 135, 0.08) !important; 
+  
+  // 텍스트와 아이콘 색상 변경
+  color: var(--main-primary-color) !important;
+
+  // Angular Material 내부 아이콘 색상 강제 적용
+  mat-icon {
+    color: var(--main-primary-color) !important;
+  }
+
+  // 글자 굵게 처리 (강조 효과)
+  .mdc-list-item__primary-text {
+    font-weight: bold !important;
+    color: var(--main-primary-color) !important;
+  }
+}
+
+.side-nav {
+  width: 250px;
+  border-right: 1px solid #e0e0e0;
+}
+
+// mat-toolbar.mat-primary {
+//   background-color: var(--main-primary-color) !important;
+// }

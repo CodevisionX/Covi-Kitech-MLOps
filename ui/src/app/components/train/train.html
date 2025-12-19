@@ -1,0 +1,47 @@
+<!-- <div class="page-container">
+  <mat-card class="train-card">
+    <mat-card-header class="custom-header">
+      <mat-card-title>
+        <mat-icon>model_training</mat-icon> New Training Job
+      </mat-card-title>
+    </mat-card-header>
+
+    <mat-card-content>
+      <div *ngIf="!isTraining" class="form-container">
+        
+        <mat-form-field appearance="outline" style="width: 100%;">
+          <mat-label>Select Dataset</mat-label>
+          <mat-select [(ngModel)]="selectedDataset">
+            <mat-option *ngFor="let d of datasets" [value]="d">{{d}}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <div class="param-row">
+          <mat-form-field appearance="outline">
+            <mat-label>Epochs</mat-label>
+            <input matInput type="number" [(ngModel)]="epochs">
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Batch Size</mat-label>
+            <input matInput type="number" [(ngModel)]="batchSize">
+          </mat-form-field>
+        </div>
+
+        <button mat-raised-button class="main-btn start-btn" (click)="startTrain()">
+          <mat-icon>play_arrow</mat-icon> START TRAINING
+        </button>
+      </div>
+
+      <div *ngIf="isTraining" class="loading-container">
+        <mat-progress-spinner 
+          mode="indeterminate" 
+          [diameter]="50">
+        </mat-progress-spinner>
+        <div>
+          <h3>Training in Progress...</h3>
+          <p>YOLOv8 학습 컨테이너를 구동 중입니다. 잠시만 기다려주세요.</p>
+        </div>
+      </div>
+    </mat-card-content>
+  </mat-card>
+</div> -->

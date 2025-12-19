@@ -1,0 +1,61 @@
+/* 카드 헤더 커스텀 스타일 */
+.custom-header {
+  background-color: var(--main-primary-color);
+  color: white;
+  padding: 16px !important;
+  margin-bottom: 20px;
+  border-radius: 4px 4px 0 0;
+  
+  mat-card-title {
+    font-size: 1.2rem;
+    font-weight: 500;
+  }
+}
+
+/* 메인 버튼 공통 스타일 */
+.main-btn {
+  background-color: var(--main-primary-color) !important;
+  color: white !important;
+  padding: 0 24px !important;
+}
+
+/* 페이지 컨테이너 */
+.page-container {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.model-table {
+  width: 100%;
+  margin-top: 20px;
+}
+
+// 상태별 배지 스타일
+.status-badge {
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 500;
+  color: white;
+
+  &.ready {
+    background-color: #4caf50; // 성공/완료 (초록색)
+  }
+
+  &.running {
+    background-color: #ff9800; // 진행중 (오렌지색)
+  }
+
+  &.failed {
+    background-color: #f44336; // 실패 (빨간색)
+  }
+}
+
+.mlflow-btn {
+  mat-icon {
+    font-size: 18px;
+    margin-right: 4px;
+  }
+}

@@ -1,0 +1,120 @@
+version: '3.8'
+
+services:
+  # 인프라 서비스 (Postgres, MinIO, MLflow 등은 기존과 동일)
+  postgres:
+    image: postgres:13
+    container_name: mlops_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - ./pg_data:/var/lib/postgresql/data
+    networks:
+      - mlops-net
+
+  minio:
+    image: minio/minio
+    container_name: mlops_minio
+    command: server /data --console-address ":${MINIO_CONSOLE_PORT}"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "${MINIO_PORT}:9000"
+      - "${MINIO_CONSOLE_PORT}:9001"
+    volumes:
+      - ./minio_data:/data
+    networks:
+      - mlops-net
+
+  mlflow:
+    build: ./mlflow
+    container_name: mlops_mlflow
+    depends_on:
+      - postgres
+      - minio
+    environment:
+      MLFLOW_S3_ENDPOINT_URL: ${MLFLOW_S3_ENDPOINT_URL}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+    command: >
+      mlflow server
+      --backend-store-uri postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      --default-artifact-root s3://${MLFLOW_BUCKET_NAME}/
+      --host 0.0.0.0
+      --port 5000
+    ports:
+      - "${MLFLOW_PORT}:5000"
+    networks:
+      - mlops-net
+
+  # 5. FastAPI Backend (개발 모드 세팅)
+  backend:
+    build: ./api
+    container_name: mlops_backend
+    restart: always
+    environment:
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./api:/app                 # 로컬 api 폴더와 동기화
+      - /var/run/docker.sock:/var/run/docker.sock
+    # --reload 옵션을 추가하여 파이썬 코드 수정 시 서버 자동 재시작
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - mlops-net
+    depends_on:
+      - mlflow
+      - minio
+  
+  # 6. Training Worker (개발 환경용)
+  training:
+    build: ./training
+    container_name: mlops_training
+    shm_size: '8gb'
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - ./training:/app             # [추가] 학습 코드 실시간 동기화
+      - ./training_results:/app/runs
+    networks:
+      - mlops-net
+    profiles: ["job"] # 여전히 프로파일을 설정해서 평소엔 안 켜지게 함
+
+  # 7. Angular Frontend (Hot Reload용 수정본)
+  ui:
+    # Build 대신 Node 이미지를 직접 사용합니다. (개발 전용)
+    image: node:20-alpine
+    container_name: mlops_ui
+    working_dir: /app            # 명령어가 실행될 작업 디렉토리 설정
+    ports:
+      - "4200:4200"
+    volumes:
+      - ./ui:/app                 # 로컬 소스 코드 동기화
+      - /app/node_modules         # 도커 내부의 라이브러리 보호
+    # 컨테이너가 뜨자마자 실행할 명령어
+    command: sh -c "npm install && npx ng serve --configuration docker --host 0.0.0.0 --poll 2000"
+    networks:
+      - mlops-net
+    depends_on:
+      - backend
+
+networks:
+  mlops-net:
+    driver: bridge

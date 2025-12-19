@@ -1,0 +1,22 @@
+# 데이터 저장 폴더 (DB 및 스토리지)
+pg_data/
+minio_data/
+training_results/
+
+# 환경 변수 및 설정
+.env
+*.pyc
+__pycache__/
+
+# Angular (UI) 의존성 및 빌드 결과물
+ui/node_modules/
+ui/dist/
+.angular/
+
+# 가상환경
+venv/
+.venv/
+
+# OS 관련
+.DS_Store
+Thumbs.db

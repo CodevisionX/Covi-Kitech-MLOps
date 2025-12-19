@@ -1,0 +1,75 @@
+<div class="minio-explorer">
+  <div class="explorer-header">
+    <mat-icon>storage</mat-icon>
+    <span>MinIO 데이터 세트 브라우저</span>
+  </div>
+
+  <cdk-tree [dataSource]="dataSource" [childrenAccessor]="childrenAccessor">
+    
+    <cdk-nested-tree-node *cdkTreeNodeDef="let node" class="tree-node">
+      <div class="node-content" 
+           [class.active-node]="selectedNode === node"
+           (click)="onNodeClick(node)">
+        <button mat-icon-button disabled></button>
+        <mat-icon class="node-icon file">insert_drive_file</mat-icon>
+        <span class="node-label">{{node.name}}</span>
+      </div>
+    </cdk-nested-tree-node>
+
+    <cdk-nested-tree-node *cdkTreeNodeDef="let node; when: hasChild" class="tree-node">
+      <div class="node-content" 
+           [class.active-node]="selectedNode === node"
+           (click)="onNodeClick(node)">
+        
+        <button mat-icon-button cdkTreeNodeToggle (click)="$event.stopPropagation()">
+          <mat-icon class="toggle-icon">
+            {{tree.isExpanded(node) ? 'expand_more' : 'chevron_right'}}
+          </mat-icon>
+        </button>
+
+        <mat-icon class="node-icon" [ngClass]="node.type" 
+                  [style.color]="node.type === 'bucket' ? '#FFA000' : '#002387'">
+          {{ node.type === 'bucket' ? 'database' : 'folder' }}
+        </mat-icon>
+        
+        <span class="node-label">{{node.name}}</span>
+        
+        @if (node.isLoading) {
+          <mat-progress-spinner diameter="16" mode="indeterminate" style="margin-left: 8px;"></mat-progress-spinner>
+        }
+      </div>
+
+      @if (tree.isExpanded(node)) {
+        <div class="children-group" role="group">
+          <ng-container cdkTreeNodeOutlet></ng-container>
+        </div>
+      }
+    </cdk-nested-tree-node>
+  </cdk-tree>
+
+  @if (selectedNode) {
+    <div class="selected-path-display">
+    <div class="path-card">
+      <div class="path-header">
+        <mat-icon color="primary">info</mat-icon>
+        <span>선택된 데이터셋 정보</span>
+      </div>
+      <div class="path-body">
+        <div class="path-line">
+          <span class="label">Full Path:</span>
+          <code class="path-text">{{ selectedNode.bucket }}/{{ selectedNode.fullPath || '(root)' }}</code>
+        </div>
+        
+        <div class="depth-tip" *ngIf="selectedNode.level === 2">
+          <mat-icon class="check-icon">check_circle</mat-icon>
+          <span>학습 가능한 버전 폴더입니다.</span>
+        </div>
+        <div class="depth-tip warning" *ngIf="selectedNode.level < 2">
+          <mat-icon>warning</mat-icon>
+          <span>학습을 위해 버전 폴더(v1, v2 등)를 선택해주세요.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  }
+</div>
