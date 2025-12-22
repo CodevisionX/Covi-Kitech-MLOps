@@ -1,0 +1,62 @@
+.deploy-container {
+  padding: 24px;
+  background-color: #f8f9fa;
+  min-height: 100vh;
+
+  .page-header {
+    margin-bottom: 32px;
+    h1 { font-size: 24px; font-weight: 700; color: #333; margin: 0; }
+    p { color: #666; margin-top: 4px; }
+  }
+
+  .management-section {
+    background: white;
+    padding: 24px;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    margin-bottom: 32px;
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 20px;
+      font-size: 18px;
+      font-weight: 600;
+      mat-icon { color: var(--main-primary-color); }
+    }
+  }
+
+  // 빌드 버튼 커스텀 컬러 (styles.scss의 메인 컬러 사용)
+  .btn-build {
+    background-color: var(--main-primary-color) !important;
+    color: white !important;
+    border-radius: 8px;
+  }
+
+  // 서비스 카드 디자인
+  .service-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
+
+    .service-card {
+      border-left: 4px solid #ddd;
+      &.online { border-left-color: #4caf50; }
+
+      .status-badge {
+        width: 10px; height: 10px; border-radius: 50%; background: #ccc;
+        &.online { background: #4caf50; box-shadow: 0 0 8px #4caf50; }
+      }
+
+      .test-area {
+        margin-top: 15px;
+        padding-top: 15px;
+        border-top: 1px dashed #eee;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+    }
+  }
+}

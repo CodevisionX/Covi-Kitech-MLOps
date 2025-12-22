@@ -56,10 +56,16 @@ services:
     container_name: mlops_backend
     restart: always
     environment:
+      # 💡 기존 변수들은 유지하되, MLflow/Boto3가 인식하는 표준 변수명을 추가합니다.
+      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER}
+      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD}
+      - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      
+      # (선택 사항) 기존에 사용하던 변수명도 코드에서 참조 중이라면 유지
       - MINIO_ENDPOINT=minio:9000
       - MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
       - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
-      - MLFLOW_TRACKING_URI=http://mlflow:5000
     ports:
       - "8000:8000"
     volumes:

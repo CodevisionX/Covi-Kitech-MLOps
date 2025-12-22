@@ -9,7 +9,10 @@ import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
 import { FormsModule } from '@angular/forms';
 import { MaterialModule } from './material-module';
 import { Dashboard } from './components/dashboard/dashboard';
-import { Terminal } from './components/terminal/terminal';
+import { TerminalLog } from './components/dialogs/terminal-log/terminal-log';
+import { Deploy } from './components/deploy/deploy';
+import { BaseChartDirective } from 'ng2-charts';
+import { ModelDetail } from './components/model-detail/model-detail';
 
 @NgModule({
   declarations: [
@@ -18,13 +21,16 @@ import { Terminal } from './components/terminal/terminal';
     Train,
     ModelList,
     Dashboard,
-    Terminal,
+    TerminalLog,
+    Deploy,
+    ModelDetail,
   ],
   imports: [
     BrowserModule,
     AppRoutingModule,
     FormsModule,
     MaterialModule,
+    BaseChartDirective,
   ],
   providers: [
     provideBrowserGlobalErrorListeners(),

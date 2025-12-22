@@ -15,6 +15,10 @@ import { MatListModule } from '@angular/material/list';
 import { CdkTreeModule } from '@angular/cdk/tree';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { DragDropModule } from '@angular/cdk/drag-drop';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatDialogModule } from '@angular/material/dialog';
+import { MatTabsModule } from '@angular/material/tabs';
 
 const MaterialComponents = [
   MatTableModule,
@@ -32,6 +36,10 @@ const MaterialComponents = [
   CdkTreeModule,
   MatSnackBarModule,
   DragDropModule,
+  MatTooltipModule,
+  MatProgressBarModule,
+  MatDialogModule,
+  MatTabsModule,
 ];
 
 @NgModule({

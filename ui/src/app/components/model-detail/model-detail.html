@@ -1,0 +1,86 @@
+<div class="model-detail-container">
+  <header class="page-header">
+    <div class="breadcrumb-area">
+      <nav class="breadcrumb">
+        <span class="link" (click)="goBack()">실험 목록</span>
+        <mat-icon>chevron_right</mat-icon>
+        <span class="current">Run 상세 분석</span>
+      </nav>
+      <div class="title-group">
+        <button mat-icon-button (click)="goBack()">
+          <mat-icon>arrow_back</mat-icon>
+        </button>
+        <h1>Run: {{ runId().substring(0, 12) }}...</h1>
+      </div>
+    </div>
+  </header>
+
+  <div class="content-layout">
+    <section class="metrics-section">
+      <h3 class="section-title"><mat-icon>analytics</mat-icon> 학습 성능 지표</h3>
+      <div class="charts-grid">
+        <mat-card class="chart-card">
+          <mat-card-header>
+            <mat-card-title>mAP (성능 추이)</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <div class="canvas-wrapper">
+              <canvas baseChart
+                [data]="mAPChartData()"
+                [options]="chartOptions"
+                [type]="'line'">
+              </canvas>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+        <mat-card class="chart-card">
+          <mat-card-header>
+            <mat-card-title>Loss (손실 추이)</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <div class="canvas-wrapper">
+              <canvas baseChart
+                [data]="lossChartData()"
+                [options]="chartOptions"
+                [type]="'line'">
+              </canvas>
+            </div>
+          </mat-card-content>
+        </mat-card>
+      </div>
+    </section>
+
+    <section class="artifacts-section">
+      <h3 class="section-title"><mat-icon>image_search</mat-icon> 탐지 결과 샘플 (Validation)</h3>
+      <div class="image-grid">
+        <mat-card class="image-card">
+          <div class="img-container">
+            <span class="img-tag label">Ground Truth</span>
+            <img [src]="apiService.getArtifactPreviewUrl(runId(), 'val_batch0_labels.jpg')" 
+                 alt="Ground Truth" (error)="onImgError($event)">
+          </div>
+        </mat-card>
+
+        <mat-card class="image-card">
+          <div class="img-container">
+            <span class="img-tag pred">Prediction</span>
+            <img [src]="apiService.getArtifactPreviewUrl(runId(), 'val_batch0_pred.jpg')" 
+                 alt="Prediction" (error)="onImgError($event)">
+          </div>
+        </mat-card>
+      </div>
+      
+      @if (resultImages().length > 0) {
+        <div class="image-gallery">
+          @for (img of resultImages(); track img.filename) {
+            <div class="gallery-item">
+              <img [src]="img.url" [alt]="img.filename">
+              <p>{{ img.filename }}</p>
+            </div>
+          }
+        </div>
+      }
+    </section>
+  </div>
+</div>

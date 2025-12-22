@@ -1,14 +1,17 @@
 <div class="train-container">
-  <div class="train-header">
-    <mat-icon>model_training</mat-icon>
-    <span>AI 모델 학습 설정</span>
-  </div>
+  <header class="train-header">
+    <div class="title-group">
+      <mat-icon style="color: var(--main-primary-color)">model_training</mat-icon>
+      <h1>AI 모델 학습 설정</h1>
+    </div>
+    <p class="subtitle">데이터셋을 확인하고 학습 파라미터를 최적화하여 모델 생성을 시작합니다.</p>
+  </header>
 
-  <div class="info-section">
+  <section class="info-section">
     <div class="path-card" [class.ready]="modelService.selectedDatasetPath()">
       <div class="path-header">
         <div class="title-group">
-          <mat-icon [color]="modelService.selectedDatasetPath() ? 'primary' : 'warn'">
+          <mat-icon [style.color]="modelService.selectedDatasetPath() ? 'var(--success-color)' : 'var(--error-color)'">
             {{ modelService.selectedDatasetPath() ? 'check_circle' : 'error_outline' }}
           </mat-icon>
           <span>학습 데이터셋 경로</span>
@@ -27,73 +30,87 @@
         </div>
       </div>
     </div>
-  </div>
+  </section>
 
-  <div class="config-section">
+  <section class="config-section">
     <div class="config-card">
       <div class="form-row">
         <mat-form-field appearance="outline" class="full-width">
           <mat-label>학습 알고리즘 선택</mat-label>
           <mat-select (selectionChange)="onModelChange($event.value)">
             @for (m of configs | keyvalue; track m.key) {
-            <mat-option [value]="m.key">
-              {{ m.key }} - {{ m.value.description }}
-            </mat-option>
+              <mat-option [value]="m.key">
+                <strong>{{ m.key }}</strong> - {{ m.value.description }}
+              </mat-option>
             }
           </mat-select>
         </mat-form-field>
       </div>
 
       @if (selectedModelName) {
-      <div class="params-container">
-        <div class="params-header">
-          <mat-icon>settings</mat-icon>
-          <span>하이퍼파라미터 설정 ({{ selectedModelName }})</span>
-        </div>
-        <div class="params-grid">
-          @for (p of configs[selectedModelName].parameters; track p.name) {
-          <div class="param-item">
-            @if (p.type === 'number') {
-            <mat-form-field appearance="outline">
-              <mat-label>{{ p.label }}</mat-label>
-              <input matInput type="number" [(ngModel)]="dynamicParams[p.name]" [min]="p.min ?? null">
-            </mat-form-field>
-            }
-            @if (p.type === 'select') {
-            <mat-form-field appearance="outline">
-              <mat-label>{{ p.label }}</mat-label>
-              <mat-select [(ngModel)]="dynamicParams[p.name]">
-                @for (opt of p.options; track opt) {
-                <mat-option [value]="opt">{{ opt }}</mat-option>
+        <div class="params-container">
+          <div class="params-header">
+            <mat-icon>settings</mat-icon>
+            <span>하이퍼파라미터 설정 ({{ selectedModelName }})</span>
+          </div>
+          
+          <div class="params-grid">
+            @for (p of configs[selectedModelName].parameters; track p.name) {
+              <div class="param-item">
+                @if (p.type === 'number') {
+                  <mat-form-field appearance="outline">
+                    <mat-label>
+                      <div class="label-with-info">
+                        {{ p.label }}
+                        <mat-icon class="help-icon" [matTooltip]="p.tooltip" matTooltipPosition="above">help_outline</mat-icon>
+                      </div>
+                    </mat-label>
+                    <input matInput type="number" [(ngModel)]="dynamicParams[p.name]" [min]="p.min ?? null">
+                  </mat-form-field>
                 }
-              </mat-select>
-            </mat-form-field>
+
+                @if (p.type === 'select') {
+                  <mat-form-field appearance="outline">
+                    <mat-label>
+                      <div class="label-with-info">
+                        {{ p.label }}
+                        <mat-icon class="help-icon" [matTooltip]="p.tooltip" matTooltipPosition="above">help_outline</mat-icon>
+                      </div>
+                    </mat-label>
+                    <mat-select [(ngModel)]="dynamicParams[p.name]">
+                      @for (opt of p.options; track opt) {
+                        <mat-option [value]="opt">{{ opt }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                }
+              </div>
             }
           </div>
-          }
         </div>
-      </div>
       }
 
       <div class="action-row">
-        <button mat-flat-button color="primary" class="start-btn"
+        @if (modelService.selectedDatasetPath() && selectedModelName) {
+          <div class="launch-summary">
+            <mat-icon>info</mat-icon>
+            <span>선택된 데이터셋으로 <strong>{{ selectedModelName }}</strong> 모델 학습을 시작할 준비가 되었습니다.</span>
+          </div>
+        }
+
+        <button mat-flat-button class="start-btn"
           [disabled]="!modelService.selectedDatasetPath() || !selectedModelName || isSubmitting"
           (click)="submitTraining()">
           @if (isSubmitting) {
-          <mat-spinner diameter="24"></mat-spinner>
+            <mat-spinner diameter="24"></mat-spinner>
           } @else {
-          <ng-container>
-            <mat-icon>rocket_launch</mat-icon>
-            <span>학습 시작</span>
-          </ng-container>
+            <ng-container>
+              <mat-icon>rocket_launch</mat-icon>
+              <span>학습 시작</span>
+            </ng-container>
           }
-        </button>
-
-        <button mat-stroked-button color="accent" class="mlflow-btn" [disabled]="!mlflowRunUrl" (click)="openMlflow()">
-          <mat-icon>assessment</mat-icon>
-          실시간 분석 차트 (MLflow)
         </button>
       </div>
     </div>
-  </div>
+  </section>
 </div>

@@ -1,13 +1,16 @@
 <div class="dataset-container">
-  <div class="dataset-header">
-    <mat-icon>storage</mat-icon>
-    <span>MinIO 데이터 세트 브라우저</span>
-  </div>
+  <header class="dataset-header">
+    <div class="title-group">
+      <mat-icon style="color: var(--main-primary-color)">storage</mat-icon>
+      <h1>데이터 세트 브라우저</h1>
+    </div>
+    <p class="subtitle">MinIO 저장소에서 학습에 사용할 데이터셋 폴더를 탐색하고 선택합니다.</p>
+  </header>
 
   <div class="explorer-card">
     <div class="explorer-info">
-      <mat-icon class="info-icon">info</mat-icon>
-      <span>학습에 사용할 데이터셋 폴더를 클릭하여 선택하세요.</span>
+      <mat-icon>info</mat-icon>
+      <span>학습에 사용할 이미지가 포함된 <strong>최종 폴더</strong>를 클릭하여 선택하세요.</span>
     </div>
 
     <cdk-tree [dataSource]="dataSource" [childrenAccessor]="childrenAccessor" class="dataset-tree">
@@ -32,7 +35,7 @@
             </mat-icon>
           </button>
 
-          <mat-icon class="node-icon" [ngClass]="node.type">
+          <mat-icon class="node-icon" [ngClass]="node.type" [style.color]="node.type === 'bucket' ? 'var(--warning-color)' : 'var(--main-primary-color)'">
             {{ node.type === 'bucket' ? 'database' : 'folder' }}
           </mat-icon>
           

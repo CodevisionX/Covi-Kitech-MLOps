@@ -1,4 +1,4 @@
-# api/requirements.txt
+# --- 기존 라이브러리 유지 ---
 fastapi==0.109.0
 uvicorn[standard]==0.27.0
 python-multipart==0.0.6
@@ -8,3 +8,14 @@ urllib3==1.26.20
 boto3==1.34.0
 mlflow==2.14.0
 python-dotenv==1.0.0
+
+# --- [추가] BentoML 및 모델 관리 ---
+bentoml==1.2.0          # BentoML 빌드 및 모델 등록용
+ultralytics==8.2.0      # YOLO 모델 로드 및 추론 테스트용
+torch                   # Ultralytics의 의존성 (Bento 모델 저장 시 필요)
+torchvision             # 이미지 처리를 위한 PyTorch 의존성
+pillow                  # 이미지 파일 전처리용
+
+# --- [추가] 데이터베이스 및 성능 모니터링 (선택 사항) ---
+psycopg2-binary         # Postgres DB에 직접 연결이 필요할 경우
+prometheus-client       # BentoML/FastAPI 메트릭 수집용

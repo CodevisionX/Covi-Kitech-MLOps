@@ -5,6 +5,7 @@
 // Learn more about theming and how to use it for your application's
 // custom components at https://material.angular.dev/guide/theming
 @use '@angular/material' as mat;
+@import "@fontsource/noto-sans-kr/index.css";
 
 :root {
   /* 1. 핵심 색상 (Core Colors) */
@@ -40,6 +41,7 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 12px rgba(0, 35, 135, 0.08); /* 파란색 계열의 부드러운 그림자 */
   --transition-speed: 0.25s;
+  --font-family: 'Noto Sans KR', sans-serif;
 }
 
 html {
@@ -48,7 +50,10 @@ html {
       primary: mat.$azure-palette,
       tertiary: mat.$blue-palette,
     ),
-    typography: Roboto,
+    // 2. Material 테마에 폰트 적용
+    typography: (
+      family: var(--font-family),
+    ),
     density: 0,
   ));
 }
@@ -65,7 +70,51 @@ body {
   background-color: var(--mat-sys-surface);
   color: var(--mat-sys-on-surface);
   font: var(--mat-sys-body-medium);
+  font-family: var(--font-family) !important;
 
   // Reset the user agent margin.
   margin: 0;
+}
+/* styles.scss (전역 스타일) */
+.custom-terminal-dialog {
+  /* 1. 다이얼로그 컨테이너의 기본 패딩 제거 */
+  .mat-mdc-dialog-container {
+    padding: 0 !important;
+    --mdc-dialog-container-shape: 12px; /* 둥근 모서리 유지 */
+  }
+
+  /* 2. 내부 표면의 배경과 그림자 제어 */
+  .mdc-dialog__surface {
+    background-color: transparent !important;
+    box-shadow: none !important;
+    overflow: hidden !important; /* 내부 요소가 튀어나오지 않게 */
+  }
+
+  /* 3. Material 기본 max-width(80vw)가 800px보다 작을 경우를 대비 */
+  max-width: none !important; 
+}
+/* SnackBar 전역 스타일 커스텀 */
+.success-snackbar {
+  --mdc-snackbar-container-color: #2e7d32;
+  --mdc-snackbar-supporting-text-color: #ffffff;
+}
+
+.warning-snackbar {
+  --mdc-snackbar-container-color: #ef6c00;
+  --mdc-snackbar-supporting-text-color: #ffffff;
+}
+
+.error-snackbar {
+  --mdc-snackbar-container-color: #c62828;
+  --mdc-snackbar-supporting-text-color: #ffffff;
+}
+
+/* 토스트 애니메이션 살짝 추가 */
+.mat-mdc-snack-bar-container {
+  animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
 }

@@ -1,0 +1,172 @@
+// 변수 설정 (글로벌 변수가 없을 경우 대비)
+:host {
+  --main-primary-color: #002387; // styles.scss에서 정의한 색상과 일치하게 수정
+  --bg-light: #f4f7f9;
+  --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.model-detail-container {
+  padding: 24px;
+  background-color: var(--bg-light);
+  min-height: 100vh;
+
+  // 1. 헤더 및 브레드크럼
+  .page-header {
+    margin-bottom: 30px;
+
+    .breadcrumb-area {
+      .breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #666;
+        font-size: 14px;
+        margin-bottom: 12px;
+
+        .link {
+          cursor: pointer;
+          transition: color 0.2s;
+          &:hover { color: var(--main-primary-color); text-decoration: underline; }
+        }
+        mat-icon { font-size: 18px; width: 18px; height: 18px; }
+        .current { font-weight: 600; color: #333; }
+      }
+
+      .title-group {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+
+        h1 {
+          margin: 0;
+          font-size: 26px;
+          font-weight: 700;
+          color: #1a1a1a;
+        }
+        button { background-color: white; box-shadow: var(--card-shadow); }
+      }
+    }
+  }
+
+  // 2. 공통 레이아웃
+  .content-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+  }
+
+  .section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px;
+    font-size: 18px;
+    font-weight: 600;
+    color: #444;
+    mat-icon { color: var(--main-primary-color); }
+  }
+
+  // 3. 차트 그리드 (반응형)
+  .charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+    gap: 24px;
+
+    .chart-card {
+      border-radius: 12px;
+      box-shadow: var(--card-shadow);
+      border: none;
+
+      mat-card-header { margin-bottom: 16px; }
+      mat-card-title { font-size: 16px; font-weight: 600; }
+
+      .canvas-wrapper {
+        position: relative;
+        height: 300px; // 차트 높이 고정 (중요)
+        width: 100%;
+      }
+    }
+  }
+
+  // 4. 이미지 그리드 (비교 분석)
+  .image-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 24px;
+
+    .image-card {
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: var(--card-shadow);
+      border: none;
+
+      .img-container {
+        position: relative;
+        width: 100%;
+        background-color: #000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 300px;
+
+        img {
+          max-width: 100%;
+          height: auto;
+          display: block;
+        }
+
+        .img-tag {
+          position: absolute;
+          top: 12px;
+          left: 12px;
+          padding: 6px 12px;
+          border-radius: 4px;
+          font-size: 12px;
+          font-weight: 700;
+          color: white;
+          z-index: 2;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+
+          &.label { background-color: #4caf50; } // 초록색 (정답)
+          &.pred { background-color: var(--main-primary-color); } // 파란색 (예측)
+        }
+      }
+    }
+  }
+
+  // 5. 하단 갤러리
+  .image-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+    margin-top: 20px;
+
+    .gallery-item {
+      background: white;
+      padding: 8px;
+      border-radius: 8px;
+      box-shadow: var(--card-shadow);
+      text-align: center;
+
+      img {
+        width: 100%;
+        border-radius: 4px;
+        margin-bottom: 8px;
+      }
+      p {
+        margin: 0;
+        font-size: 12px;
+        color: #666;
+        word-break: break-all;
+      }
+    }
+  }
+}
+
+// 태블릿 이하 대응
+@media (max-width: 768px) {
+  .charts-grid, .image-grid {
+    grid-template-columns: 1fr;
+  }
+}

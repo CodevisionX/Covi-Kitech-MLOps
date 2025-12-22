@@ -3,7 +3,8 @@ import { Api } from '../../core/services/api';
 import { MODEL_CONFIGS } from '../../core/configs/model-config';
 import { Model } from '../../core/services/model';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { Terminal } from '../../core/services/terminal';
+import { TerminalService } from '../../core/services/terminal';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-train',
@@ -14,9 +15,10 @@ import { Terminal } from '../../core/services/terminal';
 export class Train {
 
   private snackBar = inject(MatSnackBar);
-  private terminalService = inject(Terminal);
+  private terminalService = inject(TerminalService);
   protected modelService = inject(Model);
   protected apiService = inject(Api);
+  private readonly router = inject(Router);
 
   // 학습 설정 관련 상태
   isSubmitting = false;
@@ -69,9 +71,13 @@ export class Train {
         this.terminalService.startStreaming(res.container_id);
 
         this.snackBar.open(`🚀 학습 시작!`, '확인', {
-          duration: 5000,
+          duration: 3000,
           horizontalPosition: 'right',
           verticalPosition: 'top',
+        });
+
+        this.router.navigate(['/models'], {
+          queryParams: { algorithm: payload.model_variant }
         });
       },
       error: (err) => {

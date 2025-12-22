@@ -1,0 +1,14 @@
+# api/bentofile.yaml
+service: "service:YoloService"
+labels:
+  owner: codevision
+  project: pcb-defect-detection
+include:
+  - "*.py"
+python:
+  packages:
+    - ultralytics
+    - torch
+    - torchvision
+    - numpy
+    - pillow

@@ -12,9 +12,13 @@
         <mat-icon matListItemIcon>model_training</mat-icon>
         <span matListItemTitle>Training</span>
       </a>
-      <a mat-list-item routerLink="/model-list" routerLinkActive="active-link">
+      <a mat-list-item routerLink="/models" routerLinkActive="active-link">
         <mat-icon matListItemIcon>inventory_2</mat-icon>
         <span matListItemTitle>Model Registry</span>
+      </a>
+      <a mat-list-item routerLink="/deployments" routerLinkActive="active-link">
+        <mat-icon matListItemIcon>rocket_launch</mat-icon>
+        <span matListItemTitle>Deployments</span>
       </a>
     </mat-nav-list>
   </mat-sidenav>
@@ -25,5 +29,3 @@
     </div>
   </mat-sidenav-content>
 </mat-sidenav-container>
-
-<app-terminal></app-terminal>

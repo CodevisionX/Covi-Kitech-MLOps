@@ -1,156 +1,3 @@
-// .minio-explorer {
-//   padding: 16px;
-//   background: #fff;
-//   border-radius: 8px;
-  
-
-//   .explorer-header {
-//     display: flex;
-//     align-items: center;
-//     gap: 8px;
-//     font-size: 1.1rem;
-//     font-weight: 600;
-//     color: var(--primary-color);
-//     margin-bottom: 20px;
-//     padding-bottom: 10px;
-//     border-bottom: 1px solid #eee;
-//   }
-// }
-
-// /* 트리 노드 전체 컨테이너 */
-// .tree-node {
-//   display: block; // 자식이 아래로 쌓이도록 설정
-//   width: 100%;
-// }
-
-// /* 노드 한 줄의 내용 (아이콘 + 이름) */
-// .node-content {
-//   display: flex;
-//   align-items: center;
-//   padding: 6px 12px;
-//   cursor: pointer;
-//   border-radius: 4px;
-//   transition: all 0.2s ease;
-//   min-height: 40px;
-
-//   &:hover {
-//     background-color: rgba(0, 0, 0, 0.03);
-//   }
-
-//   /* 선택된 노드 하이라이트 */
-//   &.active-node {
-//     color: var(--primary-color) !important;
-//     background-color: var(--highlight-bg);
-//     font-weight: 600;
-//   }
-// }
-
-// /* 자식 노드들이 담기는 그룹 (이곳이 핵심!) */
-// .children-group {
-//   margin-left: 20px; // 요청하신 20px 들여쓰기
-//   width: calc(100% - 20px); // 너비를 줄여서 왼쪽이 들어간 느낌을 줌
-//   border-left: 1px solid #e0e0e0; // 시각적 가이드 라인 (선택 사항)
-  
-//   &.tree-invisible {
-//     display: none;
-//   }
-// }
-
-// .node-icon {
-//   margin-right: 8px;
-//   font-size: 20px;
-//   display: flex;
-//   align-items: center;
-//   justify-content: center;
-//   padding-left: 12px;
-  
-//   &.file { color: #9e9e9e; }
-//   &.bucket { color: #FFA000; }
-//   &.folder { color: var(--primary-color); }
-// }
-
-// .node-label {
-//   font-size: 14px;
-//   white-space: nowrap;
-//   overflow: hidden;
-//   text-overflow: ellipsis;
-// }
-
-// .toggle-icon {
-//   color: #616161;
-//   transition: transform 0.2s;
-//   margin: -10px;
-// }
-
-// mat-spinner {
-//   margin-left: 10px;
-// }
-
-// /* 버튼 스타일 정리 */
-// button[mat-icon-button] {
-//   width: 32px;
-//   height: 32px;
-//   display: flex;
-//   align-items: center;
-//   justify-content: center;
-// }
-
-// /* 경로 표시 영역 스타일 */
-// .selected-path-display {
-//   .path-card {
-//     background: #f9f9f9;
-//     border: 1px solid #d1d1d1;
-//     border-radius: 8px;
-//     padding: 16px;
-//   }
-
-//   .path-header {
-//     display: flex;
-//     align-items: center;
-//     gap: 8px;
-//     font-weight: bold;
-//     margin-bottom: 12px;
-//     color: #002387;
-//   }
-
-//   .path-line {
-//     display: flex;
-//     flex-direction: column;
-//     gap: 4px;
-//     margin-bottom: 12px;
-
-//     .label {
-//       font-size: 12px;
-//       color: #666;
-//     }
-
-//     .path-text {
-//       background: #eee;
-//       padding: 4px 8px;
-//       border-radius: 4px;
-//       font-family: monospace;
-//       word-break: break-all;
-//     }
-//   }
-
-//   .depth-tip {
-//     display: flex;
-//     align-items: center;
-//     gap: 6px;
-//     font-size: 13px;
-//     color: #2e7d32; // 성공 색상
-
-//     .check-icon { font-size: 18px; width: 18px; height: 18px; }
-
-//     &.warning {
-//       color: #d32f2f; // 경고 색상
-//     }
-//   }
-// }
-
-
-// ------
-
 $transition-base: all var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
 
 .dataset-container {
@@ -160,24 +7,38 @@ $transition-base: all var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   flex-direction: column;
   gap: 24px;
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-md);
   border: 1px solid var(--border-color);
   min-height: 100%;
 
   .dataset-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: var(--main-primary-color);
-    padding-bottom: 16px;
     border-bottom: 2px solid var(--border-color);
+    padding-bottom: 20px;
 
-    mat-icon {
-      font-size: 28px;
-      width: 28px;
-      height: 28px;
+    .title-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 4px;
+
+      h1 {
+        margin: 0;
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--text-main);
+      }
+
+      mat-icon {
+        font-size: 32px;
+        width: 32px;
+        height: 32px;
+      }
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--text-muted);
+      font-size: 14px;
     }
   }
 }
@@ -186,27 +47,37 @@ $transition-base: all var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
   background: var(--bg-body);
   border: 1px solid var(--border-color);
   border-radius: var(--card-radius);
-  padding: 8px;
+  padding: 12px;
   transition: $transition-base;
 
   .explorer-info {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 12px 16px;
-    margin-bottom: 8px;
+    gap: 10px;
+    padding: 12px 20px;
+    margin-bottom: 12px;
     background: var(--main-primary-light);
+    border: 1px dashed var(--main-primary-color);
     border-radius: 8px;
-    font-size: 0.85rem;
-    color: var(--main-primary-color);
-    font-weight: 500;
+    font-size: 13px;
+    color: var(--text-main);
 
-    .info-icon { font-size: 18px; width: 18px; height: 18px; }
+    mat-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+      color: var(--main-primary-color);
+    }
+
+    strong {
+      color: var(--main-primary-color);
+    }
   }
 }
 
 .dataset-tree {
-  padding: 8px;
+  padding: 4px;
+  background: transparent;
 }
 
 .tree-node {
@@ -217,75 +88,82 @@ $transition-base: all var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
 .node-content {
   display: flex;
   align-items: center;
-  padding: 4px 12px;
+  padding: 0 12px;
   cursor: pointer;
   border-radius: 8px;
   transition: $transition-base;
-  min-height: 44px;
+  min-height: 40px;
   margin: 2px 0;
+  color: var(--text-main);
 
   &:hover {
     background-color: rgba(0, 0, 0, 0.04);
   }
 
+  // 활성화된 노드 스타일: Train의 path-card ready 상태와 통일감
   &.active-node {
-    background: linear-gradient(90deg, var(--main-primary-light) 0%, transparent 100%);
-    border-left: 4px solid var(--main-primary-color);
+    background: var(--bg-card);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--main-primary-color);
     color: var(--main-primary-color);
     font-weight: 700;
 
-    .node-icon.folder { color: var(--main-primary-color); }
-    .node-label { color: var(--main-primary-color); }
+    .node-icon {
+      opacity: 1;
+    }
   }
 }
 
 .children-group {
-  margin-left: 24px;
+  margin-left: 20px;
   border-left: 1px dashed var(--border-color);
-  padding-left: 4px;
+  padding-left: 8px;
 }
 
 .node-icon {
-  padding: 7px 0 0 15px;
-  margin-right: 12px;
-  font-size: 22px;
-  width: 22px;
-  height: 22px;
+  margin-right: 10px;
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
+  opacity: 0.7;
+  padding-left: 10px;
 
   &.file { color: var(--text-muted); }
-  &.bucket { color: #FFA000; } // 버킷은 강조색 유지
-  &.folder { color: var(--main-primary-color); opacity: 0.8; }
+  &.bucket { color: var(--warning-color); opacity: 1; }
+  &.folder { color: var(--main-primary-color); }
 }
 
 .node-label {
-  padding-top: 7px;
-  font-size: 0.95rem;
-  color: var(--text-main);
+  font-size: 14px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .toggle-btn {
-  width: 28px !important;
-  height: 28px !important;
-  line-height: 28px !important;
+  width: 24px !important;
+  height: 24px !important;
+  line-height: 24px !important;
   margin-right: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
   .toggle-icon {
-    // margin: -10px;
-    font-size: 20px;
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
     color: var(--text-muted);
   }
 }
 
 .toggle-placeholder {
-  width: 32px;
+  width: 28px;
 }
 
 .node-spinner {
-  margin-left: 12px;
+  margin-left: auto; // 스피너를 오른쪽 끝으로 밀어냄
 }

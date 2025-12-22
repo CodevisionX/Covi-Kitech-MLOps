@@ -1,0 +1,31 @@
+<div class="terminal-dialog-wrapper">
+  <div class="terminal-header" cdkDrag cdkDragRootElement=".cdk-overlay-pane" cdkDragHandle>
+    <div class="dots">
+      <span class="dot red" (click)="close()"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+
+    <span class="terminal-title">
+      Training Logs - {{ data.containerId.substring(0, 12) }}
+    </span>
+
+    <button mat-icon-button (click)="close()" class="close-btn">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <div class="terminal-body" #scrollContainer>
+    @for (log of terminalService.logs(); track $index) {
+    <div class="log-line" [class.error]="log.includes('ERROR')" [class.success]="log.includes('Successfully')">
+      <span class="log-text" [innerHTML]="log"></span>
+    </div>
+    }
+
+    @if (terminalService.logs().length === 0) {
+    <div class="log-line muted">
+      <span class="log-text">가동 준비 중... 로그 대기 중...</span>
+    </div>
+    }
+  </div>
+</div>

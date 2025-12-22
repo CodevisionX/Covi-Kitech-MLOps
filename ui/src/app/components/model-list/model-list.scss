@@ -1,61 +1,214 @@
-/* 카드 헤더 커스텀 스타일 */
-.custom-header {
-  background-color: var(--main-primary-color);
-  color: white;
-  padding: 16px !important;
-  margin-bottom: 20px;
-  border-radius: 4px 4px 0 0;
-  
-  mat-card-title {
-    font-size: 1.2rem;
-    font-weight: 500;
-  }
-}
-
-/* 메인 버튼 공통 스타일 */
-.main-btn {
-  background-color: var(--main-primary-color) !important;
-  color: white !important;
-  padding: 0 24px !important;
-}
-
-/* 페이지 컨테이너 */
-.page-container {
-  padding: 24px;
+.model-list-container {
+  padding: var(--base-padding);
+  max-width: 1200px;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 20px;
-}
+  gap: var(--base-padding);
 
-.model-table {
-  width: 100%;
-  margin-top: 20px;
-}
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 8px;
 
-// 상태별 배지 스타일
-.status-badge {
-  padding: 4px 12px;
-  border-radius: 16px;
-  font-size: 12px;
-  font-weight: 500;
-  color: white;
-
-  &.ready {
-    background-color: #4caf50; // 성공/완료 (초록색)
+    .title-group {
+      h1 {
+        margin: 0;
+        font-size: 28px;
+        font-weight: 700;
+        color: var(--text-main);
+      }
+      p {
+        margin: 4px 0 0;
+        color: var(--text-muted);
+        font-size: 14px;
+      }
+    }
   }
 
-  &.running {
-    background-color: #ff9800; // 진행중 (오렌지색)
+  // 실험 선택 탭 스타일
+  .experiment-tabs {
+    display: flex;
+    gap: 8px;
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 0;
+
+    .tab-item {
+      padding: 12px 24px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--text-muted);
+      transition: all var(--transition-speed) ease-in-out;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -2px; 
+
+      &:hover {
+        color: var(--main-primary-color);
+        background-color: var(--main-primary-light);
+      }
+
+      &.active {
+        color: var(--main-primary-color);
+        border-bottom-color: var(--main-primary-color);
+        font-weight: 700;
+      }
+    }
   }
 
-  &.failed {
-    background-color: #f44336; // 실패 (빨간색)
+  .content-area {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+
+  .job-section {
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-main);
+
+      .count-badge {
+        font-size: 12px;
+        background: var(--main-primary-color);
+        color: var(--text-on-primary);
+        padding: 2px 8px;
+        border-radius: 20px;
+        margin-left: 4px;
+
+        &.grey {
+          background: var(--main-secondary-color);
+        }
+      }
+    }
+  }
+
+  // 테이블 공통 스타일
+  table {
+    width: 100%;
+    background: var(--bg-card);
+    border-radius: var(--card-radius);
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+
+    th.mat-mdc-header-cell {
+      background: var(--bg-body);
+      color: var(--text-main);
+      font-weight: 600;
+      padding: 16px;
+    }
+
+    td.mat-mdc-cell {
+      padding: 16px;
+      color: var(--text-main);
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .run-name {
+      font-weight: 600;
+    }
+
+    .run-id {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: 'Roboto Mono', monospace;
+    }
+  }
+
+  // 상태 칩(Status Chip) - functional colors 적용
+  .status-chip {
+    display: inline-flex;
+    padding: 4px 12px;
+    border-radius: 16px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+
+    &[data-status="RUNNING"] {
+      background-color: var(--main-primary-light);
+      color: var(--main-primary-color);
+      border: 1px solid var(--main-primary-color);
+    }
+
+    &[data-status="FINISHED"], &[data-status="COMPLETED"] {
+      background-color: rgba(46, 125, 50, 0.1);
+      color: var(--success-color);
+      border: 1px solid var(--success-color);
+    }
+
+    &[data-status="FAILED"] {
+      background-color: rgba(211, 47, 47, 0.1);
+      color: var(--error-color);
+      border: 1px solid var(--error-color);
+    }
+
+    &[data-status="SCHEDULED"], &[data-status="PENDING"] {
+      background-color: rgba(255, 160, 0, 0.1);
+      color: var(--warning-color);
+      border: 1px solid var(--warning-color);
+    }
+  }
+
+  .no-data {
+    padding: 48px;
+    text-align: center;
+    color: var(--text-muted);
+    background: var(--bg-card);
+    border: 1px dashed var(--border-color);
+    border-radius: var(--card-radius);
+  }
+
+  .loading-shade {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    gap: 12px;
+    color: var(--main-primary-color);
   }
 }
 
-.mlflow-btn {
+.mat-column-dashboard {
+  width: 100px;
+  text-align: center;
+
   mat-icon {
-    font-size: 18px;
+    font-size: 22px;
+    width: 22px;
+    height: 22px;
+  }
+}
+
+.btn-detail-view {
+  // styles.scss에 정의된 변수를 가져다 씁니다.
+  background-color: var(--main-primary-color) !important; 
+  color: var(--text-on-primary, #ffffff) !important;
+  border-radius: 8px; // 디자인 일관성을 위해 살짝 둥글게
+  padding: 0 16px;
+  font-weight: 500;
+  transition: filter 0.2s;
+
+  mat-icon {
     margin-right: 4px;
+    font-size: 20px;
+    vertical-align: middle;
+  }
+
+  &:hover {
+    // 호버 시 약간 밝게 하여 클릭감을 줌
+    filter: brightness(1.1);
+  }
+
+  &:disabled {
+    background-color: #e0e0e0 !important;
+    color: #9e9e9e !important;
   }
 }
