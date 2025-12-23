@@ -20,14 +20,27 @@ export interface MLflowRun {
   tags: any;
 }
 
+export interface TrainingJob {
+  id: number;
+  status: string; // PENDING, RUNNING, FINISHED, FAILED
+  model_variant: string;
+  dataset: string;
+  epochs: number;
+  batch: number;
+  run_id?: string;
+  container_id?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
 @Injectable({
   providedIn: 'root',
 })
 export class Api {
-  
+
   private http = inject(HttpClient);
   private apiUrl = environment.apiUrl;
-  
+
   // --- [MinIO 관련] ---
   getBuckets(): Observable<{ datasets: string[] }> {
     return this.http.get<{ datasets: string[] }>(`${this.apiUrl}/datasets`);
@@ -117,5 +130,23 @@ export class Api {
     formData.append('file', imageFile); // 서버의 UploadFile 이름과 일치해야 함
     return this.http.post<any>(`${this.apiUrl}/runs/${runId}/predict`, formData);
   }
-  
+
+  /**
+   * DB에서 PENDING, RUNNING 상태인 작업들을 가져옵니다.
+   */
+  getActiveJobs(): Observable<TrainingJob[]> {
+    return this.http.get<TrainingJob[]>(`${this.apiUrl}/jobs/active`);
+  }
+
+  /**
+   * DB에서 FINISHED, FAILED, CANCELLED 상태인 과거 이력들을 가져옵니다.
+   */
+  getJobHistory(): Observable<TrainingJob[]> {
+    return this.http.get<TrainingJob[]>(`${this.apiUrl}/jobs/history`);
+  }
+
+  cancelJob(jobId: number): Observable<any> {
+    return this.http.post(`${this.apiUrl}/jobs/${jobId}/cancel`, {});
+  }
+
 }

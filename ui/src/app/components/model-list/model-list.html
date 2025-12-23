@@ -39,8 +39,10 @@
         <ng-container matColumnDef="modelInfo">
           <th mat-header-cell *matHeaderCellDef>모델 정보</th>
           <td mat-cell *matCellDef="let job">
-            <div class="run-name">{{ job.run_name }}</div>
-            <div class="run-id">{{ job.run_id.substring(0, 8) }}...</div>
+            <div class="run-name">{{ job.run_name || job.model_variant }}</div>
+            <div class="run-id">
+              {{ job.run_id ? 'Run: ' + job.run_id.substring(0, 8) : 'Job ID: ' + job.id }}
+            </div>
           </td>
         </ng-container>
 
@@ -48,20 +50,21 @@
           <th mat-header-cell *matHeaderCellDef>상태</th>
           <td mat-cell *matCellDef="let job">
             <span class="status-chip" [attr.data-status]="job.status">
-              {{ job.status }}
+              {{ job.status === 'PENDING' ? 'PENDING' : job.status }}
             </span>
           </td>
         </ng-container>
 
         <ng-container matColumnDef="startTime">
-          <th mat-header-cell *matHeaderCellDef>시작 시간</th>
-          <td mat-cell *matCellDef="let job">{{ getRelativeTime(job.start_time) }}</td>
+          <th mat-header-cell *matHeaderCellDef>요청 시간</th>
+          <td mat-cell *matCellDef="let job">{{ getRelativeTime(job.start_time || job.created_at) }}</td>
         </ng-container>
 
         <ng-container matColumnDef="dashboard">
           <th mat-header-cell *matHeaderCellDef>대시보드</th>
           <td mat-cell *matCellDef="let job">
-            <button mat-icon-button color="primary" (click)="openMlflowDetail(job.run_id)" matTooltip="MLflow 상세 보기">
+            <button mat-icon-button color="primary" [disabled]="job.status === 'PENDING'"
+              (click)="openMlflowDetail(job.run_id)">
               <mat-icon>assessment</mat-icon>
             </button>
           </td>
@@ -70,8 +73,21 @@
         <ng-container matColumnDef="actions">
           <th mat-header-cell *matHeaderCellDef>로그</th>
           <td mat-cell *matCellDef="let job">
-            <button mat-icon-button (click)="openLogDialog(job.tags.container_id)" matTooltip="로그 보기">
-              <mat-icon style="color: var(--main-primary-color)">terminal</mat-icon>
+            @let containerId = job.tags?.container_id || job.container_id;
+
+            @if (containerId) {
+            <button mat-icon-button (click)="openLogDialog(containerId)">
+              <mat-icon style="color: var(--main-secondary-color)">terminal</mat-icon>
+            </button>
+            }
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="cancel">
+          <th mat-header-cell *matHeaderCellDef>중단</th>
+          <td mat-cell *matCellDef="let job">
+            <button mat-icon-button color="warn" (click)="onCancelJob(job.id)" matTooltip="학습 취소">
+              <mat-icon>cancel</mat-icon>
             </button>
           </td>
         </ng-container>
@@ -95,8 +111,10 @@
         <ng-container matColumnDef="modelInfo">
           <th mat-header-cell *matHeaderCellDef>모델 정보</th>
           <td mat-cell *matCellDef="let job">
-            <div class="run-name">{{ job.run_name }}</div>
-            <div class="run-id">{{ job.run_id.substring(0, 8) }}...</div>
+            <div class="run-name">{{ job.run_name || job.model_variant }}</div>
+            <div class="run-id">
+              {{ job.run_id ? 'Run: ' + job.run_id.substring(0, 8) : 'Job ID: ' + job.id }}
+            </div>
           </td>
         </ng-container>
 
@@ -111,7 +129,7 @@
 
         <ng-container matColumnDef="startTime">
           <th mat-header-cell *matHeaderCellDef>기록 시간</th>
-          <td mat-cell *matCellDef="let job">{{ getRelativeTime(job.start_time) }}</td>
+          <td mat-cell *matCellDef="let job">{{ getRelativeTime(job.start_time || job.created_at) }}</td>
         </ng-container>
 
         <ng-container matColumnDef="dashboard">
@@ -136,8 +154,10 @@
         <ng-container matColumnDef="actions">
           <th mat-header-cell *matHeaderCellDef>로그</th>
           <td mat-cell *matCellDef="let job">
-            @if (job.tags.container_id) {
-            <button mat-icon-button (click)="openLogDialog(job.tags.container_id)">
+            @let containerId = job.tags?.container_id || job.container_id;
+
+            @if (containerId) {
+            <button mat-icon-button (click)="openLogDialog(containerId)">
               <mat-icon style="color: var(--main-secondary-color)">terminal</mat-icon>
             </button>
             }

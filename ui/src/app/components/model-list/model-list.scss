@@ -1,10 +1,12 @@
 .model-list-container {
+  position: relative; 
   padding: var(--base-padding);
   max-width: 1200px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: var(--base-padding);
+  min-height: 400px;
 
   .page-header {
     display: flex;
@@ -19,6 +21,7 @@
         font-weight: 700;
         color: var(--text-main);
       }
+
       p {
         margin: 4px 0 0;
         color: var(--text-muted);
@@ -44,7 +47,7 @@
       color: var(--text-muted);
       transition: all var(--transition-speed) ease-in-out;
       border-bottom: 3px solid transparent;
-      margin-bottom: -2px; 
+      margin-bottom: -2px;
 
       &:hover {
         color: var(--main-primary-color);
@@ -137,7 +140,8 @@
       border: 1px solid var(--main-primary-color);
     }
 
-    &[data-status="FINISHED"], &[data-status="COMPLETED"] {
+    &[data-status="FINISHED"],
+    &[data-status="COMPLETED"] {
       background-color: rgba(46, 125, 50, 0.1);
       color: var(--success-color);
       border: 1px solid var(--success-color);
@@ -149,11 +153,20 @@
       border: 1px solid var(--error-color);
     }
 
-    &[data-status="SCHEDULED"], &[data-status="PENDING"] {
+    &[data-status="SCHEDULED"],
+    &[data-status="PENDING"] {
       background-color: rgba(255, 160, 0, 0.1);
       color: var(--warning-color);
       border: 1px solid var(--warning-color);
     }
+
+    &[data-status="CANCELLED"],
+    &[data-status="KILLED"] {
+      background-color: rgba(158, 158, 158, 0.1); // Grey light
+      color: #757575; // Grey dark
+      border: 1px solid #757575;
+    }
+
   }
 
   .no-data {
@@ -166,14 +179,45 @@
   }
 
   .loading-shade {
+    position: absolute; // 부모(.model-list-container)를 기준으로 고정
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background: rgba(255, 255, 255, 0.7); // 반투명 배경
+    backdrop-filter: blur(4px); // 배경을 흐릿하게 하여 로딩 중임을 명확히 인지시킴
+    z-index: 100; // 테이블이나 버튼보다 위에 위치
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 40px;
-    gap: 12px;
-    color: var(--main-primary-color);
+    gap: 16px;
+    border-radius: var(--card-radius);
+    transition: all 0.3s ease;
+
+    mat-spinner {
+      // 스피너 색상을 테마의 기본 색상으로 맞춤
+      ::ng-deep circle {
+        stroke: var(--main-primary-color);
+      }
+    }
+
+    p {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--main-primary-color);
+      letter-spacing: -0.5px;
+      // 로딩 텍스트가 깜빡이는 애니메이션 (선택 사항)
+      animation: pulse 1.5s infinite;
+    }
   }
+}
+
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
 }
 
 .mat-column-dashboard {
@@ -189,7 +233,7 @@
 
 .btn-detail-view {
   // styles.scss에 정의된 변수를 가져다 씁니다.
-  background-color: var(--main-primary-color) !important; 
+  background-color: var(--main-primary-color) !important;
   color: var(--text-on-primary, #ffffff) !important;
   border-radius: 8px; // 디자인 일관성을 위해 살짝 둥글게
   padding: 0 16px;

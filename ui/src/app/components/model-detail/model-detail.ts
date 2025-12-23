@@ -23,6 +23,14 @@ export class ModelDetail {
   metricsData = signal<any>(null);
   resultImages = signal<any[]>([]); // 추가적인 아티팩트 목록
 
+  protected readonly groundTruthUrl = computed(() =>
+    this.apiService.getArtifactPreviewUrl(this.runId(), 'val_batch0_labels.jpg')
+  );
+
+  protected readonly predictionUrl = computed(() =>
+    this.apiService.getArtifactPreviewUrl(this.runId(), 'val_batch0_pred.jpg')
+  );
+
   ngOnInit() {
     const id = this.route.snapshot.paramMap.get('runId')!;
     const expId = this.route.snapshot.queryParamMap.get('expId');

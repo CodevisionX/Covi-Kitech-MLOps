@@ -57,16 +57,14 @@
         <mat-card class="image-card">
           <div class="img-container">
             <span class="img-tag label">Ground Truth</span>
-            <img [src]="apiService.getArtifactPreviewUrl(runId(), 'val_batch0_labels.jpg')" 
-                 alt="Ground Truth" (error)="onImgError($event)">
+            <img [src]="groundTruthUrl()" loading="lazy" alt="Ground Truth">
           </div>
         </mat-card>
 
         <mat-card class="image-card">
           <div class="img-container">
             <span class="img-tag pred">Prediction</span>
-            <img [src]="apiService.getArtifactPreviewUrl(runId(), 'val_batch0_pred.jpg')" 
-                 alt="Prediction" (error)="onImgError($event)">
+            <img [src]="predictionUrl()" loading="lazy" alt="Prediction">
           </div>
         </mat-card>
       </div>

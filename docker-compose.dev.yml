@@ -61,6 +61,10 @@ services:
       - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD}
       - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
       - MLFLOW_TRACKING_URI=http://mlflow:5000
+
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
       
       # (선택 사항) 기존에 사용하던 변수명도 코드에서 참조 중이라면 유지
       - MINIO_ENDPOINT=minio:9000

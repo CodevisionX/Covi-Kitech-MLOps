@@ -28,6 +28,9 @@ def train_yolo():
     # 4. MLflow 설정 및 실행 (서버에서 만든 run_id를 이어받음)
     mlflow.set_tracking_uri(tracking_uri)
 
+    print(f"DEBUG: Received Run ID: {run_id}")
+    print(f"DEBUG: Tracking URI: {tracking_uri}")
+
     # run_id를 지정하여 start_run을 호출하면, 서버에서 만든 RUNNING 상태의 런을 이어받습니다.
     with mlflow.start_run(run_id=run_id):
         try:

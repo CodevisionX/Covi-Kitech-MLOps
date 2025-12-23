@@ -1,18 +1,13 @@
-from fastapi import FastAPI, HTTPException, Request, BackgroundTasks, File, UploadFile  # ✅ File, UploadFile 추가
+from fastapi import FastAPI, HTTPException, BackgroundTasks, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from fastapi.responses import StreamingResponse, FileResponse
-import asyncio
-import boto3
-import docker
-import os
-import mlflow
+import asyncio, boto3, docker, os, mlflow, traceback, json, bentoml, requests
+from datetime import datetime, timedelta, timezone
 from mlflow.tracking import MlflowClient
-import traceback
-import json
-import bentoml
-import shutil
-import requests
+from sqlalchemy import create_engine, Column, Integer, String, DateTime
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
 
 app = FastAPI()
 
@@ -30,6 +25,41 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# --- 1. DB 설정 (Postgres) ---
+DATABASE_URL = f"postgresql://{os.getenv('POSTGRES_USER')}:{os.getenv('POSTGRES_PASSWORD')}@postgres:5432/{os.getenv('POSTGRES_DB')}"
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+# 1. 한국 표준시(KST) 정의
+KST = timezone(timedelta(hours=9))
+
+def get_kst_now():
+    """현재 한국 시간을 반환하는 헬퍼 함수"""
+    return datetime.now(KST)
+
+class TrainingJob(Base):
+    __tablename__ = "training_jobs"
+    id = Column(Integer, primary_key=True, index=True)
+    status = Column(String, default="PENDING") # PENDING, RUNNING, FINISHED, FAILED
+    model_variant = Column(String)
+    dataset = Column(String)
+    epochs = Column(Integer)
+    batch = Column(Integer)
+    run_id = Column(String, nullable=True)
+    container_id = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=get_kst_now)
+    updated_at = Column(DateTime(timezone=True), default=get_kst_now, onupdate=get_kst_now)
+
+Base.metadata.create_all(bind=engine)
+
+# --- 2. 전역 비동기 큐 및 클라이언트 설정 ---
+training_queue = asyncio.Queue()
+docker_client = docker.from_env()
+MLFLOW_TRACKING_URI = "http://mlflow:5000"
+mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+mlflow_client = MlflowClient()
+
 # --- 2. 클라이언트 초기화 (Docker, MLflow, S3) ---
 try:
     docker_client = docker.from_env()
@@ -38,10 +68,6 @@ try:
 except Exception as e:
     print(f"❌ Docker connection error: {e}")
     docker_client = None
-
-MLFLOW_TRACKING_URI = "http://mlflow:5000"
-mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-mlflow_client = MlflowClient()
 
 s3 = boto3.client('s3',
     endpoint_url=os.getenv('MLFLOW_S3_ENDPOINT_URL', "http://minio:9000"),
@@ -70,29 +96,145 @@ class SSEManager:
 
 sse_manager = SSEManager()
 
-# --- 2. 학습 상태 추적 백그라운드 태스크 ---
-async def watch_run_status(run_id: str, container_id: str):
-    """특정 학습 건의 종료를 감시하고 프론트에 알립니다."""
-    print(f"👀 모니터링 시작: {run_id}")
+
+# --- 3. 핵심: 비동기 워커 (Event-Driven Worker) ---
+async def training_worker():
+    """큐에 작업이 들어오는 '이벤트'가 발생할 때만 즉시 동작합니다."""
+    print("🤖 Training Worker 가동: 대기열 감시 시작")
+    while True:
+        # 큐에서 작업이 들어올 때까지 '완전 대기' (폴링 X, CPU 사용 0)
+        job_info = await training_queue.get() 
+        job_id = job_info["job_id"]
+        
+        db = SessionLocal()
+        try:
+            job = db.query(TrainingJob).filter(TrainingJob.id == job_id).first()
+            if not job or job.status == "CANCELLED":
+                print(f"⏭️ Job {job_id}는 취소된 작업이므로 스킵합니다.")
+                continue
+
+            # 1. 상태 변경: PENDING -> RUNNING
+            job.status = "RUNNING"
+            db.commit()
+            
+            target_model = job.model_variant
+            target_dataset = job.dataset
+            target_epochs = job.epochs
+            target_batch = job.batch
+
+            # 2. 실시간 SSE 전송 (프론트 UI 업데이트용)
+            sse_manager.broadcast({"job_id": job_id, "status": "RUNNING", "event": "status_changed"})
+
+            db.close()
+            await execute_training_logic_refined(job_id, target_model, target_dataset, target_epochs, target_batch)
+
+        except Exception as e:
+            print(f"❌ 워커 실행 에러: {e}")
+            traceback.print_exc()
+        finally:
+            db.close()
+            training_queue.task_done()
+
+async def execute_training_logic_refined(job_id, model_variant, dataset, epochs, batch):
+    """
+    실제 도커를 띄우고 MLflow를 연동하는 개선된 로직.
+    DB 세션을 짧게 유지하며, 장시간 컨테이너 대기 중에는 세션을 점유하지 않습니다.
+    """
+    run_id = None
+    container = None
+
+    try:
+        # 1. MLflow 실험(Experiment) 및 실행(Run) 생성
+        exp_name = f"{model_variant}_Experiments"
+        exp = mlflow.get_experiment_by_name(exp_name)
+        exp_id = exp.experiment_id if exp else mlflow.create_experiment(exp_name)
+        
+        run = mlflow_client.create_run(experiment_id=exp_id)
+        run_id = run.info.run_id
+
+        # 2. 도커 실행 환경 설정
+        env_vars = {
+            "MLFLOW_RUN_ID": str(run_id),
+            "MLFLOW_TRACKING_URI": MLFLOW_TRACKING_URI,
+            "MLFLOW_S3_ENDPOINT_URL": "http://minio:9000",
+            "DATASET_PATH": dataset,
+            "EPOCHS": str(epochs),
+            "BATCH": str(batch),
+            "AWS_ACCESS_KEY_ID": "minio",
+            "AWS_SECRET_ACCESS_KEY": "minio123"
+        }
+
+        # 3. Docker 컨테이너 실행 (비동기 루프 방해하지 않게 detach=True)
+        container = docker_client.containers.run(
+            image="mlops_kitech-training",
+            command=f"python train_yolo.py" if model_variant == "YOLOv8" else "python train_effnet.py",
+            environment=env_vars,
+            shm_size="8G",
+            network="mlops_kitech_mlops-net",
+            device_requests=[docker.types.DeviceRequest(count=-1, capabilities=[['gpu']])],
+            detach=True
+        )
+
+        # 4. DB 정보 업데이트 (짧은 세션 사용)
+        db = SessionLocal()
+        try:
+            job = db.query(TrainingJob).filter(TrainingJob.id == job_id).first()
+            if job:
+                job.run_id = run_id
+                job.container_id = container.id
+                db.commit()
+
+                mlflow_client.set_tag(run_id, "container_id", container.id)
+                print(f"✅ Job {job_id} 업데이트 완료: Run ID={run_id}, Container={container.id[:12]}")
+        finally:
+            db.close() # 업데이트 후 즉시 세션 종료
+
+        # 5. 컨테이너 종료 대기 (DB 세션 없이 루프 진행)
+        print(f"⏳ 컨테이너 {container.id[:12]} 종료 대기 중...")
+        while True:
+            await asyncio.sleep(5)
+            container.reload() # 최신 상태(running, exited 등) 로드
+            if container.status != "running":
+                break
+
+        print(f"✅ 컨테이너 {container.id[:12]} 실행 종료됨 (Status: {container.status})")
+
+    except Exception as e:
+        print(f"❌ execute_training_logic_refined 에러: {e}")
+        # 에러 발생 시 DB 상태를 FAILED로 변경
+        db = SessionLocal()
+        try:
+            job = db.query(TrainingJob).filter(TrainingJob.id == job_id).first()
+            if job:
+                job.status = "FAILED"
+                db.commit()
+            if run_id:
+                mlflow_client.set_terminated(run_id, status="FAILED")
+        finally:
+            db.close()
+    
+    finally:
+        # 6. 최종 상태 모니터링 태스크 핸드오버
+        if run_id and container:
+            asyncio.create_task(watch_run_status_and_db(run_id, container.id, job_id))
+
+async def watch_run_status_and_db(run_id, container_id, job_id):
+    """MLflow 상태를 감시하여 DB의 최종 상태까지 업데이트합니다."""
     while True:
         try:
             run = mlflow_client.get_run(run_id)
             status = run.info.status
-            
-            # 상태가 RUNNING이 아니면 (FINISHED, FAILED 등) 결과 전송 후 종료
             if status != "RUNNING":
-                sse_manager.broadcast({
-                    "run_id": run_id,
-                    "status": status,
-                    "event": "status_changed"
-                })
-                print(f"✅ 모니터링 종료: {run_id} (상태: {status})")
+                db = SessionLocal()
+                job = db.query(TrainingJob).filter(TrainingJob.id == job_id).first()
+                job.status = status # FINISHED, FAILED 등
+                db.commit()
+                db.close()
+                
+                sse_manager.broadcast({"run_id": run_id, "job_id": job_id, "status": status, "event": "status_changed"})
                 break
-        except Exception as e:
-            print(f"⚠️ 모니터링 에러: {e}")
-            break
-        
-        await asyncio.sleep(5) # 5초마다 MLflow만 체크 (부하 적음)
+        except: break
+        await asyncio.sleep(5)
 
 # --- 3. 데이터 모델 ---
 class TrainRequest(BaseModel):
@@ -223,71 +365,111 @@ async def browse_bucket(bucket_name: str, prefix: str = ""):
         return {"current_path": prefix, "folders": folders, "files": files}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+@app.on_event("startup")
+async def startup_event():
+    # 1. 서버 시작 시 워커 기동
+    asyncio.create_task(training_worker())
+    
+    # 2. [Persistence] DB에 PENDING 상태로 남은 작업들 큐에 다시 삽입
+    db = SessionLocal()
+    pending_jobs = db.query(TrainingJob).filter(TrainingJob.status == "PENDING").order_by(TrainingJob.created_at.asc()).all()
+    for job in pending_jobs:
+        training_queue.put_nowait({"job_id": job.id})
+    db.close()
+    print(f"📦 {len(pending_jobs)}개의 대기 중인 작업을 큐에 복구했습니다.")
 
 # --- 6. 학습 시작 API ---
 @app.post("/train")
-async def start_training(req: TrainRequest, background_tasks: BackgroundTasks): # 1. background_tasks 주입
-    if docker_client is None:
-        raise HTTPException(status_code=500, detail="Docker connection failed")
+async def start_training(req: TrainRequest):
+    """학습 버튼 클릭 시 DB 저장 및 큐에 즉시 삽입"""
+    db = SessionLocal()
     try:
-        # 1. 실험 ID 가져오기 또는 생성
-        exp = mlflow.get_experiment_by_name(f"{req.model_variant}_Experiments")
-        if exp is None:
-            exp_id = mlflow.create_experiment(f"{req.model_variant}_Experiments")
-        else:
-            exp_id = exp.experiment_id
-
-        # 2. 수동으로 Run 생성 (기본 상태는 RUNNING)
-        run = mlflow_client.create_run(experiment_id=exp_id)
-        run_id = run.info.run_id
-
-        env_vars = {
-            "MLFLOW_RUN_ID": str(run_id),
-            "MLFLOW_TRACKING_URI": MLFLOW_TRACKING_URI,
-            "MLFLOW_S3_ENDPOINT_URL": "http://minio:9000",
-            "DATASET_PATH": req.dataset,
-            "AWS_ACCESS_KEY_ID": "minio",
-            "AWS_SECRET_ACCESS_KEY": "minio123",
-            "EPOCHS": str(req.epochs),
-            "BATCH": str(req.batch)
-        }
-
-        # 3. 도커 실행
-        container = docker_client.containers.run(
-            image="mlops_kitech-training",
-            command=f"python train_yolo.py" if req.model_variant == "YOLOv8" else "python train_effnet.py",
-            environment=env_vars,
-            shm_size="8G",
-            network="mlops_kitech_mlops-net",
-            device_requests=[docker.types.DeviceRequest(count=-1, capabilities=[['gpu']])],
-            detach=True
+        new_job = TrainingJob(
+            model_variant=req.model_variant,
+            dataset=req.dataset,
+            epochs=req.epochs,
+            batch=req.batch,
+            status="PENDING"
         )
+        db.add(new_job)
+        db.commit()
+        db.refresh(new_job)
 
-        # 4. 태그 설정
-        mlflow_client.set_tag(run_id, "container_id", container.id)
-        mlflow_client.set_tag(run_id, "algorithm", req.model_variant)
-        mlflow_client.set_tag(run_id, "dataset", req.dataset)
-        
-        # --- [추가] 5. 실시간 상태 업데이트 전송 ---
-        # 학습이 시작되었음을 즉시 프론트에 알림
-        sse_manager.broadcast({
-            "run_id": run_id,
-            "status": "RUNNING",
-            "event": "started"
-        })
+        # 큐에 즉시 던짐 (워커가 즉시 감지)
+        training_queue.put_nowait({"job_id": new_job.id})
 
-        # --- [추가] 6. 백그라운드 모니터링 태스크 등록 ---
-        # 이 함수는 API 응답이 나간 뒤 백그라운드에서 실행됩니다.
-        background_tasks.add_task(watch_run_status, run_id, container.id)
+        # 프론트에 "대기열에 들어갔음" 알림
+        sse_manager.broadcast({"job_id": new_job.id, "status": "PENDING", "event": "job_queued"})
         
-        return {"status": "Success", "container_id": container.id, "run_id": run_id}
-            
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        return {"status": "Queued", "job_id": new_job.id}
+    finally:
+        db.close()
+
+# --- [추가] 진행 중인 작업 목록 조회 API ---
+@app.get("/jobs/active")
+async def get_active_jobs():
+    """PENDING 또는 RUNNING 상태인 모든 작업을 반환합니다."""
+    db = SessionLocal()
+    jobs = db.query(TrainingJob).filter(TrainingJob.status.in_(["PENDING", "RUNNING"])).order_by(TrainingJob.created_at.asc()).all()
+    db.close()
+    return jobs
+
+# --- [추가] 모든 완료/실패/취소된 작업 조회 API ---
+@app.get("/jobs/history")
+async def get_job_history():
+    """FINISHED, FAILED, CANCELLED 상태인 모든 기록을 반환합니다."""
+    db = SessionLocal()
+    try:
+        # 이력은 보통 최신순(created_at DESC)으로 보는 것이 편합니다.
+        jobs = db.query(TrainingJob)\
+                 .filter(TrainingJob.status.in_(["FINISHED", "FAILED", "CANCELLED"]))\
+                 .order_by(TrainingJob.created_at.desc()).all()
+        return jobs
+    finally:
+        db.close()
+
+@app.post("/jobs/{job_id}/cancel")
+async def cancel_training_job(job_id: int):
+    db = SessionLocal()
+    try:
+        job = db.query(TrainingJob).filter(TrainingJob.id == job_id).first()
+        if not job:
+            raise HTTPException(status_code=404, detail="작업을 찾을 수 없습니다.")
+
+        # 1. 대기 중인 경우: DB 상태만 변경 (워커가 나중에 스킵함)
+        if job.status == "PENDING":
+            job.status = "CANCELLED"
+            job.updated_at = get_kst_now()
+            db.commit()
+            sse_manager.broadcast({"job_id": job_id, "status": "CANCELLED", "event": "status_changed"})
+            return {"message": "대기열에서 작업이 취소되었습니다."}
+
+        # 2. 실행 중인 경우: 도커 중지 및 MLflow 종료 처리
+        if job.status == "RUNNING":
+            # 도커 컨테이너 강제 중지 및 삭제
+            if job.container_id:
+                try:
+                    container = docker_client.containers.get(job.container_id)
+                    container.remove(force=True)
+                except Exception as e:
+                    print(f"⚠️ 컨테이너 삭제 중 오류: {e}")
+
+            # MLflow Run 종료 처리
+            if job.run_id:
+                mlflow_client.set_terminated(job.run_id, status="KILLED")
+
+            job.status = "CANCELLED"
+            job.updated_at = get_kst_now()
+            db.commit()
+            sse_manager.broadcast({"job_id": job_id, "status": "CANCELLED", "event": "status_changed"})
+            return {"message": "실행 중인 학습이 중단되었습니다."}
+
+        return {"message": "이미 완료되었거나 취소할 수 없는 상태입니다."}
+    finally:
+        db.close()
 
 # --- 7. [유지] 컨테이너 로그 실시간 스트리밍 (SSE) ---
-
 @app.get("/train/{container_id}/logs")
 async def stream_logs(container_id: str):
     """특정 학습 컨테이너의 로그를 실시간으로 스트리밍합니다."""
@@ -337,19 +519,24 @@ async def get_metrics_history(run_id: str):
 @app.get("/runs/{run_id}/artifacts/preview")
 async def get_artifact_preview(run_id: str, filename: str = "val_batch0_labels.jpg"):
     try:
-        print(f"📂 다운로드 시도: run_id={run_id}, filename={filename}")
+        cache_dir = f"./artifact_cache/{run_id}"
+        local_path = os.path.join(cache_dir, filename)
+
+        # 2. 파일이 이미 로컬에 존재하면 바로 반환 (네트워크 작업 스킵)
+        if os.path.exists(local_path):
+            return FileResponse(local_path)
+        
+        print(f"📂 캐시 없음, MLflow에서 다운로드 시도: run_id={run_id}, filename={filename}")
 
         # MLflow 아티팩트 루트에서 파일을 직접 찾습니다.
         # 제시하신 S3 경로상 파일이 artifacts/ 바로 아래에 있으므로 상대 경로는 filename 그 자체입니다.
-        local_path = mlflow.artifacts.download_artifacts(
+        downloaded_path = mlflow.artifacts.download_artifacts(
             run_id=run_id, 
-            artifact_path=filename  # 'exp/'를 제거했습니다.
+            artifact_path=filename,
+            dst_path=cache_dir # 캐시 디렉토리에 저장
         )
         
-        if os.path.exists(local_path):
-            return FileResponse(local_path)
-        else:
-            raise HTTPException(status_code=404, detail="파일을 다운로드했지만 로컬에서 찾을 수 없습니다.")
+        return FileResponse(downloaded_path)
 
     except Exception as e:
         print(f"❌ 아티팩트 다운로드 실패: {e}")
