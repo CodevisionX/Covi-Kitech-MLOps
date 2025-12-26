@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "mlops-training-worker"
+version = "0.1.0"
+description = "YOLO & EfficientNet Training Environment"
+authors = ["Hong Hee-soo"]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+# 베이스 이미지(pytorch:2.1.0)와 일치
+torch = "2.1.0"
+torchvision = "0.16.0"
+ultralytics = "8.2.0"
+mlflow = "2.14.0"
+boto3 = "^1.34.0"
+psycopg2-binary = "^2.9.9"
+pandas = "^2.0.0"
+opencv-python-headless = "^4.8.0"
+python-dotenv = "^1.0.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

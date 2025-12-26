@@ -7,7 +7,7 @@ from utils import download_dataset
 def train_effnet():
     # GPU 체크
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"🚀 학습 장치: {device}")
+    print(f"학습 장치: {device}")
 
     # 데이터 다운로드
     raw_path = os.getenv("DATASET_PATH")
@@ -19,7 +19,7 @@ def train_effnet():
     with mlflow.start_run(run_id=os.getenv("MLFLOW_RUN_ID")):
         # 모델 생성 및 GPU 이동
         model = torchvision.models.efficientnet_b0(pretrained=True)
-        model.to(device) # ✅ 모델을 GPU로!
+        model.to(device) # 모델을 GPU로!
 
         # (가상 학습 루프)
         epochs = int(os.getenv("EPOCHS", 5))

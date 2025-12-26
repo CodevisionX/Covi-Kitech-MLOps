@@ -10,7 +10,7 @@ def train_yolo():
     tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5000")
     
     if not run_id:
-        print("❌ MLFLOW_RUN_ID가 설정되지 않았습니다.")
+        print("MLFLOW_RUN_ID가 설정되지 않았습니다.")
         return
     
     # 2. Ultralytics 기본 MLflow 로깅 비활성화 (수동 로깅을 위해)
@@ -22,7 +22,7 @@ def train_yolo():
         bucket, prefix = raw_path.split('/', 1)
         local_data_path = download_dataset(bucket, prefix)
     except Exception as e:
-        print(f"❌ 데이터 다운로드 실패: {e}")
+        print(f"데이터 다운로드 실패: {e}")
         return
 
     # 4. MLflow 설정 및 실행 (서버에서 만든 run_id를 이어받음)
@@ -34,7 +34,7 @@ def train_yolo():
     # run_id를 지정하여 start_run을 호출하면, 서버에서 만든 RUNNING 상태의 런을 이어받습니다.
     with mlflow.start_run(run_id=run_id):
         try:
-            print(f"🚀 학습 시작 (Run ID: {run_id})")
+            print(f"학습 시작 (Run ID: {run_id})")
             
             # 모델 로드
             model_variant = os.getenv("MODEL_VARIANT", "yolov8n.pt")
@@ -70,13 +70,13 @@ def train_yolo():
             best_pt = os.path.join(results.save_dir, "weights", "best.pt")
             if os.path.exists(best_pt):
                 mlflow.log_artifact(best_pt, artifact_path="model/weights")
-                print(f"✅ 모델 저장 완료: {best_pt}")
+                print(f"모델 저장 완료: {best_pt}")
 
-            print("🏁 학습이 성공적으로 종료되었습니다.")
+            print("학습이 성공적으로 종료되었습니다.")
 
         except Exception as e:
             # 학습 도중 에러 발생 시 상태를 FAILED로 기록하도록 예외 처리
-            print(f"❌ 학습 중 에러 발생: {e}")
+            print(f"학습 중 에러 발생: {e}")
             traceback.print_exc()
             # with 블록을 나가면서 자동으로 상태가 업데이트되지만, 
             # 명시적으로 에러를 다시 발생시켜 MLflow에 알릴 수 있습니다.

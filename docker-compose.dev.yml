@@ -13,6 +13,11 @@ services:
       - ./pg_data:/var/lib/postgresql/data
     networks:
       - mlops-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   minio:
     image: minio/minio
@@ -37,8 +42,8 @@ services:
       - minio
     environment:
       MLFLOW_S3_ENDPOINT_URL: ${MLFLOW_S3_ENDPOINT_URL}
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
     command: >
       mlflow server
       --backend-store-uri postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
@@ -56,32 +61,30 @@ services:
     container_name: mlops_backend
     restart: always
     environment:
-      # 💡 기존 변수들은 유지하되, MLflow/Boto3가 인식하는 표준 변수명을 추가합니다.
-      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER}
-      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD}
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
       - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
       - MLFLOW_TRACKING_URI=http://mlflow:5000
-
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB}
-      
-      # (선택 사항) 기존에 사용하던 변수명도 코드에서 참조 중이라면 유지
-      - MINIO_ENDPOINT=minio:9000
-      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
-      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
+      - PYTHONUNBUFFERED=1  # 로그 실시간 확인을 위해 권장
     ports:
       - "8000:8000"
     volumes:
-      - ./api:/app                 # 로컬 api 폴더와 동기화
+      - ./api:/app:z          # 로컬 코드 동기화
       - /var/run/docker.sock:/var/run/docker.sock
-    # --reload 옵션을 추가하여 파이썬 코드 수정 시 서버 자동 재시작
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+      - mlops_training_logs:/app/runs
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     networks:
       - mlops-net
     depends_on:
-      - mlflow
-      - minio
+      mlflow:
+        condition: service_started
+      minio:
+        condition: service_started
+      postgres:
+        condition: service_healthy
   
   # 6. Training Worker (개발 환경용)
   training:
@@ -103,6 +106,7 @@ services:
     volumes:
       - ./training:/app             # [추가] 학습 코드 실시간 동기화
       - ./training_results:/app/runs
+    command: sh -c "python train_yolo.py 2>&1 | tee /app/runs/$$(hostname).log"
     networks:
       - mlops-net
     profiles: ["job"] # 여전히 프로파일을 설정해서 평소엔 안 켜지게 함
@@ -128,3 +132,6 @@ services:
 networks:
   mlops-net:
     driver: bridge
+
+volumes:
+  mlops_training_logs:

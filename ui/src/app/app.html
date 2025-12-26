@@ -8,15 +8,15 @@
 <mat-sidenav-container class="main-container" [style.height]="layoutService.getBodyHeight()">
   <mat-sidenav #sidenav mode="side" opened class="side-nav">
     <mat-nav-list>
-      <a mat-list-item routerLink="/dashboard" routerLinkActive="active-link">
+      <a mat-list-item routerLink="/dashboard" routerLinkActive="active-link" [routerLinkActiveOptions]="{ exact: true }">
         <mat-icon matListItemIcon>model_training</mat-icon>
         <span matListItemTitle>Training</span>
       </a>
-      <a mat-list-item routerLink="/models" routerLinkActive="active-link">
+      <a mat-list-item routerLink="/dashboard/models" routerLinkActive="active-link">
         <mat-icon matListItemIcon>inventory_2</mat-icon>
         <span matListItemTitle>Model Registry</span>
       </a>
-      <a mat-list-item routerLink="/deployments" routerLinkActive="active-link">
+      <a mat-list-item routerLink="/dashboard/deployments" routerLinkActive="active-link">
         <mat-icon matListItemIcon>rocket_launch</mat-icon>
         <span matListItemTitle>Deployments</span>
       </a>

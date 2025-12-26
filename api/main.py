@@ -64,9 +64,9 @@ mlflow_client = MlflowClient()
 try:
     docker_client = docker.from_env()
     docker_client.ping()
-    print("✅ Docker connected")
+    print("Docker connected")
 except Exception as e:
-    print(f"❌ Docker connection error: {e}")
+    print(f"Docker connection error: {e}")
     docker_client = None
 
 s3 = boto3.client('s3',
@@ -100,7 +100,7 @@ sse_manager = SSEManager()
 # --- 3. 핵심: 비동기 워커 (Event-Driven Worker) ---
 async def training_worker():
     """큐에 작업이 들어오는 '이벤트'가 발생할 때만 즉시 동작합니다."""
-    print("🤖 Training Worker 가동: 대기열 감시 시작")
+    print("Training Worker 가동: 대기열 감시 시작")
     while True:
         # 큐에서 작업이 들어올 때까지 '완전 대기' (폴링 X, CPU 사용 0)
         job_info = await training_queue.get() 
@@ -110,7 +110,7 @@ async def training_worker():
         try:
             job = db.query(TrainingJob).filter(TrainingJob.id == job_id).first()
             if not job or job.status == "CANCELLED":
-                print(f"⏭️ Job {job_id}는 취소된 작업이므로 스킵합니다.")
+                print(f"Job {job_id}는 취소된 작업이므로 스킵합니다.")
                 continue
 
             # 1. 상태 변경: PENDING -> RUNNING
@@ -129,7 +129,7 @@ async def training_worker():
             await execute_training_logic_refined(job_id, target_model, target_dataset, target_epochs, target_batch)
 
         except Exception as e:
-            print(f"❌ 워커 실행 에러: {e}")
+            print(f"워커 실행 에러: {e}")
             traceback.print_exc()
         finally:
             db.close()
@@ -164,16 +164,28 @@ async def execute_training_logic_refined(job_id, model_variant, dataset, epochs,
             "AWS_SECRET_ACCESS_KEY": "minio123"
         }
 
+        train_script = "train_yolo.py" if model_variant == "YOLOv8" else "train_effnet.py"
+        log_command = f"sh -c 'mkdir -p /app/runs && python {train_script} 2>&1 | tee /app/runs/$(hostname).log'"
+
         # 3. Docker 컨테이너 실행 (비동기 루프 방해하지 않게 detach=True)
         container = docker_client.containers.run(
             image="mlops_kitech-training",
-            command=f"python train_yolo.py" if model_variant == "YOLOv8" else "python train_effnet.py",
+            command=log_command,
             environment=env_vars,
             shm_size="8G",
             network="mlops_kitech_mlops-net",
+            volumes={'mlops_kitech_mlops_training_logs': {'bind': '/app/runs', 'mode': 'rw'}},
             device_requests=[docker.types.DeviceRequest(count=-1, capabilities=[['gpu']])],
             detach=True
         )
+
+        short_id = container.id[:12]
+
+        sse_manager.broadcast({
+            "job_id": job_id, 
+            "container_id": short_id, 
+            "event": "container_created"
+        })
 
         # 4. DB 정보 업데이트 (짧은 세션 사용)
         db = SessionLocal()
@@ -184,23 +196,22 @@ async def execute_training_logic_refined(job_id, model_variant, dataset, epochs,
                 job.container_id = container.id
                 db.commit()
 
-                mlflow_client.set_tag(run_id, "container_id", container.id)
-                print(f"✅ Job {job_id} 업데이트 완료: Run ID={run_id}, Container={container.id[:12]}")
+                mlflow_client.set_tag(run_id, "container_id", short_id)
+                print(f"Job {job_id} 업데이트 완료: Run ID={run_id}, Container={container.id[:12]}")
         finally:
             db.close() # 업데이트 후 즉시 세션 종료
 
         # 5. 컨테이너 종료 대기 (DB 세션 없이 루프 진행)
-        print(f"⏳ 컨테이너 {container.id[:12]} 종료 대기 중...")
-        while True:
-            await asyncio.sleep(5)
-            container.reload() # 최신 상태(running, exited 등) 로드
-            if container.status != "running":
-                break
+        print(f"컨테이너 {short_id} 종료 대기 중...")
+        result = await asyncio.to_thread(container.wait)
 
-        print(f"✅ 컨테이너 {container.id[:12]} 실행 종료됨 (Status: {container.status})")
+        print(f"컨테이너 {short_id} 실행 종료됨 (Status: {container.status})")
 
+        log_path = f"/app/runs/{short_id}.log"
+        if os.path.exists(log_path):
+            print("로그 확인 완료")
     except Exception as e:
-        print(f"❌ execute_training_logic_refined 에러: {e}")
+        print(f"execute_training_logic_refined 에러: {e}")
         # 에러 발생 시 DB 상태를 FAILED로 변경
         db = SessionLocal()
         try:
@@ -214,9 +225,14 @@ async def execute_training_logic_refined(job_id, model_variant, dataset, epochs,
             db.close()
     
     finally:
-        # 6. 최종 상태 모니터링 태스크 핸드오버
+        # if container:
+        #     try:
+        #         container.remove(force=True)
+        #     except Exception as e:
+        #         print(f"컨테이너 삭제 중 오류: {e}")
+
         if run_id and container:
-            asyncio.create_task(watch_run_status_and_db(run_id, container.id, job_id))
+            asyncio.create_task(watch_run_status_and_db(run_id, short_id, job_id))
 
 async def watch_run_status_and_db(run_id, container_id, job_id):
     """MLflow 상태를 감시하여 DB의 최종 상태까지 업데이트합니다."""
@@ -472,15 +488,24 @@ async def cancel_training_job(job_id: int):
 # --- 7. [유지] 컨테이너 로그 실시간 스트리밍 (SSE) ---
 @app.get("/train/{container_id}/logs")
 async def stream_logs(container_id: str):
-    """특정 학습 컨테이너의 로그를 실시간으로 스트리밍합니다."""
+    log_file_path = f"/app/runs/{container_id[:12]}.log"
+
     def generate_logs():
         try:
-            container = docker_client.containers.get(container_id)
-            # stream=True, follow=True를 통해 실시간 로그 획득
-            for line in container.logs(stream=True, follow=True, tail=100):
-                yield f"data: {line.decode('utf-8')}\n\n"
-        except Exception as e:
-            yield f"data: Error fetching logs: {str(e)}\n\n"
+            try:
+                container = docker_client.containers.get(container_id)
+                # stream=True, follow=True를 통해 실시간 로그 획득
+                for line in container.logs(stream=True, follow=True, tail=100):
+                    yield f"data: {line.decode('utf-8')}\n\n"
+            except docker.errors.NotFound:
+                if os.path.exists(log_file_path):
+                    with open(log_file_path, "r", encoding="utf-8") as f:
+                        for line in f:
+                            yield f"data: {line}\n\n"
+                else:
+                    yield f"data: Error: No active container or saved log file found for {container_id}.\n\n"
+        except Exception as e:    
+            yield f"data: Unexpected error: {str(e)}\n\n"
 
     return StreamingResponse(generate_logs(), media_type="text/event-stream")
 
@@ -507,7 +532,7 @@ async def get_metrics_history(run_id: str):
                 # 3. 프론트엔드가 인식할 수 있는 키 이름으로 배열 저장
                 history_data[frontend_key] = [m.value for m in history]
             except Exception as e:
-                print(f"⚠️ {mlflow_key} 데이터를 가져오는데 실패: {e}")
+                print(f"{mlflow_key} 데이터를 가져오는데 실패: {e}")
                 history_data[frontend_key] = []
         
         return history_data
@@ -526,7 +551,7 @@ async def get_artifact_preview(run_id: str, filename: str = "val_batch0_labels.j
         if os.path.exists(local_path):
             return FileResponse(local_path)
         
-        print(f"📂 캐시 없음, MLflow에서 다운로드 시도: run_id={run_id}, filename={filename}")
+        print(f"캐시 없음, MLflow에서 다운로드 시도: run_id={run_id}, filename={filename}")
 
         # MLflow 아티팩트 루트에서 파일을 직접 찾습니다.
         # 제시하신 S3 경로상 파일이 artifacts/ 바로 아래에 있으므로 상대 경로는 filename 그 자체입니다.
@@ -539,7 +564,7 @@ async def get_artifact_preview(run_id: str, filename: str = "val_batch0_labels.j
         return FileResponse(downloaded_path)
 
     except Exception as e:
-        print(f"❌ 아티팩트 다운로드 실패: {e}")
+        print(f"아티팩트 다운로드 실패: {e}")
         traceback.print_exc() # 상세 에러 스택 확인용
         # 디버깅을 위해 상세 에러 메시지 반환
         raise HTTPException(status_code=404, detail=f"이미지 로드 실패: {str(e)}")

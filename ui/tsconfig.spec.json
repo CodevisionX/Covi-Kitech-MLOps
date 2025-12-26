@@ -11,5 +11,5 @@
   "include": [
     "src/**/*.d.ts",
     "src/**/*.ts"
-  ]
+, "modules/shared/material-module.ts"  ]
 }

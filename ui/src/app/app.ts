@@ -1,5 +1,5 @@
-import { Component, inject, signal } from '@angular/core';
-import { Layout } from './core/services/layout';
+import { Component, inject } from '@angular/core';
+import { Layout } from '../../modules/shared/services/layout';
 
 @Component({
   selector: 'app-root',

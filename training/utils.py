@@ -12,7 +12,7 @@ def download_dataset(bucket_name, prefix, local_dir="/app/data"):
     if not os.path.exists(local_dir):
         os.makedirs(local_dir)
 
-    print(f"📦 MinIO 다운로드 시작: {bucket_name}/{prefix} -> {local_dir}")
+    print(f"MinIO 다운로드 시작: {bucket_name}/{prefix} -> {local_dir}")
     
     paginator = s3.get_paginator('list_objects_v2')
     for result in paginator.paginate(Bucket=bucket_name, Prefix=prefix):
@@ -31,5 +31,5 @@ def download_dataset(bucket_name, prefix, local_dir="/app/data"):
                 
                 s3.download_file(bucket_name, key, local_file_path)
     
-    print("✅ 데이터셋 다운로드 완료")
+    print("데이터셋 다운로드 완료")
     return local_dir
