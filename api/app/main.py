@@ -7,8 +7,10 @@ from app.api.v1.api import api_router
 from app.core.config import settings
 from app.db.session import engine, SessionLocal
 from app.db.base_class import Base
-from app.services.training_service import training_service
-from app.models.training import TrainingJob, JobStatus
+from app.services.TrainingService import training_service
+from app.models.training import TrainingJob
+from app.schemas.training import JobStatus
+
 
 # --- 1. Lifespan 관리 ---
 @asynccontextmanager

@@ -1,10 +1,11 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { Model } from '../../services/model';
-import { TerminalService } from '../../services/terminal';
 import { MODEL_CONFIGS } from '../../configs/model-config';
 import { Training } from '../../services/apis/training';
+import { Experiment } from '../../services/apis/experiment';
+import { IExperiment } from '../../services/apis/models/experiment.model';
 
 @Component({
   selector: 'app-train',
@@ -12,12 +13,12 @@ import { Training } from '../../services/apis/training';
   templateUrl: './train.html',
   styleUrl: './train.scss',
 })
-export class Train {
+export class Train implements OnInit {
 
   private snackBar = inject(MatSnackBar);
-  private terminalService = inject(TerminalService);
   protected modelService = inject(Model);
   protected readonly training = inject(Training);
+  private readonly experiment = inject(Experiment);
   private readonly router = inject(Router);
 
   // 학습 설정 관련 상태
@@ -26,7 +27,13 @@ export class Train {
   configs = MODEL_CONFIGS;
   selectedModelName: string = '';
   dynamicParams: any = {};
+  allExperiments: IExperiment[] = [];
 
+  ngOnInit() {
+    this.experiment.getAll().subscribe(exps => {
+      this.allExperiments = exps;
+    });
+  }
 
   onModelChange(modelName: string) {
     this.selectedModelName = modelName;
@@ -65,31 +72,28 @@ export class Train {
 
     this.training.start(payload).subscribe({
       next: (res) => {
-        this.mlflowRunUrl = res.mlflow_url;
+        const targetExp = this.allExperiments.find(e => 
+          e.name.includes(this.selectedModelName)
+        );
 
-        // ✅ 전역 서비스에 스트리밍 시작 명령 전달
-        if (res.container_id) {
-          this.terminalService.startStreaming(res.container_id);
-        } else {
-          console.warn('컨테이너 ID가 아직 생성되지 않아 로그를 불러올 수 없습니다.');
-        }
-
-        this.snackBar.open(`🚀 학습 시작!`, '확인', {
+        // 1. 알림 표시
+        this.snackBar.open(`🚀 학습 요청 완료! (상태: ${res.status})`, '확인', {
           duration: 3000,
           horizontalPosition: 'right',
           verticalPosition: 'top',
         });
 
+        // 2. 바로 목록 페이지로 이동
         this.router.navigate(['/dashboard/models'], {
-          queryParams: { algorithm: payload.model_variant }
+          queryParams: { 
+            algorithm: this.selectedModelName,
+            expId: targetExp ? targetExp.experiment_id : null // 찾은 ID를 넣어줌
+          }
         });
       },
       error: (err) => {
         this.isSubmitting = false;
         this.snackBar.open('❌ 학습 요청에 실패했습니다.', '닫기');
-      },
-      complete: () => {
-        this.isSubmitting = false;
       }
     });
   }

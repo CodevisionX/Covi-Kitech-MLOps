@@ -34,7 +34,7 @@ export class Training extends BaseApi {
   }
 
   cancel(jobId: number): Observable<any> {
-    return this.http.post(`/training/jobs/${jobId}/cancel`, {});
+    return this.http.post(`/training/${jobId}/cancel`, {});
   }
 
   getStatusStream(): Observable<any> {

@@ -38,6 +38,7 @@ async def get_runs(experiment_id: str):
                 run_id=run.info.run_id,
                 run_name=run.data.tags.get("mlflow.runName", "Unnamed"),
                 status=run.info.status,
+                start_time=run.info.start_time,
                 metrics=run.data.metrics,
                 params=run.data.params
             ) for run in runs

@@ -9,7 +9,7 @@ import { IExperiment, IMLflowRun } from './models/experiment.model';
   providedIn: 'root',
 })
 export class Experiment extends BaseApi {
- 
+
   private http = inject(HttpClient);
   private readonly baseUrl = environment.apiUrl;
 

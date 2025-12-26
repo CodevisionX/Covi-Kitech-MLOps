@@ -2,9 +2,10 @@ import { NgModule, provideBrowserGlobalErrorListeners } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { AppRoutingModule } from './app-routing-module';
 import { App } from './app';
-import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
+import { provideHttpClient, withInterceptors, withInterceptorsFromDi } from '@angular/common/http';
 import { MaterialModule } from '../../modules/shared/material-module';
 import { MlopsModule } from './../../modules/mlops/mlops-module';
+import { apiInterceptor } from './../../modules/mlops/interceptors/api.interceptor';
 
 @NgModule({
   declarations: [
@@ -18,7 +19,8 @@ import { MlopsModule } from './../../modules/mlops/mlops-module';
   ],
   providers: [
     provideBrowserGlobalErrorListeners(),
-    provideHttpClient(withInterceptorsFromDi())
+    provideHttpClient(withInterceptorsFromDi()),
+    provideHttpClient(withInterceptors([apiInterceptor]))
   ],
   bootstrap: [App]
 })

@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import training
+from app.api.v1.endpoints import training, artifacts, experiments
 
 # v1 전용 통합 라우터 생성
 api_router = APIRouter()

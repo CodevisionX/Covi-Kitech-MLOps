@@ -131,6 +131,7 @@ services:
 
 networks:
   mlops-net:
+    name: mlops-net
     driver: bridge
 
 volumes:

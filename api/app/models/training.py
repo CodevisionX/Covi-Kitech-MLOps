@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime
 from datetime import datetime, timedelta, timezone
-from api.app.db.BaseClass import Base
+from app.db.base_class import Base
 
 KST = timezone(timedelta(hours=9), 'KST')
 

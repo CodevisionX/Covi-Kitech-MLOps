@@ -10,5 +10,6 @@ class RunResponse(BaseModel):
     run_id: str
     run_name: str
     status: str
+    start_time: int
     metrics: Dict[str, float]
     params: Dict[str, str]   
