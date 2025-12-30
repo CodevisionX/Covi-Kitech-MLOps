@@ -1,14 +1,16 @@
-import { Component, computed, effect, inject, OnDestroy, OnInit, signal } from '@angular/core';
-import { MatDialog, MatDialogRef } from '@angular/material/dialog';
-import { TerminalLog } from '../dialogs/terminal-log/terminal-log';
+import { Component, computed, effect, inject, NgZone, OnDestroy, OnInit, signal } from '@angular/core';
+import { Jobs } from '../../services/apis/job';
 import { ActivatedRoute, Router } from '@angular/router';
-import { finalize, forkJoin, Subscription } from 'rxjs';
+import { MatDialog, MatDialogRef } from '@angular/material/dialog';
+import { IJob } from '../../services/apis/models/job.model';
+import { Subject, Subscription } from 'rxjs';
+import { debounceTime } from 'rxjs/operators';
 import { Notification } from '../../services/notification';
-import { IMLflowRun, IExperiment } from '../../services/apis/models/experiment.model';
-import { ITrainingJob } from '../../services/apis/models/training.model';
-import { Experiment } from '../../services/apis/experiment';
-import { Training } from '../../services/apis/training';
-import { Model } from '../../services/model';
+import { formatDistanceToNow } from 'date-fns';
+import { ko } from 'date-fns/locale';
+import { TerminalLog } from '../dialogs/terminal-log/terminal-log';
+import { IProject } from '../../services/apis/models/project.model';
+import { Project } from '../../services/apis/project';
 
 @Component({
   selector: 'app-model-list',
@@ -17,255 +19,237 @@ import { Model } from '../../services/model';
   styleUrl: './model-list.scss',
 })
 export class ModelList implements OnInit, OnDestroy {
-  private readonly router = inject(Router);
-  private readonly experiment = inject(Experiment);
-  private readonly training = inject(Training);
-  private modelService = inject(Model);
-  private dialog = inject(MatDialog);
-  private readonly route = inject(ActivatedRoute);
+
+  private jobService = inject(Jobs);
+  private projectService = inject(Project);
   private notificationService = inject(Notification);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private dialog = inject(MatDialog);
+  private ngZone = inject(NgZone);
 
-  private currentLogDialogRef: MatDialogRef<TerminalLog> | null = null;
-  private statusSubscription: Subscription | null = null;
+  projects = signal<IProject[]>([]);
+  allActiveJobs = signal<IJob[]>([]);
+  allHistoryJobs = signal<IJob[]>([]);
 
-  activeDisplayedColumns: string[] = ['modelInfo', 'status', 'startTime', 'dashboard', 'actions', 'cancel'];
-  historyDisplayedColumns: string[] = ['modelInfo', 'status', 'startTime', 'dashboard', 'management', 'actions'];
-
-  // 1. 상태 관리 Signal
-  dbJobs = signal<ITrainingJob[]>([]);
-  mlflowRuns = signal<IMLflowRun[]>([]);
-  dbHistoryList = signal<ITrainingJob[]>([]);
-
-  experiments = signal<IExperiment[]>([]);
-  selectedExpId = signal<string>('');
+  selectedProjectId = signal<number | null>(null);
+  selectedVariant = signal<string | null>(null);
   isLoading = signal<boolean>(false);
 
-  bestRunId = computed(() => {
-    return this.modelService.calculateBestRunId(this.mlflowRuns());
+  // 1. 현재 로드된 전체 Job에서 존재하는 알고리즘 종류만 추출
+  availableVariants = computed(() => {
+    const activeVariants = this.allActiveJobs().map(j => j.model_variant);
+    const historyVariants = this.allHistoryJobs().map(j => j.model_variant);
+    const combined = [...new Set([...activeVariants, ...historyVariants])];
+    return combined.sort();
   });
 
-  // 2. 상태별 필터링 (Computed)
-  activeJobs = computed(() => {
-    const currentExp = this.experiments().find(e => e.experiment_id === this.selectedExpId());
-    const algoName = currentExp?.name.replace('_Experiments', '');
-
-    return this.dbJobs()
-      .filter(job =>
-        job.model_variant === algoName &&
-        (job.status === 'PENDING' || job.status === 'RUNNING') // CANCELLED는 여기서 빠짐
-      )
-      .map(job => ({
-        ...job,
-        displayTime: new Date(job.created_at).getTime(),
-        containerId: job.container_id
-      }))
-      .sort((a, b) => b.displayTime - a.displayTime);
+  // 2. 선택된 탭(Variant)에 따라 필터링된 데이터 제공
+  filteredActiveJobs = computed(() => {
+    const variant = this.selectedVariant();
+    return variant ? this.allActiveJobs().filter(j => j.model_variant === variant) : this.allActiveJobs();
   });
 
-  // 2. 학습 이력 정렬 및 시간 통일 수정
-  historyJobs = computed(() => {
-    const currentExp = this.experiments().find(e => e.experiment_id === this.selectedExpId());
-    const algoName = currentExp?.name.replace('_Experiments', '');
+  filteredHistoryJobs = computed(() => {
+    const variant = this.selectedVariant();
+    return variant ? this.allHistoryJobs().filter(j => j.model_variant === variant) : this.allHistoryJobs();
+  });
 
-    const mlflowHistory = this.mlflowRuns().filter(run =>
-      run.status !== 'RUNNING' && run.status !== 'SCHEDULED'
-    );
+  bestJob = computed(() => {
+    const history = this.filteredHistoryJobs().filter(j => j.status === 'FINISHED' && j.metrics);
+    if (history.length === 0) return null;
 
-    const dbHistory = this.dbHistoryList().filter(job =>
-      job.model_variant === algoName &&
-      (job.status === 'FINISHED' || job.status === 'FAILED' || job.status === 'CANCELLED') // 취소 건 포함
-    );
+    return history.reduce((prev, current) => {
+      const getScore = (job: IJob) =>
+        job.metrics?.['metrics/mAP50(B)'] ??
+        job.metrics?.['metrics/mAP50B'] ??
+        job.metrics?.['mAP50(B)'] ?? 0;
 
-    // MLflow 데이터 정규화
-    const mergedHistory = mlflowHistory.map(run => {
-      const matchingDbJob = dbHistory.find(job => job.run_id === run.run_id);
-      return {
-        ...run,
-        displayTime: (run as any).start_time,
-        // 중요: HTML에서 쓸 필드명을 containerId로 통일
-        containerId: run.tags?.container_id || matchingDbJob?.container_id
-      };
-    });
-
-    // DB 전용(취소 건) 데이터 정규화
-    const mlflowRunIds = new Set(mlflowHistory.map(r => r.run_id));
-    const orphanDbJobs = dbHistory
-      .filter(job => !job.run_id || !mlflowRunIds.has(job.run_id))
-      .map(job => ({
-        ...job,
-        displayTime: new Date(job.updated_at || job.created_at).getTime(),
-        containerId: job.container_id // 통일
-      }));
-
-    return [...mergedHistory, ...orphanDbJobs].sort((a: any, b: any) => {
-      return (b.displayTime || 0) - (a.displayTime || 0);
+      return getScore(current) > getScore(prev) ? current : prev;
     });
   });
+  bestJobId = computed(() => this.bestJob()?.id || null);
+
+  activeDisplayedColumns = ['modelInfo', 'status', 'startTime', 'dashboard', 'actions', 'cancel'];
+  historyDisplayedColumns = ['modelInfo', 'status', 'startTime', 'dashboard', 'management', 'actions'];
+
+  private sseSubscription: Subscription | null = null;
+  private currentLogDialogRef: MatDialogRef<TerminalLog> | null = null;
+  private refreshTrigger = new Subject<void>();
 
   constructor() {
-    effect(() => {
-      const id = this.selectedExpId();
-      if (id) {
-        this.loadRuns(id);
+    this.refreshTrigger.pipe(debounceTime(500)).subscribe(() => this.refreshJobs());
+  }
+
+  ngOnInit(): void {
+    this.loadProjects();
+    this.subscribeToJobUpdates();
+
+    this.route.queryParams.subscribe(params => {
+      if (params['projectId']) {
+        this.selectedProjectId.set(+params['projectId']);
       }
-    }, { allowSignalWrites: true });
+      if (params['variant']) {
+        this.selectedVariant.set(params['variant']);
+      }
+      this.refreshJobs();
+    });
   }
 
-  ngOnInit() {
-    this.loadInitialData();
-    this.refresh();
-    this.subscribeToUpdates();
+  ngOnDestroy(): void {
+    if (this.sseSubscription) {
+      console.log('sse 구독을 해제하고 연결을 종료합니다.');
+      this.sseSubscription.unsubscribe();
+    }
   }
 
-  ngOnDestroy() {
-    this.statusSubscription?.unsubscribe();
+  loadProjects() {
+    this.projectService.getProjects().subscribe(project => {
+      this.projects.set(project);
+      // 초기 선택이 없으면 첫 번째 실험 선택 (선택사항)
+      if (!this.selectedProjectId() && project.length > 0) {
+        this.onProjectChange(project[0].id);
+      }
+    });
   }
 
-  loadInitialData() {
+  refreshJobs() {
+    const projectId = this.selectedProjectId();
+    if (!projectId) return;
+
+    console.log(`Project ${projectId}의 최신 데이터를 불러오는 중...`);
     this.isLoading.set(true);
-    this.experiment.getAll().subscribe({
-      next: (exps) => {
-        this.experiments.set(exps);
-        const queryExpId = this.route.snapshot.queryParamMap.get('expId');
-        if (queryExpId && exps.some(e => e.experiment_id === queryExpId)) {
-          this.selectedExpId.set(queryExpId);
-        } else if (exps.length > 0) {
-          this.selectedExpId.set(exps[0].experiment_id);
-        } else {
-          this.isLoading.set(false);
+
+    // 선택된 프로젝트의 모든 Job을 가져옴
+    this.jobService.getActiveJobs(projectId).subscribe({
+      next: (jobs) => this.allActiveJobs.set(jobs),
+      error: () => this.isLoading.set(false)
+    });
+
+    this.jobService.getJobHistory(0, 100, projectId).subscribe({
+      next: (jobs) => {
+        this.allHistoryJobs.set(jobs);
+        this.isLoading.set(false);
+
+        // 데이터는 왔는데 선택된 Variant가 없다면 첫 번째로 자동 설정
+        if (!this.selectedVariant() && this.availableVariants().length > 0) {
+          this.onVariantChange(this.availableVariants()[0]);
         }
       },
-      error: () => {
-        this.notificationService.showError('실험 목록 로드 실패');
-        this.isLoading.set(false);
-      }
+      error: () => this.isLoading.set(false)
     });
   }
 
-  loadRuns(expId: string) {
-    this.isLoading.set(true);
-    this.experiment.getRunsByExperiment(expId).subscribe({
-      next: (runs) => {
-        this.mlflowRuns.set(runs);
-        this.isLoading.set(false);
+  subscribeToJobUpdates() {
+    console.log('sse 실시간 업데이트 구독을 시작합니다.');
+    this.sseSubscription = this.jobService.getJobUpdates().subscribe({
+      next: (event: any) => {
+        // event 구조: { event: 'status_change', data: { project_id: 1, ... } }
+        console.log('SSE Event received:', event);
+
+        // 백엔드에서 평탄화했으므로 event.data.project_id로 바로 접근 가능
+        const data = event.data;
+
+        if (event.event === 'status_change' && data.project_id == this.selectedProjectId()) {
+          this.ngZone.run(() => {
+            console.log('상태 변경 감지, 리스트 갱신');
+            this.refreshTrigger.next();
+          });
+        }
+
+        if (event.event === 'new_job' && data.project_id == this.selectedProjectId()) {
+          this.ngZone.run(() => {
+            console.log('새 작업 감지, 리스트 갱신');
+            this.refreshTrigger.next();
+          });
+        }
       },
-      error: () => {
-        this.isLoading.set(false);
-        this.notificationService.showError('내역 로드 실패');
-      }
+      error: (err) => console.error('SSE Error:', err)
     });
   }
 
-  onAlgorithmChange(expId: string) {
-    this.selectedExpId.set(expId);
+  onProjectChange(projectId: number) {
+    this.selectedVariant.set(null);
     this.router.navigate([], {
       relativeTo: this.route,
-      queryParams: { expId: expId },
-      queryParamsHandling: 'merge',
+      queryParams: { projectId: projectId, variant: null },
+      queryParamsHandling: 'merge' // 기존 다른 쿼리 파라미터 유지
     });
   }
 
-  getRelativeTime(time: number | string) {
-    if (!time) return '-';
-    const date = typeof time === 'string' ? new Date(time).getTime() : time;
-    const now = Date.now();
-    const diff = Math.floor((now - date) / 1000);
-
-    if (diff < 60) return '방금 전';
-    if (diff < 3600) return `${Math.floor(diff / 60)}분 전`;
-    return new Date(date).toLocaleString('ko-KR', {
-      year: 'numeric', month: '2-digit', day: '2-digit',
-      hour: '2-digit', minute: '2-digit', hour12: false
-    });
-  }
-
-  refresh() {
-    this.isLoading.set(true);
-    const expId = this.selectedExpId();
-    const requests: any = {
-      active: this.training.getActiveJobs(),
-      history: this.training.getHistory()
-    };
-    if (expId) requests.mlflow = this.experiment.getRunsByExperiment(expId);
-
-    forkJoin(requests).pipe(finalize(() => this.isLoading.set(false))).subscribe({
-      next: (res: any) => {
-        this.dbJobs.set(res.active);
-        this.dbHistoryList.set(res.history);
-        if (res.mlflow) this.mlflowRuns.set(res.mlflow);
-      },
-      error: () => this.notificationService.showError('데이터 로드 실패')
-    });
-  }
-
-  subscribeToUpdates() {
-    this.statusSubscription?.unsubscribe();
-    this.statusSubscription = this.training.getStatusStream().subscribe({
-      next: (data) => {
-        if (data.event === 'container_created') {
-          this.dbJobs.update(jobs => jobs.map(j => j.id === data.job_id ? { ...j, container_id: data.container_id } : j));
-        }
-        if (data.event === 'job_queued' || data.event === 'status_changed') {
-          this.refresh();
-          if (data.status !== 'RUNNING' && data.status !== 'PENDING') {
-            this.closeLogDialogIfMatch(data.job_id);
-          }
-          if (data.status === 'RUNNING') {
-            this.notificationService.showInfo(`학습이 시작되었습니다! (Job ID: ${data.job_id})`);
-          }
-        }
-      }
-    });
-  }
-
-  openMlflowDetail(runId: string) {
-    const url = `http://localhost:5000/#/experiments/${this.selectedExpId()}/runs/${runId}`;
-    window.open(url, '_blank');
-  }
-
-  navigateToRunDetail(runId: string) {
-    this.router.navigate(['/dashboard/models/run', runId], {
-      queryParams: { expId: this.selectedExpId() }
+  onVariantChange(variant: string) {
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { variant: variant },
+      queryParamsHandling: 'merge'
     });
   }
 
   onCancelJob(jobId: number) {
-    if (!confirm('정말로 취소하시겠습니까?')) return;
+    if (!confirm('정말 이 작업을 취소하시겠습니까?')) return;
 
-    const targetJob = this.dbJobs().find(j => j.id === jobId);
+    this.allActiveJobs.update(jobs =>
+      jobs.map(j => {
+        if (j.id === jobId) {
+          return { ...j, status: 'CANCELLING' as any };
+        }
+        return j;
+      })
+    );
 
-    if (targetJob) {
-      // 1. 진행 중 목록에서 제거
-      this.dbJobs.update(jobs => jobs.filter(j => j.id !== jobId));
-
-      // 2. 이력 목록으로 즉시 이동 (상태만 CANCELLED로 변경해서 넣기)
-      this.dbHistoryList.update(history => [
-        { ...targetJob, status: 'CANCELLED', updated_at: new Date().toISOString() },
-        ...history
-      ]);
-    }
-
-    // 3. 서버에 요청 (나머지는 SSE가 알아서 최종 정합성을 맞춰줍니다)
-    this.training.cancel(jobId).subscribe({
+    this.jobService.cancelJob(jobId).subscribe({
+      next: () => {
+        this.notificationService.showSuccess('작업 취소 요청됨');
+        // SSE가 곧 status_change를 보내줄 것이므로 수동 갱신 안 해도 됨
+      },
       error: (err) => {
-        this.notificationService.showError('취소 요청 실패');
-        this.refresh(); // 실패했을 때만 다시 데이터를 불러와서 복구
+        this.notificationService.showError('취소 실패');
+        this.refreshJobs();
       }
     });
   }
 
-  private closeLogDialogIfMatch(jobId: number) {
-    if (this.currentLogDialogRef) {
-      this.currentLogDialogRef.close();
-      this.currentLogDialogRef = null;
-    }
-  }
+  openLogDialog(job: IJob) {
+    if (!job || !job.id) return;
 
-  openLogDialog(containerId: string) {
-    if (!containerId) return;
     this.currentLogDialogRef = this.dialog.open(TerminalLog, {
-      data: { containerId }, width: '800px', height: '600px', panelClass: 'custom-terminal-dialog'
+      data: {
+        jobId: job.id,
+        status: job.status
+      },
+      width: '800px',
+      height: '600px',
+      panelClass: 'custom-terminal-dialog',
+      disableClose: false
     });
+
     this.currentLogDialogRef.afterClosed().subscribe(() => this.currentLogDialogRef = null);
   }
+
+  openMlflowDetail(job: IJob) {
+    if (!job.run_id || !job.experiment_id) {
+      this.notificationService.showError('MLflow 정보를 찾을 수 없습니다.');
+      return;
+    }
+    // MLflow UI URL (환경변수나 설정에서 가져오는 것이 좋음)
+    const mlflowUrl = `http://localhost:5000/#/experiments/${job.experiment_id}/runs/${job.run_id}`;
+    window.open(mlflowUrl, '_blank');
+  }
+
+  navigateToRunDetail(job: IJob) {
+    if (!job.run_id) return;
+    this.router.navigate(['/dashboard/models/run', job.run_id], {
+      queryParams: {
+        projectId: job.project_id,
+        expId: job.experiment_id // 상세 페이지에서도 MLflow API 호출을 위해 필요
+      }
+    });
+  }
+
+  getRelativeTime(dateStr?: string | null): string {
+    if (!dateStr) return '-';
+    return formatDistanceToNow(new Date(dateStr), { addSuffix: true, locale: ko });
+  }
+
+
 }

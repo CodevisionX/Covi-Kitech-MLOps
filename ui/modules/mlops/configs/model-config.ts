@@ -34,11 +34,13 @@ export const MODEL_CONFIGS: { [key: string]: ModelConfig } = {
         tooltip: '한 번의 계산에 사용할 데이터의 묶음 크기입니다. 컴퓨터의 메모리(GPU) 성능에 맞춰 조절해야 합니다.' 
       },
       { 
-        name: 'model_variant', 
-        label: 'Model Version', 
+        // [수정 완료] model_variant -> model_architecture 로 변경
+        name: 'model_architecture', 
+        label: 'Model Architecture', 
         type: 'select', 
-        options: ['yolov8n', 'yolov8s', 'yolov8m'], 
-        default: 'yolov8n',
+        // 학습 코드에서 바로 사용할 수 있도록 확장자(.pt) 포함
+        options: ['yolov8n.pt', 'yolov8s.pt', 'yolov8m.pt'],
+        default: 'yolov8n.pt',
         tooltip: '모델의 크기를 선택합니다. n(nano)은 매우 빠르고 가볍지만, m(medium)으로 갈수록 정확도가 높아지는 대신 연산량이 많아집니다.'
       }
     ]

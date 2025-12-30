@@ -1,48 +1,75 @@
 <div class="model-list-container">
   <header class="page-header">
     <div class="title-group">
-      <h1>MLflow 학습 이력</h1>
-      <p>실험별 모델 학습 내역 및 실시간 상태를 확인합니다.</p>
+      <div class="title-with-icon">
+        <mat-icon class="main-icon">layers</mat-icon>
+        <h1>프로젝트 학습 관리</h1>
+      </div>
+      <p>실험별 학습 내역 및 MLflow 모델 상태를 실시간으로 모니터링합니다.</p>
     </div>
-    <button mat-flat-button class="refresh-btn" (click)="refresh()" [disabled]="isLoading()">
-      <mat-icon>refresh</mat-icon> 새로고침
-    </button>
+
+    <div class="project-controls">
+      <div class="selector-wrapper">
+        <mat-icon class="select-icon">folder_special</mat-icon>
+        <mat-form-field appearance="fill" class="compact-select">
+          <mat-select [value]="selectedProjectId()" (selectionChange)="onProjectChange($event.value)">
+            @for (proj of projects(); track proj.id) {
+            <mat-option [value]="proj.id">{{ proj.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <button mat-flat-button class="refresh-btn" (click)="refreshJobs()" [disabled]="isLoading()">
+        <mat-icon [class.spinning]="isLoading()">refresh</mat-icon>
+        <span>새로고침</span>
+      </button>
+    </div>
   </header>
 
   <nav class="experiment-tabs">
-    @for (exp of experiments(); track exp.experiment_id) {
-    <button class="tab-item" [class.active]="selectedExpId() === exp.experiment_id"
-      (click)="onAlgorithmChange(exp.experiment_id)">
-      <span class="exp-name">{{ exp.name.replace('_Experiments', '') }}</span>
+    @for (variant of availableVariants(); track variant) {
+    <button class="tab-item" [class.active]="selectedVariant() === variant" (click)="onVariantChange(variant)">
+      <mat-icon class="tab-icon">science</mat-icon>
+      <span class="exp-name">{{ variant }}</span>
     </button>
     } @empty {
-    <p class="empty-msg">생성된 실험이 없습니다.</p>
+    @if (!isLoading()) {
+    <div class="empty-tabs-msg">
+      <mat-icon>info</mat-icon>
+      <span>이 프로젝트에 등록된 학습 알고리즘이 없습니다.</span>
+    </div>
+    }
     }
   </nav>
 
   @if (isLoading()) {
   <div class="loading-shade">
-    <mat-spinner diameter="40"></mat-spinner>
-    <p>데이터를 불러오는 중...</p>
+    <mat-spinner diameter="32" strokeWidth="3"></mat-spinner>
+    <p>실시간 데이터 동기화 중...</p>
   </div>
   }
 
-  <div class="content-area">
+  <div class="content-area" [class.blur]="isLoading()">
+
     <section class="job-section">
       <h3 class="section-title">
-        <mat-icon class="icon-pending">pending_actions</mat-icon>
-        진행 중인 작업
-        <span class="count-badge primary">{{ activeJobs().length }}</span>
+        <mat-icon class="icon-pending">run_circle</mat-icon>
+        실행 중인 모델
+        <span class="count-badge primary">{{ filteredActiveJobs().length }}</span>
       </h3>
-
       <div class="table-scroll-wrapper">
-        <table mat-table [dataSource]="activeJobs()" class="custom-table active-table">
+        <table mat-table [dataSource]="filteredActiveJobs()" class="custom-table active-table">
           <ng-container matColumnDef="modelInfo">
             <th mat-header-cell *matHeaderCellDef>모델 정보</th>
             <td mat-cell *matCellDef="let job">
               <div class="model-info-cell">
-                <div class="run-name">{{ job.run_name || job.model_variant }}</div>
-                <div class="run-id">{{ job.run_id ? 'Run: ' + job.run_id.substring(0, 8) : 'Job ID: ' + job.id }}</div>
+                <div class="run-name">{{ job.model_variant }}</div>
+                <div class="tag-row">
+                  @for (tag of job.tags | keyvalue; track tag.key) {
+                  <span class="tag-mini">{{ tag.value }}</span>
+                  }
+                </div>
               </div>
             </td>
           </ng-container>
@@ -56,14 +83,14 @@
 
           <ng-container matColumnDef="startTime">
             <th mat-header-cell *matHeaderCellDef>요청 시간</th>
-            <td mat-cell *matCellDef="let job">{{ getRelativeTime(job.displayTime) }}</td>
+            <td mat-cell *matCellDef="let job">{{ getRelativeTime(job.created_at) }}</td>
           </ng-container>
 
           <ng-container matColumnDef="dashboard">
             <th mat-header-cell *matHeaderCellDef>대시보드</th>
             <td mat-cell *matCellDef="let job">
-              <button mat-icon-button class="btn-mlflow" [disabled]="job.status === 'PENDING'"
-                (click)="openMlflowDetail(job.run_id)" matTooltip="MLflow 대시보드">
+              <button mat-icon-button (click)="openMlflowDetail(job)"
+                [disabled]="job.status === 'PENDING' || !job.run_id" class="btn-dashboard">
                 <mat-icon>assessment</mat-icon>
               </button>
             </td>
@@ -72,18 +99,17 @@
           <ng-container matColumnDef="actions">
             <th mat-header-cell *matHeaderCellDef>로그</th>
             <td mat-cell *matCellDef="let job">
-              @if (job.containerId) {
-              <button mat-icon-button class="btn-log" (click)="openLogDialog(job.containerId)" matTooltip="실시간 로그">
+              <button mat-icon-button (click)="openLogDialog(job)" [disabled]="job.status === 'PENDING'"
+                class="btn-log">
                 <mat-icon>terminal</mat-icon>
               </button>
-              }
             </td>
           </ng-container>
 
           <ng-container matColumnDef="cancel">
             <th mat-header-cell *matHeaderCellDef>중단</th>
             <td mat-cell *matCellDef="let job">
-              <button mat-icon-button color="warn" (click)="onCancelJob(job.id)" matTooltip="학습 취소">
+              <button mat-icon-button color="warn" (click)="onCancelJob(job.id)">
                 <mat-icon>cancel</mat-icon>
               </button>
             </td>
@@ -92,36 +118,60 @@
           <tr mat-header-row *matHeaderRowDef="activeDisplayedColumns"></tr>
           <tr mat-row *matRowDef="let row; columns: activeDisplayedColumns;"></tr>
         </table>
-      </div>
 
-      @if (activeJobs().length === 0) {
-      <div class="no-data">현재 진행 중인 학습이 없습니다.</div>
-      }
+        @if (filteredActiveJobs().length === 0 && !isLoading()) {
+        <div class="table-empty-msg">
+          <mat-icon>hourglass_empty</mat-icon>
+          <span>진행 중인 작업이 없습니다.</span>
+        </div>
+        }
+      </div>
     </section>
 
     <section class="job-section">
-      <h3 class="section-title">
-        <mat-icon class="icon-history">history</mat-icon>
-        학습 이력
-        <span class="count-badge grey">{{ historyJobs().length }}</span>
-      </h3>
+      <div class="section-header-row">
+        <h3 class="section-title">
+          <mat-icon class="icon-history">history</mat-icon>
+          학습 이력
+          <span class="count-badge grey">{{ filteredHistoryJobs().length }}</span>
+        </h3>
+      </div>
+
+      @if (bestJob(); as best) {
+      <div class="best-model-card">
+        <div class="best-ribbon">🏆 BEST PERFORMANCE</div>
+        <div class="best-content">
+          <div class="best-info">
+            <span class="best-label">최고 성적 모델</span>
+            <h2 class="best-run-name">{{ best.model_variant }} (ID: {{ best.id }})</h2>
+            <div class="best-metrics">
+              <div class="metric-box">
+                <span class="m-label">mAP@0.5</span>
+                <span class="m-value">{{ (best.metrics?.['metrics/mAP50B'] || 0) | number:'1.2-4' }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="best-actions">
+            <button mat-flat-button class="best-deploy-btn" (click)="navigateToRunDetail(best)">
+              <mat-icon>insights</mat-icon> 상세 분석 및 배포
+            </button>
+          </div>
+        </div>
+      </div>
+      }
 
       <div class="table-scroll-wrapper">
-        <table mat-table [dataSource]="historyJobs()" class="custom-table history-table">
+        <table mat-table [dataSource]="filteredHistoryJobs()" class="custom-table history-table">
           <ng-container matColumnDef="modelInfo">
             <th mat-header-cell *matHeaderCellDef>모델 정보</th>
             <td mat-cell *matCellDef="let job">
-              <div class="run-info-wrapper">
-                <div class="name-area">
-                  <span class="run-name">{{ job.run_name || job.model_variant }}</span>
-                  @if (job.run_id === bestRunId()) {
-                  <div class="best-indicator">
-                    <mat-icon class="best-trophy">emoji_events</mat-icon>
-                    <span class="best-tag">BEST</span>
-                  </div>
+              <div class="model-info-cell">
+                <div class="run-name-wrapper">
+                  @if (job.id === bestJobId()) {
+                  <mat-icon class="best-badge" matTooltip="최고 성능">emoji_events</mat-icon>
                   }
+                  <div class="run-name" [class.best-text]="job.id === bestJobId()">{{ job.model_variant }}</div>
                 </div>
-                <div class="run-id">{{ job.run_id ? 'Run: ' + job.run_id.substring(0, 8) : 'Job ID: ' + job.id }}</div>
               </div>
             </td>
           </ng-container>
@@ -134,26 +184,24 @@
           </ng-container>
 
           <ng-container matColumnDef="startTime">
-            <th mat-header-cell *matHeaderCellDef>기록 시간</th>
-            <td mat-cell *matCellDef="let job">{{ getRelativeTime(job.displayTime) }}</td>
+            <th mat-header-cell *matHeaderCellDef>종료 시간</th>
+            <td mat-cell *matCellDef="let job">{{ getRelativeTime(job.finished_at || job.created_at) }}</td>
           </ng-container>
 
           <ng-container matColumnDef="dashboard">
             <th mat-header-cell *matHeaderCellDef>대시보드</th>
             <td mat-cell *matCellDef="let job">
-              <button mat-icon-button class="btn-open-new" (click)="openMlflowDetail(job.run_id)"
-                matTooltip="MLflow 상세 보기">
+              <button mat-icon-button (click)="openMlflowDetail(job)" [disabled]="!job.run_id">
                 <mat-icon>open_in_new</mat-icon>
               </button>
             </td>
           </ng-container>
 
           <ng-container matColumnDef="management">
-            <th mat-header-cell *matHeaderCellDef>상세 정보</th>
+            <th mat-header-cell *matHeaderCellDef>결과 분석</th>
             <td mat-cell *matCellDef="let job">
-              <button mat-button class="btn-result-view" (click)="navigateToRunDetail(job.run_id)">
-                <mat-icon>insights</mat-icon>
-                <span>결과 보기</span>
+              <button mat-button class="btn-result-view" (click)="navigateToRunDetail(job)" [disabled]="!job.run_id">
+                <mat-icon>insights</mat-icon><span>분석</span>
               </button>
             </td>
           </ng-container>
@@ -161,19 +209,23 @@
           <ng-container matColumnDef="actions">
             <th mat-header-cell *matHeaderCellDef>로그</th>
             <td mat-cell *matCellDef="let job">
-              @if (job.containerId) {
-              <button mat-icon-button class="btn-log" (click)="openLogDialog(job.containerId)" matTooltip="학습 로그 확인">
-                <mat-icon>terminal</mat-icon>
+              <button mat-icon-button (click)="openLogDialog(job)">
+                <mat-icon>description</mat-icon>
               </button>
-              }
             </td>
           </ng-container>
 
           <tr mat-header-row *matHeaderRowDef="historyDisplayedColumns"></tr>
           <tr mat-row *matRowDef="let row; columns: historyDisplayedColumns;"
-            [class.is-best-row]="row.run_id === bestRunId()">
-          </tr>
+            [class.is-best-row]="row.id === bestJobId()"></tr>
         </table>
+
+        @if (filteredHistoryJobs().length === 0 && !isLoading()) {
+        <div class="table-empty-msg">
+          <mat-icon>folder_open</mat-icon>
+          <span>학습 이력이 존재하지 않습니다.</span>
+        </div>
+        }
       </div>
     </section>
   </div>

@@ -6,12 +6,12 @@ export interface IExperiment {
 
 export interface IMLflowRun {
   run_id: string;
-  run_name: string;
+  run_name?: string;
   status: string;
-  metrics: any;
-  params: any;
-  tags?: {
-    container_id?: string;
-    [key: string]: any; // 다른 커스텀 태그들도 허용
-  };
+  start_time: number;
+  end_time?: number;
+  metrics: Record<string, number>;
+  params: Record<string, string>;
+  tags: Record<string, string>;
+  artifact_uri?: string;
 }

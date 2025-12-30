@@ -4,7 +4,11 @@ FROM pytorch/pytorch:2.1.0-cuda12.1-cudnn8-runtime
 ENV PYTHONUNBUFFERED=1
 ENV POETRY_VERSION=1.7.1
 
-# 2. 시스템 라이브러리 및 Poetry 설치 (DVC 관련 의존성 제거)
+# [추가] 설치 중 질문(Timezone 등)을 하지 않도록 설정 ★★★
+ENV DEBIAN_FRONTEND=noninteractive 
+
+# 2. 시스템 라이브러리 및 Poetry 설치
+# (tzdata 같은 패키지가 설치될 때 멈추는 현상 해결됨)
 RUN apt-get update && apt-get install -y \
     libgl1-mesa-glx \
     libglib2.0-0 \

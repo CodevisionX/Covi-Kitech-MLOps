@@ -1,16 +1,41 @@
 import asyncio
 from contextlib import asynccontextmanager
+from app.services.job_service import JobService
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 
 from app.api.v1.api import api_router
 from app.core.config import settings
 from app.db.session import engine, SessionLocal
 from app.db.base_class import Base
-from app.services.TrainingService import training_service
-from app.models.training import TrainingJob
-from app.schemas.training import JobStatus
 
+from app.models.project import Project 
+from sqlalchemy.orm import Session
+
+def seed_db(db: Session):
+    """
+    초기 프로젝트 데이터가 없는 경우 기본 프로젝트를 생성합니다.
+    """
+    try:
+        # 1. 프로젝트가 하나라도 있는지 확인 (혹은 특정 이름으로 확인)
+        project_count = db.query(Project).count()
+        
+        if project_count == 0:
+            print("Project table is empty. Seeding default project...")
+            default_project = Project(
+                name="base",
+                description="기본 프로젝트입니다."
+            )
+            db.add(default_project)
+            db.commit()
+            print("[+] Default project 'base' created.")
+        else:
+            print(f"[*] Project table already has {project_count} projects. Skipping seed.")
+    except Exception as e:
+        print(f"[!] Seeding error: {e}")
+        db.rollback()
 
 # --- 1. Lifespan 관리 ---
 @asynccontextmanager
@@ -21,27 +46,20 @@ async def lifespan(app: FastAPI):
     # [Startup] 1. DB 테이블 생성 (Alembic 도입 전까지 사용)
     Base.metadata.create_all(bind=engine)
     
-    # [Startup] 2. 백그라운드 학습 워커 가동
-    worker_task = asyncio.create_task(training_service.run_worker())
-    
-    # [Startup] 3. 서버 재시작 시 DB에 남은 PENDING 작업들 큐에 복구
-    with SessionLocal() as db:
-        pending_jobs = db.query(TrainingJob).filter(
-            TrainingJob.status == JobStatus.PENDING
-        ).order_by(TrainingJob.created_at.asc()).all()
-        
-        for job in pending_jobs:
-            await training_service.queue.put({"job_id": job.id})
-        print(f"{len(pending_jobs)}개의 대기 중인 작업을 큐에 복구했습니다.")
-
-    yield  # --- 서버 실행 중 ---
-
-    # [Shutdown] 1. 실행 중인 워커 작업 취소 및 정리
-    worker_task.cancel()
+    # 서버 재시작 시 큐 복구 로직
+    # 단순히 process_queue()를 한 번 호출해주면, 대기 중인 작업이 있다면 실행됩니다.
+    db = SessionLocal()
     try:
-        await worker_task
-    except asyncio.CancelledError:
-        print("백그라운드 워커가 안전하게 종료되었습니다.")
+        seed_db(db) # 시딩 함수 호출
+        
+        # [Startup] 3. 서버 재시작 시 큐 복구 로직
+        service = JobService(db)
+        asyncio.create_task(service.process_queue())
+    finally:
+        db.close()
+
+    yield
+    # --- 서버 실행 중 ---
 
 # --- 2. FastAPI 인스턴스 생성 ---
 app = FastAPI(
@@ -67,3 +85,10 @@ app.include_router(api_router, prefix="/api/v1")
 @app.get("/health", tags=["Health"])
 def health_check():
     return {"status": "healthy", "version": "v1.0.0"}
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc):
+    # 이 로그가 서버 터미널에 찍히면 어떤 데이터가 잘못되었는지 바로 알 수 있습니다.
+    print(f"Validation Error: {exc.errors()}")
+    print(f"Sent Body: {await request.body()}")
+    return JSONResponse(status_code=422, content={"detail": exc.errors()})

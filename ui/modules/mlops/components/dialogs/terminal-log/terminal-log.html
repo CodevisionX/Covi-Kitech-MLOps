@@ -7,7 +7,7 @@
     </div>
 
     <span class="terminal-title">
-      Training Logs - {{ data.containerId.substring(0, 12) }}
+      Training Logs - {{ data.jobId }}
     </span>
 
     <button mat-icon-button (click)="close()" class="close-btn">
@@ -17,15 +17,9 @@
 
   <div class="terminal-body" #scrollContainer>
     @for (log of terminalService.logs(); track $index) {
-    <div class="log-line" [class.error]="log.includes('ERROR')" [class.success]="log.includes('Successfully')">
-      <span class="log-text" [innerHTML]="log"></span>
-    </div>
-    }
-
-    @if (terminalService.logs().length === 0) {
-    <div class="log-line muted">
-      <span class="log-text">가동 준비 중... 로그 대기 중...</span>
-    </div>
+    <div class="log-line" [innerHTML]="log"></div>
+    } @empty {
+    <div class="empty-log">로그를 기다리는 중...</div>
     }
   </div>
 </div>

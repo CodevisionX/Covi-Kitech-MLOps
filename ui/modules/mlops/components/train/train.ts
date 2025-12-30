@@ -3,9 +3,10 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { Model } from '../../services/model';
 import { MODEL_CONFIGS } from '../../configs/model-config';
-import { Training } from '../../services/apis/training';
-import { Experiment } from '../../services/apis/experiment';
-import { IExperiment } from '../../services/apis/models/experiment.model';
+import { Jobs } from '../../services/apis/job';
+import { IJobCreate } from '../../services/apis/models/job.model';
+import { Project } from '../../services/apis/project';
+import { IProject } from '../../services/apis/models/project.model';
 
 @Component({
   selector: 'app-train',
@@ -17,21 +18,30 @@ export class Train implements OnInit {
 
   private snackBar = inject(MatSnackBar);
   protected modelService = inject(Model);
-  protected readonly training = inject(Training);
-  private readonly experiment = inject(Experiment);
+  protected readonly jobService = inject(Jobs);
+  private readonly projectService = inject(Project);
   private readonly router = inject(Router);
 
   // 학습 설정 관련 상태
   isSubmitting = false;
-  mlflowRunUrl: string = '';
   configs = MODEL_CONFIGS;
+
   selectedModelName: string = '';
+  selectedProjectId: number | null = null;
   dynamicParams: any = {};
-  allExperiments: IExperiment[] = [];
+  projects: IProject[] = [];
 
   ngOnInit() {
-    this.experiment.getAll().subscribe(exps => {
-      this.allExperiments = exps;
+    this.loadProjects();
+  }
+
+  loadProjects() {
+    this.projectService.getProjects().subscribe(projs => {
+      this.projects = projs;
+      // 테스트 편의를 위해 첫 번째 프로젝트 자동 선택
+      if (projs.length > 0) {
+        this.selectedProjectId = projs[0].id;
+      }
     });
   }
 
@@ -47,53 +57,45 @@ export class Train implements OnInit {
     }
   }
 
-  openMlflow() {
-    if (this.mlflowRunUrl) {
-      window.open(this.mlflowRunUrl, '_blank');
-    }
-  }
-
   submitTraining() {
     const currentPath = this.modelService.selectedDatasetPath();
 
-    if (!currentPath || !this.selectedModelName) {
+    if (!currentPath || !this.selectedModelName || !this.selectedProjectId) {
       this.snackBar.open('❌ 필수 설정이 누락되었습니다.', '닫기', { duration: 3000 });
       return;
     }
 
     this.isSubmitting = true;
 
-    const payload = {
+    const payload: IJobCreate = {
+      project_id: this.selectedProjectId,
       dataset: currentPath,
-      epochs: this.dynamicParams['epochs'] || 10,
-      batch: this.dynamicParams['batch'] || 16,
-      model_variant: this.selectedModelName
-    };
+      model_variant: this.selectedModelName,
+      params: { ...this.dynamicParams },
+      tags: {
+        "author": "KITECH", // 개발자 정보
+        "dataset_version": "v1.0",
+        "stage": "Experimental"
+      }
+    }
+    console.log('Training Payload:', payload);
 
-    this.training.start(payload).subscribe({
+    this.jobService.createJob(payload).subscribe({
       next: (res) => {
-        const targetExp = this.allExperiments.find(e => 
-          e.name.includes(this.selectedModelName)
-        );
-
-        // 1. 알림 표시
-        this.snackBar.open(`🚀 학습 요청 완료! (상태: ${res.status})`, '확인', {
+        this.snackBar.open(`🚀 학습 작업이 등록되었습니다! (ID: ${res.id})`, '확인', {
           duration: 3000,
           horizontalPosition: 'right',
           verticalPosition: 'top',
         });
 
-        // 2. 바로 목록 페이지로 이동
         this.router.navigate(['/dashboard/models'], {
-          queryParams: { 
-            algorithm: this.selectedModelName,
-            expId: targetExp ? targetExp.experiment_id : null // 찾은 ID를 넣어줌
-          }
+          queryParams: { projectId: this.selectedProjectId }
         });
       },
       error: (err) => {
+        console.error(err);
         this.isSubmitting = false;
-        this.snackBar.open('❌ 학습 요청에 실패했습니다.', '닫기');
+        this.snackBar.open('❌ 학습 요청에 실패했습니다. (422 오류 시 데이터 구조 확인)', '닫기');
       }
     });
   }

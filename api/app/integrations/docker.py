@@ -16,20 +16,22 @@ class DockerProvider:
         image: str,
         command: str,
         environment: Dict[str, str],
+        network: str,        # 순서 주의: JobService에서 넘기는 순서와 맞춤
         volumes: Dict[str, Any],
-        network: str      
+        detach: bool = False # 기본값 설정
     ):
         if not self.client:
             raise RuntimeError("Docker client is not initialized")
+        
         return self.client.containers.run(
             image=image,
             command=command,
             environment=environment,
+            network=network, # 혹은 network_mode=network
             volumes=volumes,
-            network=network,
             shm_size="8G",
             device_requests=[docker.types.DeviceRequest(count=-1, capabilities=[['gpu']])],
-            detach=True
+            detach=detach,
         )
 
     def get_container(self, container_id: str):

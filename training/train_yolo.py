@@ -1,56 +1,73 @@
 import os
+import sys
+import traceback
+import requests
 import mlflow
+import json
 from ultralytics import YOLO, settings
-from utils import download_dataset # 위 유틸리티 임포트
+from utils import download_dataset
+
+BACKEND_URL = os.getenv("BACKEND_URL", "http://backend:8000")
+JOB_ID = os.getenv("JOB_ID")
+
+def report_status(status, message=""):
+    if not JOB_ID: return
+    try:
+        # [수정] v1 경로 반영
+        url = f"{BACKEND_URL}/api/v1/jobs/{JOB_ID}/complete"
+        resp = requests.post(url, json={"status": status, "message": message}, timeout=10)
+        print(f"[Webhook] Status: {status} | HTTP {resp.status_code}")
+        if resp.status_code != 200:
+            print(f"[Webhook] Error Detail: {resp.text}")
+    except Exception as e:
+        print(f"[Webhook] Connection Failed: {e}")
 
 def train_yolo():
-    # 1. 환경 변수 및 경로 설정
     run_id = os.getenv("MLFLOW_RUN_ID")
     raw_path = os.getenv("DATASET_PATH") 
     tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5000")
+    job_tags_str = os.getenv("JOB_TAGS", "{}")
     
+    try:
+        job_tags = json.loads(job_tags_str)
+    except Exception:
+        job_tags = {}
+        
     if not run_id:
         print("MLFLOW_RUN_ID가 설정되지 않았습니다.")
         return
     
-    # 2. Ultralytics 기본 MLflow 로깅 비활성화 (수동 로깅을 위해)
-    # YOLO가 스스로 새 Run을 만드는 것을 방지합니다.
-    settings.update({"mlflow": False})
+    # [수정] YOLOv8이 현재 진행 중인 Run ID를 인식하도록 환경 변수 세팅
+    os.environ["MLFLOW_RUN_ID"] = run_id
+    # MLflow 자동 로깅을 다시 활성화하여 에포크별 지표(History)를 자동으로 남김
+    settings.update({"mlflow": True})
 
-    # 3. 데이터 다운로드
+    local_data_path = ""
     try:
+        print(f"데이터 다운로드 시도: {raw_path}")
         bucket, prefix = raw_path.split('/', 1)
         local_data_path = download_dataset(bucket, prefix)
     except Exception as e:
-        print(f"데이터 다운로드 실패: {e}")
-        return
+        report_status("FAILED", str(e))
+        sys.exit(1)
 
-    # 4. MLflow 설정 및 실행 (서버에서 만든 run_id를 이어받음)
     mlflow.set_tracking_uri(tracking_uri)
 
-    print(f"DEBUG: Received Run ID: {run_id}")
-    print(f"DEBUG: Tracking URI: {tracking_uri}")
-
-    # run_id를 지정하여 start_run을 호출하면, 서버에서 만든 RUNNING 상태의 런을 이어받습니다.
+    # 서버에서 만든 Run을 이어서 사용
     with mlflow.start_run(run_id=run_id):
         try:
-            print(f"학습 시작 (Run ID: {run_id})")
+            if job_tags:
+                print(f"Loaded Job Tags: {job_tags}")
+                mlflow.set_tags(job_tags)
+            model = YOLO(os.getenv("MODEL_ARCHITECTURE", "yolov8n.pt"))
             
-            # 모델 로드
-            model_variant = os.getenv("MODEL_VARIANT", "yolov8n.pt")
-            model = YOLO(model_variant)
-            
-            # 하이퍼파라미터 로깅
+            # 파라미터 로깅
             epochs = int(os.getenv("EPOCHS", 10))
             batch = int(os.getenv("BATCH", 16))
-            mlflow.log_params({
-                "epochs": epochs,
-                "batch": batch,
-                "model_variant": model_variant,
-                "dataset": raw_path
-            })
+            mlflow.log_params({"epochs": epochs, "batch": batch})
 
-            # 5. 모델 학습
+            # 5. 모델 학습 시작
+            # plots=True를 설정해야 시각화 파일들이 생성됨
             results = model.train(
                 data=os.path.join(local_data_path, "data.yaml"),
                 epochs=epochs,
@@ -58,29 +75,24 @@ def train_yolo():
                 device=0,
                 project='/app/runs',
                 name='exp',
-                plots=True # 결과 차트 생성
+                plots=True 
             )
 
-            # 6. 결과 지표(Metrics) 로깅
-            # YOLO 학습 결과에서 최종 메트릭을 추출하여 기록합니다.
-            if hasattr(results, 'results_dict'):
-                mlflow.log_metrics(results.results_dict)
+            # 학습 결과 폴더 전체를 'plots'라는 경로로 MLflow에 업로드
+            # 여기에 val_batch0_labels.jpg 등이 모두 포함되어 올라감
+            if os.path.exists(results.save_dir):
+                print(f"Uploading artifacts from {results.save_dir}...")
+                mlflow.log_artifacts(results.save_dir, artifact_path="plots")
 
-            # 7. Artifact 업로드 (가중치 파일)
             best_pt = os.path.join(results.save_dir, "weights", "best.pt")
             if os.path.exists(best_pt):
                 mlflow.log_artifact(best_pt, artifact_path="model/weights")
-                print(f"모델 저장 완료: {best_pt}")
-
-            print("학습이 성공적으로 종료되었습니다.")
+            report_status("FINISHED", "Training completed successfully.")
 
         except Exception as e:
-            # 학습 도중 에러 발생 시 상태를 FAILED로 기록하도록 예외 처리
-            print(f"학습 중 에러 발생: {e}")
             traceback.print_exc()
-            # with 블록을 나가면서 자동으로 상태가 업데이트되지만, 
-            # 명시적으로 에러를 다시 발생시켜 MLflow에 알릴 수 있습니다.
-            raise e
+            report_status("FAILED", str(e))
+            sys.exit(1)
 
 if __name__ == "__main__":
     train_yolo()
