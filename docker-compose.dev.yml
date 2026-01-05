@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # 인프라 서비스 (Postgres, MinIO, MLflow 등은 기존과 동일)
   postgres:
@@ -23,7 +21,7 @@ services:
 
   minio:
     image: minio/minio
-    container_name: mlops_minio
+    container_name: mlops-minio
     command: server /data --console-address ":${MINIO_CONSOLE_PORT}"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
@@ -59,26 +57,34 @@ services:
 
   # 5. FastAPI Backend (개발 모드 세팅)
   backend:
-    build: ./api
+    image: mlops-backend:latest
+    user: root
+    build:
+      context: ./api
+      dockerfile: Dockerfile.backend
     container_name: mlops_backend
     restart: always
     environment:
+      # - DOCKER_HOST=tcp://host.docker.internal:2375
       - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER}
       - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD}
+      - AWS_DEFAULT_REGION=us-east-1
       - MINIO_ROOT_USER=${MINIO_ROOT_USER}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
-      - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
+      - MLFLOW_S3_ENDPOINT_URL=${MLFLOW_S3_ENDPOINT_URL}
       - MLFLOW_TRACKING_URI=http://mlflow:5000
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB}
       - PYTHONUNBUFFERED=1  # 로그 실시간 확인을 위해 권장
+      - MAX_DEPLOYMENTS_PER_PROJECT=${MAX_DEPLOYMENTS_PER_PROJECT}
     ports:
       - "8000:8000"
     volumes:
       - ./api:/app:z          # 로컬 코드 동기화
       - /var/run/docker.sock:/var/run/docker.sock
       - training_results:/app/runs
+      - bentoml_model_store:/root/.bentoml
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     networks:
       - mlops-net
@@ -89,8 +95,22 @@ services:
         condition: service_started
       postgres:
         condition: service_healthy
+
+  builder-image:
+    build:
+      context: ./api
+      dockerfile: Dockerfile.builder
+    image: mlops-builder:latest
+    profiles: ["tools"] # docker-compose up 할 때 자동으로 뜨지 않음
+
+  base-image:
+    build:
+      context: ./api
+      dockerfile: Dockerfile.base
+    image: bentoml-generic-server:latest
+    profiles: ["tools"]
   
-  # 6. Training Worker (개발 환경용)
+  # 6. Training Worker
   training:
     build: ./training
     container_name: mlops_training
@@ -104,11 +124,12 @@ services:
               capabilities: [gpu]
     environment:
       MLFLOW_TRACKING_URI: http://mlflow:5000
-      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      MLFLOW_S3_ENDPOINT_URL: ${MLFLOW_S3_ENDPOINT_URL}
       AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
       AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      GIT_PYTHON_REFRESH: quiet
     volumes:
-      - ./training:/app             # [추가] 학습 코드 실시간 동기화
+      - ./training:/app             
       - training_results:/app/runs
     command: sh -c "python train_yolo.py 2>&1 | tee /app/runs/$$(hostname).log"
     networks:
@@ -140,4 +161,7 @@ networks:
 
 volumes:
   training_results:
+    name: mlops_kitech_training_results
+    external: false
+  bentoml_model_store:
     external: false

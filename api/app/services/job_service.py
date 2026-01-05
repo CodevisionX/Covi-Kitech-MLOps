@@ -4,7 +4,7 @@ import json
 from typing import List, Any, Optional, Dict
 import docker
 from app.db.session import SessionLocal
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from fastapi import BackgroundTasks
 from datetime import datetime
 import aiofiles
@@ -116,7 +116,7 @@ class JobService:
             db.commit()
 
             # SSE 알림
-            await sse_manager.broadcast("status_change", {
+            await sse_manager.broadcast("job_status", {
                 "job_id": job.id, 
                 "status": JobStatus.RUNNING.value,
                 "project_id": job.project_id
@@ -132,7 +132,11 @@ class JobService:
                 "DATASET_PATH": job.dataset,
                 "JOB_ID": str(job.id),
                 "BACKEND_URL": "http://backend:8000",
-                "JOB_TAGS": json.dumps(job.tags)
+                "JOB_TAGS": json.dumps(job.tags),
+                "MLFLOW_S3_IGNORE_TLS": "true",  # HTTP 통신을 위해 반드시 필요!
+                "AWS_DEFAULT_REGION": "us-east-1",
+                "PYTHONUNBUFFERED": "1",
+                "MLFLOW_PYTHON_IGNORE_GIT_ERROR": "true",
             }
 
             # JSON 파라미터를 환경변수로 변환 (예: {"epochs": 10} -> EPOCHS=10)
@@ -145,8 +149,8 @@ class JobService:
 
             # -u 옵션과 tee 명령어를 더 확실하게 전달
             command = [
-                "sh", "-c", 
-                f"python -u {train_script} 2>&1 | tee {log_file}"
+                "bash", "-c",
+                f"set -o pipefail; python -u {train_script} 2>&1 | tee {log_file}"
             ]
 
             # 컨테이너 실행
@@ -169,7 +173,7 @@ class JobService:
             job.status = JobStatus.FAILED.value
             job.error_message = str(e)
             db.commit()
-            await sse_manager.broadcast("status_change", {
+            await sse_manager.broadcast("job_status", {
                 "job_id": job.id, 
                 "status": "FAILED",
                 "project_id": job.project_id
@@ -211,7 +215,7 @@ class JobService:
             
             db.commit()
 
-            await sse_manager.broadcast("status_change", {
+            await sse_manager.broadcast("job_status", {
                 "job_id": job.id, 
                 "status": status_str,
                 "project_id": job.project_id
@@ -269,7 +273,7 @@ class JobService:
         
         # 상태 변경 알림
         if previous_status != job.status:
-            await sse_manager.broadcast("status_change", {
+            await sse_manager.broadcast("job_status", {
                 "job_id": job.id, 
                 "status": job.status,
                 "project_id": job.project_id
@@ -302,7 +306,7 @@ class JobService:
             self.db.commit()
 
             # SSE 알림
-            await sse_manager.broadcast("status_change", {
+            await sse_manager.broadcast("job_status", {
                 "job_id": job.id, 
                 "status": final_status,
                 "project_id": job.project_id
@@ -369,7 +373,7 @@ class JobService:
 
     def get_job_history(self, project_id: Optional[int], skip: int = 0, limit: int = 20) -> List[Any]:
         # 1. DB에서 먼저 이력 정보를 가져옵니다.
-        query = self.db.query(Job).filter(
+        query = self.db.query(Job).options(joinedload(Job.deployment)).filter(
             Job.status.in_([
                 JobStatus.FINISHED.value, 
                 JobStatus.FAILED.value,

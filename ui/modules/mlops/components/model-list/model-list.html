@@ -170,8 +170,20 @@
                   @if (job.id === bestJobId()) {
                   <mat-icon class="best-badge" matTooltip="최고 성능">emoji_events</mat-icon>
                   }
+
+                  @if (job.deployment && job.deployment.status === 'RUNNING') {
+                  <mat-icon class="serving-badge-icon" matTooltip="실시간 서빙 중">sensors</mat-icon>
+                  } @else if (job.deployment && job.deployment.status === 'PENDING') {
+                  <mat-icon class="serving-loading-icon spinning" matTooltip="배포 준비 중">autorenew</mat-icon>
+                  }
                   <div class="run-name" [class.best-text]="job.id === bestJobId()">{{ job.model_variant }}</div>
                 </div>
+
+                @if (job.deployment?.status === 'RUNNING') {
+                <div class="deployment-endpoint">
+                  <mat-icon>link</mat-icon> Port: {{ job.deployment?.port }}
+                </div>
+                }
               </div>
             </td>
           </ng-container>

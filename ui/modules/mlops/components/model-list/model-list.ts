@@ -144,13 +144,13 @@ export class ModelList implements OnInit, OnDestroy {
     console.log('sse 실시간 업데이트 구독을 시작합니다.');
     this.sseSubscription = this.jobService.getJobUpdates().subscribe({
       next: (event: any) => {
-        // event 구조: { event: 'status_change', data: { project_id: 1, ... } }
+        // event 구조: { event: 'job_status', data: { project_id: 1, ... } }
         console.log('SSE Event received:', event);
 
         // 백엔드에서 평탄화했으므로 event.data.project_id로 바로 접근 가능
         const data = event.data;
 
-        if (event.event === 'status_change' && data.project_id == this.selectedProjectId()) {
+        if (event.event === 'job_status' && data.project_id == this.selectedProjectId()) {
           this.ngZone.run(() => {
             console.log('상태 변경 감지, 리스트 갱신');
             this.refreshTrigger.next();
@@ -200,7 +200,7 @@ export class ModelList implements OnInit, OnDestroy {
     this.jobService.cancelJob(jobId).subscribe({
       next: () => {
         this.notificationService.showSuccess('작업 취소 요청됨');
-        // SSE가 곧 status_change를 보내줄 것이므로 수동 갱신 안 해도 됨
+        // SSE가 곧 job_status 보내줄 것이므로 수동 갱신 안 해도 됨
       },
       error: (err) => {
         this.notificationService.showError('취소 실패');
@@ -214,8 +214,9 @@ export class ModelList implements OnInit, OnDestroy {
 
     this.currentLogDialogRef = this.dialog.open(TerminalLog, {
       data: {
-        jobId: job.id,
-        status: job.status
+        id: job.id,
+        status: job.status,
+        type: 'job'
       },
       width: '800px',
       height: '600px',
@@ -241,7 +242,8 @@ export class ModelList implements OnInit, OnDestroy {
     this.router.navigate(['/dashboard/models/run', job.run_id], {
       queryParams: {
         projectId: job.project_id,
-        expId: job.experiment_id // 상세 페이지에서도 MLflow API 호출을 위해 필요
+        expId: job.experiment_id, // 상세 페이지에서도 MLflow API 호출을 위해 필요
+        jobId: job.id
       }
     });
   }

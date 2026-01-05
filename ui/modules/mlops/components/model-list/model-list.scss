@@ -579,6 +579,45 @@ button[mat-icon-button] {
   animation: crown-bounce 2s infinite ease-in-out;
 }
 
+.run-name-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* 서빙 중 아이콘 애니메이션 */
+.serving-badge-icon {
+  color: #2ecc71;
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  animation: pulse-green 2s infinite;
+}
+
+.deployment-endpoint {
+  font-size: 10px;
+  color: #666;
+  display: flex;
+  align-items: center;
+  margin-top: 2px;
+}
+
+.deployment-endpoint mat-icon {
+  font-size: 12px;
+  width: 12px;
+  height: 12px;
+}
+
+@keyframes pulse-green {
+  0% { transform: scale(0.95); opacity: 0.7; }
+  70% { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.7; }
+}
+
+.spinning {
+  animation: rotate 2s linear infinite;
+}
+
 @keyframes crown-bounce {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-4px); }

@@ -1,0 +1,35 @@
+# Dockerfile.base (Serving용)
+FROM python:3.10-slim
+
+# 1. 시스템 의존성 설치
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libgl1 \
+    libglib2.0-0 \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# 2. Poetry 설치 (1.8.3 버전)
+ENV POETRY_VERSION=1.8.3
+ENV POETRY_VIRTUALENVS_CREATE=false
+RUN pip install "poetry==$POETRY_VERSION"
+
+WORKDIR /app
+
+# 3. [최적화] 의존성 파일을 먼저 복사하여 라이브러리 설치 캐시 활용
+# 컨텍스트가 ./api 이므로 파일 이름만 적습니다.
+COPY pyproject.toml poetry.lock* /app/
+
+# 4. 의존성 설치 (가장 시간이 오래 걸리는 단계)
+RUN poetry install --no-interaction --no-ansi --no-root --with inference --without dev
+
+# 5. [중요] 소스 코드는 라이브러리 설치 후에 복사합니다.
+# 이렇게 해야 service.py만 수정했을 때 라이브러리를 다시 설치하지 않습니다.
+COPY service.py /app/
+
+# 6. BentoML 홈 디렉토리 설정 (공유 볼륨과 일치)
+ENV BENTOML_HOME=/root/.bentoml
+
+# 7. 실행 명령어
+# service.py 파일의 svc 객체를 실행합니다.
+ENTRYPOINT ["sh", "-c", "bentoml serve service:svc --port 3000"]

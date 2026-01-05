@@ -10,6 +10,7 @@ import { MlopsRoutingModule } from './mlops-routing-module';
 import { Dashboard } from './pages/dashboard/dashboard';
 import { Train } from './components/train/train';
 import { SharedModule } from '../shared/shared-module';
+import { ModelValidation } from './components/model-validation/model-validation';
 
 @NgModule({
   declarations: [
@@ -20,6 +21,7 @@ import { SharedModule } from '../shared/shared-module';
     TerminalLog,
     Deploy,
     ModelDetail,
+    ModelValidation,
   ],
   imports: [
     CommonModule,

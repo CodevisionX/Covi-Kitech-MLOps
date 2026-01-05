@@ -22,7 +22,7 @@ export class Sse {
         });
       };
 
-      // 2. 백엔드에서 지정한 네임드 이벤트(status_change 등) 처리
+      // 2. 백엔드에서 지정한 네임드 이벤트(job_status 등) 처리
       eventTypes.forEach(type => {
         eventSource.addEventListener(type, (event: MessageEvent) => {
           this.zone.run(() => {

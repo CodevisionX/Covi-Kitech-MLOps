@@ -31,7 +31,7 @@ class SSEService:
     async def broadcast(self, event_type: str, data: Dict[str, Any]):
         """
         모든 클라이언트에게 이벤트 전송
-        예: await sse_manager.broadcast("status_change", {"job_id": 1, "status": "RUNNING"})
+        예: await sse_manager.broadcast("이벤트 이름", {"job_id": 1, "status": "RUNNING"})
         """
         payload = {
             **data, 

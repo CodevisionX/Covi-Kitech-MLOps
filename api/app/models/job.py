@@ -18,6 +18,8 @@ class Job(Base):
     # Project 연동
     project_id = Column(Integer, ForeignKey("project.id"), nullable=False)
     project = relationship("Project", back_populates="jobs")
+
+    deployment = relationship("Deployment", back_populates="job", uselist=False)
     
     # 1. 필수 메타데이터 (모든 학습에 공통적으로 필요한 정보)
     model_variant = Column(String, nullable=False) # 예: yolov8n, resnet50
