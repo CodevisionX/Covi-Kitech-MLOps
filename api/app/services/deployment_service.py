@@ -155,7 +155,7 @@ class DeploymentService:
             await update_status(DeploymentStatus.CREATING, "서빙 컨테이너를 생성 중입니다...", port=port)
 
             container = docker_provider.run_serving_container(
-                image="bentoml-generic-server:latest",
+                image=settings.SERVING_IMAGE,
                 name=f"bento-serve-{deployment_id}",
                 environment={
                     "BENTOML_MODEL_TAG": f"model_dep_{deployment_id}:latest",

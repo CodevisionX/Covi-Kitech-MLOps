@@ -18,6 +18,9 @@ class Settings(BaseSettings):
 
     MAX_DEPLOYMENTS_PER_PROJECT: int = 1
 
+    TRAINING_IMAGEL: str = "ghcr.io/abi-hong/covi-mlops-kitech-training:latest"
+    SERVING_IMAGE: str = "ghcr.io/abi-hong/covi-mlops-kitech-base:latest"
+
     # [수정] 클래스 변수가 아닌 프로퍼티로 선언하여 최신 값을 반영하도록 함
     @property
     def DATABASE_URL(self) -> str:

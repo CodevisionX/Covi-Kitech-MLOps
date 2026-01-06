@@ -1,5 +1,5 @@
 services:
-  # 1. Database (PostgreSQL)
+  # 1. Database (PostgreSQL) - 공식 이미지 사용
   postgres:
     image: postgres:13
     container_name: mlops_postgres
@@ -20,7 +20,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # 2. Object Storage (MinIO)
+  # 2. Object Storage (MinIO) - 공식 이미지 사용
   minio:
     image: minio/minio
     container_name: mlops-minio
@@ -37,9 +37,9 @@ services:
     networks:
       - mlops-net
 
-  # 3. MLflow Server
+  # 3. MLflow Server (커스텀 이미지)
   mlflow:
-    image: mlops_kitech-mlflow:latest
+    image: ghcr.io/abi-hong/covi-mlops-kitech-mlflow:latest
     container_name: mlops_mlflow
     restart: always
     depends_on:
@@ -60,9 +60,9 @@ services:
     networks:
       - mlops-net
 
-  # 5. FastAPI Backend
+  # 4. FastAPI Backend (커스텀 이미지)
   backend:
-    image: mlops_kitech-backend:latest
+    image: ghcr.io/abi-hong/covi-mlops-kitech-backend:latest
     container_name: mlops_backend
     restart: always
     environment:
@@ -90,17 +90,18 @@ services:
       postgres:
         condition: service_healthy
   
+  # 5. BentoML Tools (커스텀 이미지)
   builder-image:
-    image: mlops-builder:latest
+    image: ghcr.io/abi-hong/covi-mlops-kitech-builder:latest
     profiles: ["tools"]
 
   base-image:
-    image: bentoml-generic-server:latest
+    image: ghcr.io/abi-hong/covi-mlops-kitech-base:latest
     profiles: ["tools"]
 
-  # 6. Training Worker
+  # 6. Training Worker (커스텀 이미지)
   training:
-    image: mlops_kitech-training:latest
+    image: ghcr.io/abi-hong/covi-mlops-kitech-training:latest
     container_name: mlops_training
     shm_size: '8gb'
     deploy:
@@ -121,9 +122,9 @@ services:
       - mlops-net
     profiles: ["job"]
 
-  # 7. Angular Frontend
+  # 7. Angular Frontend (커스텀 이미지)
   ui:
-    image: mlops_kitech-ui:latest
+    image: ghcr.io/abi-hong/covi-mlops-kitech-ui:latest
     container_name: mlops_ui
     restart: always
     ports:

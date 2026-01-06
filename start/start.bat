@@ -31,9 +31,12 @@ for /f "usebackq tokens=1,2 delims==" %%a in (".env") do (
     )
 )
 
-:: 3. 플랫폼 실행
-echo Starting Docker containers...
-docker compose up -d
+:: 3. 충돌 방지를 위한 기존 컨테이너 정리
+echo Cleaning up existing containers to prevent conflicts...
+docker rm -f mlops_postgres mlops-minio mlops_mlflow mlops_backend mlops_ui >nul 2>&1
+
+:: 4. 플랫폼 실행
+docker compose up -
 
 echo.
 echo ==========================================

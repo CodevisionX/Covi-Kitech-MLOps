@@ -261,7 +261,7 @@ export class ModelList implements OnInit, OnDestroy {
       return;
     }
     // MLflow UI URL (환경변수나 설정에서 가져오는 것이 좋음)
-    const mlflowUrl = `http://localhost:5000/#/experiments/${job.experiment_id}/runs/${job.run_id}`;
+    const mlflowUrl = `http://localhost:15000/#/experiments/${job.experiment_id}/runs/${job.run_id}`;
     window.open(mlflowUrl, '_blank');
   }
 

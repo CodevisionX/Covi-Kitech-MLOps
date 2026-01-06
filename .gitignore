@@ -4,6 +4,7 @@ minio_data/
 training_results/
 datasets/
 mlops_images/
+images_compressed/
 
 # 환경 변수 및 설정
 .env

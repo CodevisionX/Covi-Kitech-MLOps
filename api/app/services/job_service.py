@@ -155,7 +155,7 @@ class JobService:
 
             # 컨테이너 실행
             container = docker_provider.run_container(
-                image="mlops_kitech-training",
+                image=settings.TRAINING_IMAGEL,
                 command=command,
                 environment=env_vars,
                 network="mlops-net",
