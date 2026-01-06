@@ -96,7 +96,7 @@ export class ModelDetail {
       }
     });
   }
-
+  
   goBack() {
     this.router.navigate(['/dashboard/models'], {
       queryParams: { projectId: this.projectId() }

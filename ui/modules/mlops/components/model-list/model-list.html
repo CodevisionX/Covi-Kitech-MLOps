@@ -195,6 +195,12 @@
                   @if (job.id === bestJobId()) { <mat-icon class="best-badge">emoji_events</mat-icon> }
                   <div class="run-name">{{ job.model_variant }}</div>
                 </div>
+
+                @if (job.deployment?.status === 'RUNNING') {
+                <div class="deployment-endpoint">
+                  <mat-icon>link</mat-icon> Port: {{ job.deployment?.port }}
+                </div>
+                }
               </div>
               }
             </td>
