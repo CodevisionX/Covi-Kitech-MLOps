@@ -2,6 +2,12 @@ import { Component, effect, ElementRef, inject, OnDestroy, OnInit, ViewChild } f
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { TerminalService } from '../../../services/terminal';
 
+export interface TerminalDialogData {
+  id: number;
+  type: 'job' | 'deployment';
+  status: string;
+}
+
 @Component({
   selector: 'app-terminal-log',
   standalone: false,
@@ -14,7 +20,7 @@ export class TerminalLog implements OnInit, OnDestroy {
 
   protected terminalService = inject(TerminalService);
   protected dialogRef = inject(MatDialogRef<TerminalLog>);
-  protected data = inject<{ jobId: number, status: string }>(MAT_DIALOG_DATA);
+  protected data = inject<TerminalDialogData>(MAT_DIALOG_DATA);
 
   constructor() {
     // 로그가 업데이트될 때마다 하단 스크롤
@@ -27,8 +33,8 @@ export class TerminalLog implements OnInit, OnDestroy {
 
   ngOnInit() {
     // 다이얼로그가 열리자마자 해당 컨테이너 ID로 스트리밍 시작
-    if (this.data.jobId) {
-      this.terminalService.startStreaming(this.data.jobId, this.data.status);
+    if (this.data.id) {
+      this.terminalService.startStreaming(this.data.id, this.data.status, this.data.type);
     }
   }
 

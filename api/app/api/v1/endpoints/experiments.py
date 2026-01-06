@@ -62,14 +62,16 @@ async def get_run_detail(run_id: str):
     except Exception as e:
         raise HTTPException(status_code=404, detail=f"Run not found: {str(e)}")
 
-# [유지/보합] 메트릭 히스토리 조회
+# 메트릭 히스토리 조회
 @router.get("/{run_id}/metrics/history")
 async def get_metrics_history(run_id: str):
     try:
         # YOLOv8 기준 주요 지표 매핑 (학습 스크립트의 로그 키와 일치해야 함)
         metric_keys = [
             "metrics/mAP50B", 
-            "metrics/mAP50-95B", 
+            "metrics/mAP50-95B",
+            "metrics/mAP50_B",
+            "metrics/mAP50-95_B",
             "train/box_loss", 
             "train/cls_loss",
             "val/box_loss",

@@ -66,12 +66,19 @@
       .selector-wrapper {
         display: flex;
         align-items: center;
+        justify-content: center; // 추가
         gap: 8px;
         padding: 0 16px;
         background: var(--select-bg);
         border-radius: var(--border-radius-md);
         height: 44px;
         min-width: 260px;
+
+        // 스켈레톤 로더가 있을 때 배경색 등을 조절하고 싶다면
+        &:has(.selector-skeleton) {
+          background: #f1f5f9;
+          border: 1px dashed #cbd5e1;
+        }
 
         .select-icon {
           color: var(--main-primary-color);
@@ -447,19 +454,19 @@
     border: 1px solid #fed7d7;
   }
 
-  &[data-status="PENDING"] { 
-    background: #f7fafc; 
-    color: #a0aec0; 
-    border: 1px solid #e2e8f0; 
+  &[data-status="PENDING"] {
+    background: #f7fafc;
+    color: #a0aec0;
+    border: 1px solid #e2e8f0;
     font-style: italic; // 대기 중임을 강조
   }
-  
+
   &[data-status="RUNNING"] {
     background: #ebf8ff;
     color: #2b6cb0;
     border: 1px solid #bee3f8;
     // 실행 중일 때 깜빡이는 효과를 주고 싶다면
-    animation: pulse-blue 2s infinite; 
+    animation: pulse-blue 2s infinite;
   }
 
   &[data-status="CANCELED"],
@@ -548,15 +555,38 @@ button[mat-icon-button] {
     justify-content: space-between;
     align-items: center;
 
-    .best-label { color: #b45309; font-size: 13px; font-weight: 600; }
-    .best-run-name { margin: 4px 0 12px; font-size: 22px; font-weight: 800; color: #1a202c; }
-    
+    .best-label {
+      color: #b45309;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .best-run-name {
+      margin: 4px 0 12px;
+      font-size: 22px;
+      font-weight: 800;
+      color: #1a202c;
+    }
+
     .best-metrics {
-      display: flex; gap: 20px;
+      display: flex;
+      gap: 20px;
+
       .metric-box {
-        display: flex; flex-direction: column;
-        .m-label { font-size: 11px; color: #78350f; font-weight: 600; }
-        .m-value { font-size: 20px; font-weight: 900; color: #d97706; }
+        display: flex;
+        flex-direction: column;
+
+        .m-label {
+          font-size: 11px;
+          color: #78350f;
+          font-weight: 600;
+        }
+
+        .m-value {
+          font-size: 20px;
+          font-weight: 900;
+          color: #d97706;
+        }
       }
     }
 
@@ -567,7 +597,10 @@ button[mat-icon-button] {
       padding: 0 24px;
       height: 48px;
       border-radius: 8px;
-      &:hover { background-color: #b45309; }
+
+      &:hover {
+        background-color: #b45309;
+      }
     }
   }
 }
@@ -579,9 +612,66 @@ button[mat-icon-button] {
   animation: crown-bounce 2s infinite ease-in-out;
 }
 
+.run-name-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* 서빙 중 아이콘 애니메이션 */
+.serving-badge-icon {
+  color: #2ecc71;
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  animation: pulse-green 2s infinite;
+}
+
+.deployment-endpoint {
+  font-size: 10px;
+  color: #666;
+  display: flex;
+  align-items: center;
+  margin-top: 2px;
+}
+
+.deployment-endpoint mat-icon {
+  font-size: 12px;
+  width: 12px;
+  height: 12px;
+}
+
+@keyframes pulse-green {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.7;
+  }
+
+  70% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(0.95);
+    opacity: 0.7;
+  }
+}
+
+.spinning {
+  animation: rotate 2s linear infinite;
+}
+
 @keyframes crown-bounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-4px); }
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-4px);
+  }
 }
 
 .is-best-row {
@@ -599,7 +689,169 @@ button[mat-icon-button] {
 }
 
 @keyframes pulse-blue {
-  0% { box-shadow: 0 0 0 0 rgba(66, 153, 225, 0.4); }
-  70% { box-shadow: 0 0 0 6px rgba(66, 153, 225, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(66, 153, 225, 0); }
+  0% {
+    box-shadow: 0 0 0 0 rgba(66, 153, 225, 0.4);
+  }
+
+  70% {
+    box-shadow: 0 0 0 6px rgba(66, 153, 225, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(66, 153, 225, 0);
+  }
+}
+
+// skeleton
+/* 8. Skeleton UI 애니메이션 및 스타일 */
+.skeleton-loader {
+  background: #f6f7f8;
+  background-image: linear-gradient(to right, #f6f7f8 0%, #edeef1 20%, #f6f7f8 40%, #f6f7f8 100%);
+  background-repeat: no-repeat;
+  background-size: 800px 100%;
+  display: inline-block;
+  position: relative;
+  animation: shimmer 1.5s infinite linear;
+  border-radius: 4px;
+}
+
+@keyframes shimmer {
+  0% { background-position: -468px 0; }
+  100% { background-position: 468px 0; }
+}
+
+.skeleton-container {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  animation: fadeIn 0.3s ease-in;
+
+  .skeleton-tabs-row {
+    display: flex;
+    gap: 12px;
+
+    .tab-pill {
+      width: 100px;
+      height: 38px;
+      border-radius: 20px;
+    }
+  }
+
+  .skeleton-best-card {
+    width: 100%;
+    height: 140px;
+    border-radius: 12px;
+  }
+
+  .skeleton-section {
+    .section-title-line {
+      width: 150px;
+      height: 24px;
+      margin-bottom: 20px;
+    }
+
+    .table-box {
+      width: 100%;
+      height: 250px;
+      border-radius: 12px;
+      background: white;
+      border: 1px solid #e2e8f0;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+
+      .table-row {
+        display: flex;
+        gap: 16px;
+
+        .col {
+          height: 20px;
+          background: #f1f5f9;
+          border-radius: 4px;
+        }
+
+        .col-1 {
+          width: 40%;
+        }
+
+        .col-2 {
+          width: 20%;
+        }
+
+        .col-3 {
+          width: 20%;
+        }
+
+        .col-4 {
+          width: 20%;
+        }
+      }
+    }
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.selector-skeleton {
+  width: 260px;
+  height: 32px;
+  border-radius: 6px;
+}
+
+/* 인라인 스켈레톤 전용 */
+.cell-skeleton-text { height: 16px; margin: 4px 0; border-radius: 4px; }
+.cell-skeleton-chip { width: 80px; height: 24px; border-radius: 6px; }
+.cell-skeleton-circle { width: 32px; height: 32px; border-radius: 50%; }
+.selector-skeleton { width: 200px; height: 28px; border-radius: 4px; }
+.tab-pill-skeleton { width: 100px; height: 38px; border-radius: 20px; margin-right: 8px; }
+.skeleton-best-card { width: 100%; height: 140px; border-radius: 12px; }
+
+.mat-mdc-table {
+  background: white;
+}
+
+// 5. Material Table 커스텀 내부 혹은 하단에 추가
+.no-data-cell {
+  padding: 60px 0 !important; // 충분한 높이 확보
+  text-align: center !important;
+  border-bottom: none !important;
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8; // 슬레이트 그레이
+    gap: 12px;
+
+    mat-icon {
+      font-size: 48px;
+      width: 48px;
+      height: 48px;
+      opacity: 0.4;
+    }
+
+    p {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+    }
+  }
+}
+
+// 스켈레톤 로딩 중에는 이 행이 보이지 않도록 처리 (HTML의 @if와 조합)
+.mat-mdc-no-data-row {
+  &:hover {
+    background-color: transparent !important;
+  }
 }

@@ -3,7 +3,7 @@ import { Jobs } from '../../services/apis/job';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { IJob } from '../../services/apis/models/job.model';
-import { Subject, Subscription } from 'rxjs';
+import { Subject, Subscription, forkJoin } from 'rxjs';
 import { debounceTime } from 'rxjs/operators';
 import { Notification } from '../../services/notification';
 import { formatDistanceToNow } from 'date-fns';
@@ -36,6 +36,16 @@ export class ModelList implements OnInit, OnDestroy {
   selectedVariant = signal<string | null>(null);
   isLoading = signal<boolean>(false);
 
+  private readonly dummyRows = new Array(5).fill({});
+
+  displayActiveJobs = computed(() =>
+    this.isLoading() ? this.dummyRows : this.filteredActiveJobs()
+  );
+
+  displayHistoryJobs = computed(() =>
+    this.isLoading() ? this.dummyRows : this.filteredHistoryJobs()
+  );
+
   // 1. 현재 로드된 전체 Job에서 존재하는 알고리즘 종류만 추출
   availableVariants = computed(() => {
     const activeVariants = this.allActiveJobs().map(j => j.model_variant);
@@ -63,6 +73,7 @@ export class ModelList implements OnInit, OnDestroy {
       const getScore = (job: IJob) =>
         job.metrics?.['metrics/mAP50(B)'] ??
         job.metrics?.['metrics/mAP50B'] ??
+        job.metrics?.['metrics/mAP50_B'] ??
         job.metrics?.['mAP50(B)'] ?? 0;
 
       return getScore(current) > getScore(prev) ? current : prev;
@@ -82,6 +93,8 @@ export class ModelList implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.isLoading.set(true);
+
     this.loadProjects();
     this.subscribeToJobUpdates();
 
@@ -92,7 +105,10 @@ export class ModelList implements OnInit, OnDestroy {
       if (params['variant']) {
         this.selectedVariant.set(params['variant']);
       }
-      this.refreshJobs();
+
+      if (this.selectedProjectId()) {
+        this.refreshJobs();
+      }
     });
   }
 
@@ -104,11 +120,23 @@ export class ModelList implements OnInit, OnDestroy {
   }
 
   loadProjects() {
-    this.projectService.getProjects().subscribe(project => {
-      this.projects.set(project);
-      // 초기 선택이 없으면 첫 번째 실험 선택 (선택사항)
-      if (!this.selectedProjectId() && project.length > 0) {
-        this.onProjectChange(project[0].id);
+    this.isLoading.set(true);
+
+    this.projectService.getProjects().subscribe({
+      next: (project) => {
+        this.projects.set(project);
+
+        if (project.length > 0) {
+          if (!this.selectedProjectId()) {
+            this.onProjectChange(project[0].id);
+          }
+        } else {
+          this.isLoading.set(false);
+        }
+      },
+      error: (err) => {
+        this.notificationService.showError('프로젝트 목록을 불러오지 못했습니다.');
+        this.isLoading.set(false);
       }
     });
   }
@@ -120,23 +148,23 @@ export class ModelList implements OnInit, OnDestroy {
     console.log(`Project ${projectId}의 최신 데이터를 불러오는 중...`);
     this.isLoading.set(true);
 
-    // 선택된 프로젝트의 모든 Job을 가져옴
-    this.jobService.getActiveJobs(projectId).subscribe({
-      next: (jobs) => this.allActiveJobs.set(jobs),
-      error: () => this.isLoading.set(false)
-    });
+    forkJoin({
+      active: this.jobService.getActiveJobs(projectId),
+      history: this.jobService.getJobHistory(0, 50, projectId)
+    }).subscribe({
+      next: (res) => {
+        this.allActiveJobs.set(res.active);
+        this.allHistoryJobs.set(res.history);
 
-    this.jobService.getJobHistory(0, 100, projectId).subscribe({
-      next: (jobs) => {
-        this.allHistoryJobs.set(jobs);
-        this.isLoading.set(false);
-
-        // 데이터는 왔는데 선택된 Variant가 없다면 첫 번째로 자동 설정
         if (!this.selectedVariant() && this.availableVariants().length > 0) {
           this.onVariantChange(this.availableVariants()[0]);
         }
+        this.isLoading.set(false);
       },
-      error: () => this.isLoading.set(false)
+      error: (err) => {
+        this.notificationService.showError(err);
+        this.isLoading.set(false);
+      }
     });
   }
 
@@ -144,13 +172,13 @@ export class ModelList implements OnInit, OnDestroy {
     console.log('sse 실시간 업데이트 구독을 시작합니다.');
     this.sseSubscription = this.jobService.getJobUpdates().subscribe({
       next: (event: any) => {
-        // event 구조: { event: 'status_change', data: { project_id: 1, ... } }
+        // event 구조: { event: 'job_status', data: { project_id: 1, ... } }
         console.log('SSE Event received:', event);
 
         // 백엔드에서 평탄화했으므로 event.data.project_id로 바로 접근 가능
         const data = event.data;
 
-        if (event.event === 'status_change' && data.project_id == this.selectedProjectId()) {
+        if (event.event === 'job_status' && data.project_id == this.selectedProjectId()) {
           this.ngZone.run(() => {
             console.log('상태 변경 감지, 리스트 갱신');
             this.refreshTrigger.next();
@@ -200,7 +228,7 @@ export class ModelList implements OnInit, OnDestroy {
     this.jobService.cancelJob(jobId).subscribe({
       next: () => {
         this.notificationService.showSuccess('작업 취소 요청됨');
-        // SSE가 곧 status_change를 보내줄 것이므로 수동 갱신 안 해도 됨
+        // SSE가 곧 job_status 보내줄 것이므로 수동 갱신 안 해도 됨
       },
       error: (err) => {
         this.notificationService.showError('취소 실패');
@@ -214,8 +242,9 @@ export class ModelList implements OnInit, OnDestroy {
 
     this.currentLogDialogRef = this.dialog.open(TerminalLog, {
       data: {
-        jobId: job.id,
-        status: job.status
+        id: job.id,
+        status: job.status,
+        type: 'job'
       },
       width: '800px',
       height: '600px',
@@ -241,7 +270,8 @@ export class ModelList implements OnInit, OnDestroy {
     this.router.navigate(['/dashboard/models/run', job.run_id], {
       queryParams: {
         projectId: job.project_id,
-        expId: job.experiment_id // 상세 페이지에서도 MLflow API 호출을 위해 필요
+        expId: job.experiment_id, // 상세 페이지에서도 MLflow API 호출을 위해 필요
+        jobId: job.id
       }
     });
   }

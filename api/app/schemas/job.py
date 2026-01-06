@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field, field_validator
 from typing import Optional, Dict, Any
 from datetime import datetime
 from app.core.constants import JobStatus
+from app.schemas.deployment import DeploymentSimple
 
 class JobBase(BaseModel):
     project_id: int
@@ -35,6 +36,7 @@ class JobResponse(JobBase):
     finished_at: Optional[datetime]
     run_id: Optional[str] = None
     container_id: Optional[str] = None
+    deployment: Optional[DeploymentSimple] = None
     error_message: Optional[str] = None
     metrics: Optional[Dict[str, float]] = None
     

@@ -1,0 +1,257 @@
+.validation-container {
+  padding: var(--base-padding);
+  background-color: var(--bg-body); // #f8f9fa 대체
+  min-height: calc(100vh - var(--header-height));
+
+  .page-header {
+    margin-bottom: 32px;
+    
+    h1 {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 24px;
+      font-weight: 600;
+      color: var(--text-main); // #202124 대체
+      margin: 0 0 8px 0;
+
+      mat-icon {
+        color: var(--main-primary-color); // #3f51b5 대체
+        font-size: 28px;
+        width: 28px;
+        height: 28px;
+      }
+    }
+
+    p {
+      color: var(--text-muted); // #5f6368 대체
+      margin: 0;
+    }
+  }
+}
+
+.test-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+
+  @media (max-width: 960px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.upload-card, .result-card {
+  border-radius: var(--card-radius);
+  box-shadow: var(--shadow-md) !important; // 기존 그림자 대체
+  overflow: hidden;
+  background-color: var(--bg-card);
+
+  mat-card-header {
+    background-color: var(--bg-card);
+    padding: 16px;
+    border-bottom: 1px solid var(--border-color); // #f0f0f0 대체
+
+    mat-card-title {
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--text-main);
+    }
+  }
+
+  mat-card-content {
+    padding: 20px;
+    min-height: 400px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+}
+
+// 이미지 업로드 영역 (Drop Zone)
+.drop-zone {
+  border: 2px dashed var(--border-color); // #dadce0 대체
+  border-radius: 8px;
+  height: 350px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-speed) ease;
+  background-color: #fafafa;
+  position: relative;
+  overflow: hidden;
+
+  &:hover {
+    border-color: var(--main-primary-color);
+    background-color: var(--main-primary-light); // #f0f2ff 대체
+  }
+
+  .placeholder {
+    text-align: center;
+    color: var(--text-muted);
+
+    mat-icon {
+      font-size: 48px;
+      width: 48px;
+      height: 48px;
+      margin-bottom: 12px;
+    }
+
+    p {
+      margin: 0;
+      font-size: 14px;
+    }
+  }
+
+  .preview-img, .result-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background-color: #000;
+  }
+}
+
+.empty-result {
+  text-align: center;
+  color: var(--text-muted); // #bdc1c6 대체
+
+  mat-icon {
+    font-size: 64px;
+    width: 64px;
+    height: 64px;
+    margin-bottom: 16px;
+  }
+}
+
+.json-result {
+  background-color: #2c2c2c; // 터미널 느낌을 위해 유지하거나 --main-primary-dark 활용 가능
+  color: #a8ff60;
+  padding: 16px;
+  border-radius: 4px;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 12px;
+  height: 350px;
+  overflow-y: auto;
+
+  pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+}
+
+mat-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 16px !important;
+
+  button[mat-flat-button] {
+    // 1. 활성화(Active) 상태 (기본)
+    background-color: var(--main-primary-color) !important;
+    color: var(--text-on-primary) !important;
+    transition: all var(--transition-speed) ease;
+    cursor: pointer;
+
+    // 2. 비활성화(Disabled) 상태
+    &:disabled {
+      background-color: var(--border-color) !important; // 회색 배경
+      color: var(--text-muted) !important;             // 흐린 글자색
+      cursor: not-allowed;
+      filter: grayscale(1); // 아이콘까지 무채색으로 변경
+    }
+
+    // 3. 마우스 호버 효과 (활성 상태일 때만)
+    &:not(:disabled):hover {
+      background-color: var(--main-primary-dark) !important;
+      box-shadow: var(--shadow-sm);
+    }
+
+    display: inline-flex !important; 
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 24px; // 조금 더 넓게 수정
+
+    mat-icon {
+      margin: 0 !important;
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+    }
+
+    span {
+      display: inline-block;
+      line-height: 1;
+      transform: translate(3px, -4px);
+    }
+  }
+}
+
+// 모델 정보 및 파라미터 섹션
+.model-info-section {
+  margin-bottom: 24px;
+
+  .info-card {
+    background: var(--bg-card);
+    border-radius: var(--card-radius);
+    border-left: 6px solid var(--main-primary-color);
+    padding: 16px 24px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .info-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 40px;
+  }
+
+  .info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    .label {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+      text-transform: uppercase;
+    }
+
+    .value {
+      font-size: 15px;
+      color: var(--text-main);
+      font-weight: 600;
+
+      &.highlight {
+        color: var(--main-primary-color);
+      }
+    }
+  }
+
+  .params-list {
+    flex: 1;
+    min-width: 300px;
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .param-chip {
+      background: var(--highlight-bg); // styles.scss의 하이라이트 배경 활용
+      padding: 4px 10px;
+      border-radius: 16px;
+      font-size: 13px;
+      color: var(--main-primary-dark);
+      border: 1px solid var(--border-color);
+
+      b {
+        color: var(--main-primary-color);
+      }
+    }
+  }
+}

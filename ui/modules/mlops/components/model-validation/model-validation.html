@@ -1,0 +1,89 @@
+<div class="validation-container">
+    <header class="page-header">
+        <h1><mat-icon>photo_camera</mat-icon> YOLO 모델 검증</h1>
+        <p>이미지를 업로드하여 객체 검출(Object Detection) 결과를 확인합니다.</p>
+    </header>
+
+    @if (job()) {
+    <section class="model-info-section">
+        <mat-card class="info-card">
+            <div class="info-grid">
+                <div class="info-item">
+                    <span class="label">학습 데이터셋</span>
+                    <span class="value highlight">{{ job()?.dataset }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">모델 변체(Variant)</span>
+                    <span class="value">{{ job()?.model_variant }}</span>
+                </div>
+                <div class="info-item params-list">
+                    <span class="label">주요 하이퍼파라미터</span>
+                    <div class="chips">
+                        @for (param of paramsArray; track param[0]) {
+                            <span class="param-chip"><b>{{ param[0] }}</b>: {{ param[1] }}</span>
+                        }
+                    </div>
+                </div>
+            </div>
+        </mat-card>
+    </section>
+    }
+
+    <div class="test-grid">
+        <mat-card class="upload-card">
+            <mat-card-header>
+                <mat-card-title>입력 이미지</mat-card-title>
+            </mat-card-header>
+
+            <mat-card-content>
+                <div class="drop-zone" (click)="fileInput.click()" (drop)="onFileDropped($event)"
+                    (dragover)="$event.preventDefault()">
+                    @if (imagePreview()) {
+                    <img [src]="imagePreview()" class="preview-img">
+                    } @else {
+                    <div class="placeholder">
+                        <mat-icon>cloud_upload</mat-icon>
+                        <p>사진을 여기로 드래그하거나 클릭하여 선택하세요.</p>
+                    </div>
+                    }
+                </div>
+                <input type="file" #fileInput (change)="onFileSelected($event)" hidden accept="image/*">
+            </mat-card-content>
+
+            <mat-card-actions>
+                <button mat-flat-button color="primary" [disabled]="!selectedFile() || isTesting()"
+                    (click)="testPredict()">
+                    @if (isTesting()) {
+                    <mat-spinner diameter="20"></mat-spinner>
+                    } @else {
+                    <ng-container>
+                        <mat-icon>play_arrow</mat-icon>
+                        <span>추론 실행</span>
+                    </ng-container>
+                    }
+                </button>
+            </mat-card-actions>
+        </mat-card>
+
+        <mat-card class="result-card">
+            <mat-card-header>
+                <mat-card-title>검출 결과</mat-card-title>
+            </mat-card-header>
+
+            <mat-card-content>
+                @if (resultImage()) {
+                <img [src]="resultImage()" class="result-img">
+                } @else if (predictionResult()) {
+                <div class="json-result">
+                    <pre>{{ predictionResult() | json }}</pre>
+                </div>
+                } @else {
+                <div class="empty-result">
+                    <mat-icon>biotech</mat-icon>
+                    <p>분석 결과가 여기에 표시됩니다.</p>
+                </div>
+                }
+            </mat-card-content>
+        </mat-card>
+    </div>
+</div>

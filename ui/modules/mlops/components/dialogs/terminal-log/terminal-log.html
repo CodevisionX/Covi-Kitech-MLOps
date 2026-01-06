@@ -7,7 +7,7 @@
     </div>
 
     <span class="terminal-title">
-      Training Logs - {{ data.jobId }}
+      {{ data.type === 'job' ? 'Training' : 'Deployment' }} Logs - #{{ data.id }}
     </span>
 
     <button mat-icon-button (click)="close()" class="close-btn">
@@ -17,9 +17,11 @@
 
   <div class="terminal-body" #scrollContainer>
     @for (log of terminalService.logs(); track $index) {
-    <div class="log-line" [innerHTML]="log"></div>
+      <div class="log-line" [innerHTML]="log"></div>
     } @empty {
-    <div class="empty-log">로그를 기다리는 중...</div>
+      <div class="empty-log">
+        {{ terminalService.status() === 'running' ? '로그를 기다리는 중...' : '표시할 로그가 없습니다.' }}
+      </div>
     }
   </div>
 </div>

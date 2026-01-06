@@ -1,0 +1,421 @@
+// 1. 변수 정의
+$primary-color: #002387;
+$success-color: #4caf50;
+$warn-color: #ff9800;
+$error-color: #f44336;
+$bg-color: #f8f9fa;
+$border-radius: 12px;
+$transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+
+// 2. 기본 컨테이너 레이아웃
+.deploy-container {
+  padding: 32px;
+  background-color: $bg-color;
+  min-height: calc(100vh - 64px);
+  box-sizing: border-box;
+
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 40px;
+
+    h1 {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 28px;
+      font-weight: 800;
+      color: #1a1a1a;
+      margin: 0 0 8px 0;
+
+      mat-icon {
+        color: $primary-color;
+        font-size: 32px;
+        width: 32px;
+        height: 32px;
+      }
+    }
+
+    p {
+      color: #666;
+      margin: 0;
+      font-size: 15px;
+    }
+
+    .summary-stats {
+      .stat-item {
+        background: white;
+        padding: 12px 24px;
+        border-radius: $border-radius;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+
+        .label { font-size: 12px; color: #888; font-weight: 600; }
+        .value { font-size: 24px; color: $primary-color; font-weight: 800; }
+      }
+    }
+  }
+}
+
+// 3. 배포 카드 그리드
+.deployment-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 24px;
+}
+
+// 4. 개별 배포 카드 스타일
+.deploy-card {
+  display: flex;
+  flex-direction: column;
+  border-radius: $border-radius !important;
+  border: 1px solid #eef0f5;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+  transition: $transition;
+  background: white;
+  overflow: hidden;
+
+  &:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1) !important;
+  }
+
+  &.failed { border-top: 5px solid $error-color; }
+  &.running { border-left: 6px solid $success-color; }
+
+  mat-card-header {
+    padding: 20px 20px 0;
+    display: flex;
+    align-items: center;
+
+    .model-avatar {
+      background: #f0f3ff;
+      color: $primary-color;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+    }
+
+    .mat-mdc-card-header-text { margin: 0 12px; }
+
+    mat-card-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      color: #222;
+    }
+
+    mat-card-subtitle {
+      font-size: 13px;
+      color: #888;
+      font-family: 'Fira Code', monospace;
+    }
+  }
+}
+
+// 5. 상태 배지 (Badge)
+.status-badge {
+  margin-left: auto;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+
+  &[data-status="RUNNING"] { background: rgba($success-color, 0.1); color: $success-color; }
+  &[data-status="FAILED"] { background: rgba($error-color, 0.1); color: $error-color; }
+  &[data-status="STOPPED"] { background: #eee; color: #666; }
+  &[data-status*="ING"], &[data-status="PENDING"] { 
+    background: rgba($primary-color, 0.1); color: $primary-color; 
+  }
+}
+
+// 6. 스테퍼 (Process Steps)
+.deployment-steps {
+  display: flex;
+  justify-content: space-between;
+  margin: 32px 0 24px;
+  padding: 0 10px;
+  position: relative;
+
+  .step-line {
+    position: absolute;
+    top: 13px;
+    left: 10%;
+    right: 10%;
+    height: 2px;
+    background: #eef0f5;
+    z-index: 1;
+  }
+
+  .step-item {
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 20%;
+
+    .step-dot {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: white;
+      border: 2px solid #e0e0e0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: $transition;
+
+      mat-icon { font-size: 16px; width: 16px; height: 16px; color: white; }
+    }
+
+    .step-label {
+      font-size: 11px;
+      margin-top: 8px;
+      color: #aaa;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    &.completed {
+      .step-dot { background: $success-color; border-color: $success-color; }
+      .step-label { color: $success-color; }
+    }
+
+    &.active {
+      .step-dot {
+        background: $primary-color;
+        border-color: $primary-color;
+        box-shadow: 0 0 0 4px rgba($primary-color, 0.1);
+        animation: pulse 2s infinite;
+      }
+      .step-label { color: $primary-color; font-weight: 700; }
+    }
+  }
+}
+
+// 7. 정보 패널 (URL / Error Box)
+.info-panel {
+  background: #f8f9fc;
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 16px;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+
+  .url-box {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    gap: 12px;
+
+    mat-icon { color: #666; font-size: 20px; }
+
+    .endpoint-link {
+      font-family: 'Fira Code', monospace;
+      font-size: 13px;
+      color: $primary-color;
+      text-decoration: none;
+      font-weight: 500;
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      &:hover { text-decoration: underline; }
+    }
+  }
+
+  .error-box {
+    color: $error-color;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .loading-text { font-size: 13px; color: #999; font-style: italic; }
+}
+
+// 8. 하단 버튼 영역
+mat-card-actions {
+  padding: 12px 16px !important;
+  background: #fafbfc;
+  border-top: 1px solid #f0f2f5;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+
+  button {
+    font-weight: 700;
+    font-size: 13px;
+    
+    display: flex !important;       
+    align-items: center !important;
+    justify-content: center;
+    column-gap: 6px;           // 아이콘과 텍스트 사이 간격
+    white-space: nowrap;       // 텍스트가 절대 줄바꿈되지 않도록 설정
+    height: 40px !important;   // 버튼 높이 고정 (선택사항)
+    padding: 0 16px !important; // 좌우 여백 확보
+
+    // 버튼 내부 아이콘 크기 및 정렬 미세 조정
+    mat-icon {
+      font-size: 18px;    // 아이콘 크기를 글자 크기와 어울리게 조절
+      width: 18px;
+      height: 18px;
+      margin: 0;          // 불필요한 마진 제거
+    }
+  }
+}
+
+/* 1. 검증 버튼 (Primary Flat) 강제 적용 */
+button[mat-flat-button][color="primary"] {
+  background-color: $primary-color !important; /* 또는 원하시는 파란색 코드 */
+  color: white !important;
+}
+
+/* 2. 로그 버튼 (Primary Stroked) 강제 적용 */
+button[mat-stroked-button][color="primary"] {
+  color: $primary-color !important;
+  border-color: $primary-color !important;
+  background-color: transparent !important;
+}
+
+/* 3. 중단 버튼 (Warn Flat) 강제 적용 */
+button[mat-flat-button][color="warn"] {
+  background-color: $warn-color !important; /* 또는 원하시는 빨간색 코드 */
+  color: white !important;
+}
+
+// 9. 애니메이션 및 기타
+@keyframes pulse {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba($primary-color, 0.4); }
+  70% { transform: scale(1.1); box-shadow: 0 0 0 8px rgba($primary-color, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba($primary-color, 0); }
+}
+
+.deploy-progress { margin-bottom: -4px; height: 3px; }
+
+.empty-container {
+  grid-column: 1 / -1;
+  padding: 100px 0;
+  text-align: center;
+  background: white;
+  border: 2px dashed #d0d7de;
+  border-radius: $border-radius;
+  
+  mat-icon { font-size: 64px; width: 64px; height: 64px; color: #cbd5e0; margin-bottom: 16px; }
+  h3 { font-size: 20px; font-weight: 700; color: #4a5568; margin-bottom: 8px; }
+  p { color: #718096; margin-bottom: 24px; }
+}
+
+// 10. 리소스 요약 통계 (Resource Overview) - 기존 코드 하단에 추가
+.resource-overview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px;
+  margin-bottom: 40px;
+
+  .metric-card {
+    background: white;
+    padding: 20px;
+    border-radius: $border-radius;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    transition: $transition;
+    border: 1px solid #eef0f5;
+
+    &:hover {
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+    }
+
+    .metric-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+
+      mat-icon {
+        background: rgba($primary-color, 0.05);
+        color: $primary-color;
+        padding: 10px;
+        border-radius: 10px;
+        font-size: 24px;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .info {
+        display: flex;
+        flex-direction: column;
+
+        .label {
+          font-size: 13px;
+          color: #888;
+          font-weight: 600;
+          margin-bottom: 2px;
+        }
+
+        .value {
+          font-size: 20px;
+          color: #1a1a1a;
+          font-weight: 800;
+        }
+      }
+    }
+
+    // 통계용 프로그레스 바 스타일 커스텀
+    mat-progress-bar {
+      height: 8px;
+      border-radius: 4px;
+
+      ::ng-deep .mdc-linear-progress__buffer-bar {
+        background-color: #f0f2f5 !important;
+      }
+
+      ::ng-deep .mdc-linear-progress__bar-inner {
+        border-color: $primary-color !important;
+      }
+      
+      // 진행률에 따른 색상 변경 (필요 시 클래스로 제어 가능)
+      &.high-usage {
+        .mdc-linear-progress__bar-inner { border-color: $error-color !important; }
+      }
+    }
+  }
+}
+
+/* 11. Skeleton UI 스타일 추가 */
+.skeleton-loader {
+  background: #f6f7f8;
+  background-image: linear-gradient(to right, #f6f7f8 0%, #edeef1 20%, #f6f7f8 40%, #f6f7f8 100%);
+  background-repeat: no-repeat;
+  background-size: 800px 100%;
+  animation: shimmer 1.5s infinite linear;
+  border-radius: 12px;
+}
+
+@keyframes shimmer {
+  0% { background-position: -468px 0; }
+  100% { background-position: 468px 0; }
+}
+
+.metric-card-skeleton {
+  height: 120px;
+  width: 100%;
+}
+
+.deploy-card-skeleton {
+  height: 380px; // 실제 카드의 높이와 비슷하게 설정
+  width: 100%;
+}

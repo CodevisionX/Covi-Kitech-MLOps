@@ -2,6 +2,8 @@
 pg_data/
 minio_data/
 training_results/
+datasets/
+mlops_images/
 
 # 환경 변수 및 설정
 .env

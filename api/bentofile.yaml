@@ -1,14 +1,15 @@
-# api/bentofile.yaml
-service: "service:YoloService"
+service: "service:svc"
 labels:
   owner: codevision
-  project: pcb-defect-detection
+  project: kitech
 include:
-  - "*.py"
+  - "service.py"
 python:
   packages:
-    - ultralytics
-    - torch
-    - torchvision
     - numpy
-    - pillow
+    - Pillow
+    - mlflow
+    - bentoml
+    - ultralytics  # YOLO 모델 대응용
+    - torch        # PyTorch 기반 모델 대응용
+    - torchvision

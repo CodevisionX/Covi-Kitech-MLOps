@@ -18,6 +18,8 @@ class Job(Base):
     # Project 연동
     project_id = Column(Integer, ForeignKey("project.id"), nullable=False)
     project = relationship("Project", back_populates="jobs")
+
+    deployment = relationship("Deployment", back_populates="job", uselist=False)
     
     # 1. 필수 메타데이터 (모든 학습에 공통적으로 필요한 정보)
     model_variant = Column(String, nullable=False) # 예: yolov8n, resnet50
@@ -32,7 +34,8 @@ class Job(Base):
     # 실행 관련 정보
     run_id = Column(String, nullable=True)       # MLflow Run ID
     container_id = Column(String, nullable=True) # Docker Container ID
-    
+    metrics = Column(JSON, default={})
+
     # 시간 및 에러 정보
     created_at = Column(DateTime(timezone=True), default=get_kst_now)
     updated_at = Column(DateTime(timezone=True), default=get_kst_now, onupdate=get_kst_now)

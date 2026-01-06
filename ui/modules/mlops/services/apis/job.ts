@@ -32,6 +32,11 @@ export class Jobs extends BaseApi {
       .pipe(catchError(this.handleError));
   }
 
+  getJob(jobId: number): Observable<IJob> {
+    return this.http.get<IJob>(`/jobs/${jobId}`)
+      .pipe(catchError(this.handleError));
+  }
+
   getJobHistory(skip: number = 0, limit: number = 20, projectId?: number): Observable<IJob[]> {
     let params = new HttpParams()
       .set('skip', skip)
@@ -53,7 +58,7 @@ export class Jobs extends BaseApi {
   getJobUpdates(): Observable<any> {
     const url = `${this.baseUrl}/api/v1/jobs/stream`;
     // 백엔드에서 broadcast할 때 사용하는 이벤트 이름들을 배열로 전달합니다.
-    return this.sse.getServerSentEvent(url, ['status_change', 'new_job']);
+    return this.sse.getServerSentEvent(url, ['job_status', 'new_job']);
   }
 
   getJobLogStream(jobId: number): Observable<any> {

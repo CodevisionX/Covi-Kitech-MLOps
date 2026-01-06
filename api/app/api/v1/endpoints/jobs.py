@@ -46,6 +46,31 @@ def read_job_history(
     # 인자 이름(project_id)을 정확히 매칭하여 호출
     return service.get_job_history(project_id=project_id, skip=skip, limit=limit)
 
+@router.get("/stream")
+async def stream_events():
+    """
+    SSE 엔드포인트: 프론트엔드가 이 주소를 구독하여 실시간 업데이트를 받습니다.
+    """
+    return StreamingResponse(
+        sse_manager.connect(), 
+        media_type="text/event-stream"
+    )
+
+@router.get("/{job_id}", response_model=JobResponse)
+def read_job(job_id: int, db: Session = Depends(get_db)):
+    """
+    특정 ID를 가진 작업의 상세 정보를 조회합니다.
+    """
+    service = JobService(db)
+    job = service.get_job_by_id(job_id) 
+    
+    if not job:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail=f"Job {job_id} not found"
+        )
+    return job
+
 @router.post("/{job_id}/cancel", response_model=JobResponse)
 async def cancel_job(
     job_id: int, 
@@ -80,16 +105,6 @@ async def complete_job(
         background_tasks
     )
     return {"status": "ok"}
-
-@router.get("/stream")
-async def stream_events():
-    """
-    SSE 엔드포인트: 프론트엔드가 이 주소를 구독하여 실시간 업데이트를 받습니다.
-    """
-    return StreamingResponse(
-        sse_manager.connect(), 
-        media_type="text/event-stream"
-    )
 
 @router.get("/{job_id}/logs")
 async def stream_logs(job_id: int, db: Session = Depends(get_db)):

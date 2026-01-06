@@ -1,3 +1,5 @@
+import { IDeployment } from "./deployment.model";
+
 export enum JobStatus {
   PENDING = 'PENDING',
   RUNNING = 'RUNNING',
@@ -32,7 +34,8 @@ export interface IJob {
   // 실행 정보
   run_id?: string | null;
   experiment_id: string;
-  container_id?: string | null; // [추가됨]
+  container_id?: string | null;
+  deployment?: IDeployment;
 
   // 시간 정보 (JSON으로 넘어오면 string)
   created_at: string;

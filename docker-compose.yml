@@ -1,7 +1,5 @@
-version: '3.8'
-
 services:
-  # 1. Database (PostgreSQL) - MLflow의 메타데이터 저장용
+  # 1. Database (PostgreSQL)
   postgres:
     image: postgres:13
     container_name: mlops_postgres
@@ -16,11 +14,16 @@ services:
       - ./pg_data:/var/lib/postgresql/data
     networks:
       - mlops-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # 2. Object Storage (MinIO) - 데이터셋 및 모델 아티팩트 저장용
+  # 2. Object Storage (MinIO)
   minio:
     image: minio/minio
-    container_name: mlops_minio
+    container_name: mlops-minio
     restart: always
     command: server /data --console-address ":${MINIO_CONSOLE_PORT}"
     environment:
@@ -34,9 +37,9 @@ services:
     networks:
       - mlops-net
 
-  # 3. Model Registry (MLflow Server)
+  # 3. MLflow Server
   mlflow:
-    build: ./mlflow
+    image: mlops_kitech-mlflow:latest
     container_name: mlops_mlflow
     restart: always
     depends_on:
@@ -57,48 +60,47 @@ services:
     networks:
       - mlops-net
 
-  # 4. Create Bucket (MinIO 시작 시 버킷 자동 생성용)
-  create_bucket:
-    image: minio/mc
-    depends_on:
-      - minio
-    entrypoint: >
-      /bin/sh -c "
-      until (/usr/bin/mc alias set myminio http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD}); do echo '...waiting for minio...'; sleep 1; done;
-      /usr/bin/mc mb myminio/${MLFLOW_BUCKET_NAME} || echo 'Bucket already exists';
-      exit 0;
-      "
-    networks:
-      - mlops-net
-  
   # 5. FastAPI Backend
   backend:
-    build: ./api
+    image: mlops_kitech-backend:latest
     container_name: mlops_backend
     restart: always
     environment:
       - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER}
       - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD}
-      - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
+      - MLFLOW_S3_ENDPOINT_URL=${MLFLOW_S3_ENDPOINT_URL}
       - MLFLOW_TRACKING_URI=http://mlflow:5000
-      # DB 설정
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB}
+      - MAX_DEPLOYMENTS_PER_PROJECT=${MAX_DEPLOYMENTS_PER_PROJECT}
     ports:
-      - "8000:8000"
+      - "${BACKEND_PORT}:8000"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    command: uvicorn main:app --host 0.0.0.0 --port 8000
+      - training_results:/app/runs
+      - bentoml_model_store:/root/.bentoml
     networks:
       - mlops-net
     depends_on:
-      - mlflow
-      - minio
+      mlflow:
+        condition: service_started
+      minio:
+        condition: service_started
+      postgres:
+        condition: service_healthy
   
-  # 6. Training Worker (프로파일 설정으로 수동 실행)
+  builder-image:
+    image: mlops-builder:latest
+    profiles: ["tools"]
+
+  base-image:
+    image: bentoml-generic-server:latest
+    profiles: ["tools"]
+
+  # 6. Training Worker
   training:
-    build: ./training
+    image: mlops_kitech-training:latest
     container_name: mlops_training
     shm_size: '8gb'
     deploy:
@@ -110,24 +112,22 @@ services:
               capabilities: [gpu]
     environment:
       MLFLOW_TRACKING_URI: http://mlflow:5000
-      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      MLFLOW_S3_ENDPOINT_URL: ${MLFLOW_S3_ENDPOINT_URL}
       AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
       AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
     volumes:
-      - ./training_results:/app/runs
+      - training_results:/app/runs 
     networks:
       - mlops-net
     profiles: ["job"]
 
-  # 7. Angular Frontend (추가된 부분)
+  # 7. Angular Frontend
   ui:
-    build:
-      context: ./ui
-      dockerfile: Dockerfile # 운영용 멀티 스테이지 빌드 Dockerfile 필요
+    image: mlops_kitech-ui:latest
     container_name: mlops_ui
     restart: always
     ports:
-      - "80:80" # 브라우저에서 http://localhost 로 접속
+      - "${UI_PORT}:80"
     networks:
       - mlops-net
     depends_on:
@@ -135,4 +135,16 @@ services:
 
 networks:
   mlops-net:
+    name: mlops-net
     driver: bridge
+
+volumes:
+  training_results:
+    name: mlops_kitech_training_results
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/training_results
+  bentoml_model_store:
+    name: mlops_bentoml_model_store

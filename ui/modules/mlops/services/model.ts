@@ -13,7 +13,7 @@ export class Model {
     this.selectedDatasetPath.set(path);
   }
 
-  calculateBestRunId(runs: IMLflowRun[], metricKey: string = 'metrics/mAP50B'): string | null {
+  calculateBestRunId(runs: IMLflowRun[], metricKey: string = 'metrics/mAP50_B'): string | null {
     if (!runs || runs.length === 0) return null;
 
     const finishedRuns = runs.filter(r => r.status === 'FINISHED');

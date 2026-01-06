@@ -75,7 +75,8 @@ export class Train implements OnInit {
       tags: {
         "author": "KITECH", // 개발자 정보
         "dataset_version": "v1.0",
-        "stage": "Experimental"
+        "stage": "Experimental",
+        "dataset_path": currentPath
       }
     }
     console.log('Training Payload:', payload);

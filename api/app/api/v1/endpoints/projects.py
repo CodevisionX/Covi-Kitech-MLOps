@@ -12,7 +12,7 @@ def create_project(project_in: ProjectCreate, db: Session = Depends(get_db)):
     service = ProjectService(db)
     return service.create_project(project_in)
 
-@router.get("/", response_model=List[ProjectResponse])
+@router.get("", response_model=List[ProjectResponse])
 def read_projects(db: Session = Depends(get_db)):
     service = ProjectService(db)
     return service.get_projects()

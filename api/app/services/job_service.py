@@ -4,7 +4,7 @@ import json
 from typing import List, Any, Optional, Dict
 import docker
 from app.db.session import SessionLocal
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from fastapi import BackgroundTasks
 from datetime import datetime
 import aiofiles
@@ -116,7 +116,7 @@ class JobService:
             db.commit()
 
             # SSE 알림
-            await sse_manager.broadcast("status_change", {
+            await sse_manager.broadcast("job_status", {
                 "job_id": job.id, 
                 "status": JobStatus.RUNNING.value,
                 "project_id": job.project_id
@@ -132,7 +132,11 @@ class JobService:
                 "DATASET_PATH": job.dataset,
                 "JOB_ID": str(job.id),
                 "BACKEND_URL": "http://backend:8000",
-                "JOB_TAGS": json.dumps(job.tags)
+                "JOB_TAGS": json.dumps(job.tags),
+                "MLFLOW_S3_IGNORE_TLS": "true",  # HTTP 통신을 위해 반드시 필요!
+                "AWS_DEFAULT_REGION": "us-east-1",
+                "PYTHONUNBUFFERED": "1",
+                "MLFLOW_PYTHON_IGNORE_GIT_ERROR": "true",
             }
 
             # JSON 파라미터를 환경변수로 변환 (예: {"epochs": 10} -> EPOCHS=10)
@@ -145,8 +149,8 @@ class JobService:
 
             # -u 옵션과 tee 명령어를 더 확실하게 전달
             command = [
-                "sh", "-c", 
-                f"python -u {train_script} 2>&1 | tee {log_file}"
+                "bash", "-c",
+                f"set -o pipefail; python -u {train_script} 2>&1 | tee {log_file}"
             ]
 
             # 컨테이너 실행
@@ -169,7 +173,7 @@ class JobService:
             job.status = JobStatus.FAILED.value
             job.error_message = str(e)
             db.commit()
-            await sse_manager.broadcast("status_change", {
+            await sse_manager.broadcast("job_status", {
                 "job_id": job.id, 
                 "status": "FAILED",
                 "project_id": job.project_id
@@ -202,6 +206,13 @@ class JobService:
             if status_str == JobStatus.FAILED.value:
                 job.error_message = f"Exit Code: {exit_info}"
             
+            if status_str == JobStatus.FINISHED.value and job.run_id:
+                try:
+                    run = mlflow_provider.client.get_run(job.run_id)
+                    job.metrics = run.data.metrics  # MLflow 지표를 DB에 복사
+                except Exception as e:
+                    print(f"[MLflow Sync Error] {e}")
+            
             if job.container_id:
                 try:
                     container = docker_provider.get_container(job.container_id)
@@ -211,7 +222,7 @@ class JobService:
             
             db.commit()
 
-            await sse_manager.broadcast("status_change", {
+            await sse_manager.broadcast("job_status", {
                 "job_id": job.id, 
                 "status": status_str,
                 "project_id": job.project_id
@@ -269,7 +280,7 @@ class JobService:
         
         # 상태 변경 알림
         if previous_status != job.status:
-            await sse_manager.broadcast("status_change", {
+            await sse_manager.broadcast("job_status", {
                 "job_id": job.id, 
                 "status": job.status,
                 "project_id": job.project_id
@@ -289,6 +300,13 @@ class JobService:
             job.status = final_status
             job.error_message = message
             job.finished_at = get_kst_now()
+
+            if final_status == JobStatus.FINISHED.value and job.run_id:
+                try:
+                    run = mlflow_provider.client.get_run(job.run_id)
+                    job.metrics = run.data.metrics
+                except Exception as e:
+                    print(f"[MLflow Webhook Sync Error] {e}")
             
             if job.container_id:
                 try:
@@ -302,7 +320,7 @@ class JobService:
             self.db.commit()
 
             # SSE 알림
-            await sse_manager.broadcast("status_change", {
+            await sse_manager.broadcast("job_status", {
                 "job_id": job.id, 
                 "status": final_status,
                 "project_id": job.project_id
@@ -367,9 +385,9 @@ class JobService:
             
         return query.order_by(Job.id.desc()).all()
 
-    def get_job_history(self, project_id: Optional[int], skip: int = 0, limit: int = 20) -> List[Any]:
+    def get_job_history(self, project_id: Optional[int], skip: int = 0, limit: int = 20) -> List[Job]:
         # 1. DB에서 먼저 이력 정보를 가져옵니다.
-        query = self.db.query(Job).filter(
+        query = self.db.query(Job).options(joinedload(Job.deployment)).filter(
             Job.status.in_([
                 JobStatus.FINISHED.value, 
                 JobStatus.FAILED.value,
@@ -381,52 +399,13 @@ class JobService:
         if project_id is not None:
             query = query.filter(Job.project_id == project_id)
 
-        jobs = query.order_by(Job.id.desc()).offset(skip).limit(limit).all()
+        return query.order_by(Job.id.desc()).offset(skip).limit(limit).all()
 
-        # 2. MLflow 일괄 조회를 위한 run_id 리스트 추출
-        run_ids = [job.run_id for job in jobs if job.run_id]
-        
-        if not run_ids:
-            for job in jobs: job.metrics = {}
-            return jobs
-
-        try:
-            # print(f"[MLflow Search] Searching for {len(run_ids)} run_ids...")
-            # 3. MLflow search_runs를 사용하여 한 번에 조회
-            run_id_str = ", ".join([f"'{rid}'" for rid in run_ids])
-            filter_string = f"attributes.run_id IN ({run_id_str})"
-            
-            # 현재 선택된 프로젝트의 experiment_id들을 중복 제거하여 리스트업 (검색 범위 제한용)
-            exp_ids = list(set([job.experiment_id for job in jobs if job.experiment_id]))
-
-            run_id_str = ", ".join([f"'{rid}'" for rid in run_ids])
-            filter_string = f"attributes.run_id IN ({run_id_str})"
-
-            # 3. MLflow 조회
-            runs = mlflow_provider.client.search_runs(
-                experiment_ids=exp_ids,
-                filter_string=filter_string,
-                max_results=limit
-            )
-
-            print(f"[MLflow Result] Found {len(runs)} runs in MLflow.")
-
-            # 4. 조회된 결과를 {run_id: metrics} 형태의 맵으로 변환
-            metrics_map = {run.info.run_id: run.data.metrics for run in runs}
-
-            # 5. DB 데이터에 메트릭 결합
-            for job in jobs:
-                job.metrics = metrics_map.get(job.run_id, {})
-                # if not job.metrics:
-                #     print(f"[Warning] No metrics found for Run ID: {job.run_id}, {job.experiment_id}")
-
-        except Exception as e:
-            print(f"[MLflow Search Error] {e}")
-            # 에러 발생 시 빈 객체로 초기화하여 API 응답 규격 유지
-            for job in jobs:
-                job.metrics = {}
-
-        return jobs
+    def get_job_by_id(self, job_id: int) -> Optional[Job]:
+        """
+        특정 ID의 작업 상세 정보를 조회합니다. (MLflow 메트릭 포함)
+        """
+        return self.db.query(Job).filter(Job.id == job_id).first()
     
     async def get_all_logs(self, job_id: int) -> str:
         """종료된 작업의 로그 파일 전체 내용을 읽어 반환합니다."""

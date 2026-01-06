@@ -6,7 +6,7 @@
     "start": "ng serve",
     "start:docker": "npx ng serve --configuration docker --host 0.0.0.0",
     "build": "ng build",
-    "build:docker": "ng build --configuration production",
+    "build:docker": "ng build --configuration production,docker",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"
   },

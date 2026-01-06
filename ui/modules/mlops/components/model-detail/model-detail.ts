@@ -6,6 +6,7 @@ import { Notification } from '../../services/notification';
 import { IMLflowRun } from '../../services/apis/models/experiment.model';
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import { Deployment } from '../../services/apis/deployment';
 
 Chart.register(...registerables);
 
@@ -21,28 +22,32 @@ export class ModelDetail {
   private readonly router = inject(Router);
   protected readonly experimentService = inject(Experiment);
   private readonly notificationService = inject(Notification);
+  private readonly deploymentService = inject(Deployment);
 
   // 상태 관리 Signals
   runId = signal<string>('');
   projectId = signal<number | null>(null);
+  jobId = signal<number | null>(null);
   runInfo = signal<IMLflowRun | null>(null); // 상세 정보 추가
   metricsData = signal<any>(null);
   isDeploying = signal<boolean>(false);
 
   protected readonly groundTruthUrl = computed(() =>
-    this.experimentService.getArtifactPreviewUrl(this.runId(), 'val_batch0_labels.jpg')
+    this.experimentService.getArtifactPreviewUrl(this.runId(), 'plots/val_batch0_labels.jpg')
   );
 
   protected readonly predictionUrl = computed(() =>
-    this.experimentService.getArtifactPreviewUrl(this.runId(), 'val_batch0_pred.jpg')
+    this.experimentService.getArtifactPreviewUrl(this.runId(), 'plots/val_batch0_pred.jpg')
   );
 
   ngOnInit() {
     const id = this.route.snapshot.paramMap.get('runId')!;
     const pId = this.route.snapshot.queryParamMap.get('projectId');
+    const jId = this.route.snapshot.queryParamMap.get('jobId');
 
     this.runId.set(id);
     if (pId) this.projectId.set(+pId);
+    if (jId) this.jobId.set(+jId);
 
     this.loadRunDetail(id);
     this.loadMetricsHistory(id);
@@ -65,17 +70,31 @@ export class ModelDetail {
   onDeployModel() {
     const info = this.runInfo();
     if (!info) return;
+    if (!confirm(`현재 모델(Run ID: ${this.runId().substring(0, 8)})을 BentoML로 배포하시겠습니까?`)) return;
 
-    if (confirm(`현재 모델(Run ID: ${this.runId().substring(0, 8)})을 BentoML로 배포하시겠습니까?`)) {
-      this.isDeploying.set(true);
+    this.isDeploying.set(true);
+    // 2. 백엔드로 보낼 데이터 구성
+    const deployRequest = {
+      project_id: this.projectId()!,
+      model_name: info.tags?.['model_variant'] || 'YOLO_Model',
+      run_id: this.runId(),
+      job_id: this.jobId() || (info.tags?.['job_id'] ? +info.tags['job_id'] : undefined)
+    };
 
-      // TODO: 배포 API 호출 (BentoML 패키징 트리거)
-      setTimeout(() => {
+    // 3. 실제 API 호출
+    this.deploymentService.createDeployment(deployRequest).subscribe({
+      next: (response) => {
         this.isDeploying.set(false);
-        this.notificationService.showSuccess('🚀 배포 프로세스가 시작되었습니다. 배포 탭에서 확인하세요.');
+        this.notificationService.showSuccess('🚀 배포 프로세스가 시작되었습니다.');
         this.router.navigate(['/dashboard/deployments']);
-      }, 2000);
-    }
+      },
+      error: (err) => {
+        this.isDeploying.set(false);
+        const serverMessage = err || '배포 요청 중 오류가 발생했습니다.';
+        this.notificationService.showError(serverMessage);
+        console.error('Deployment Error:', err);
+      }
+    });
   }
 
   goBack() {
@@ -94,7 +113,7 @@ export class ModelDetail {
 
   mAPChartData = computed<ChartConfiguration<'line'>['data']>(() => {
     const data = this.metricsData();
-    const key = 'metrics/mAP50B';
+    const key = 'metrics/mAP50_B';
     if (!data || !data[key] || data[key].length === 0) {
       return { labels: [], datasets: [] };
     }
