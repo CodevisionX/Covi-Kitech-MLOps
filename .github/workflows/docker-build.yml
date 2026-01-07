@@ -55,9 +55,13 @@ jobs:
           large-packages: true
           docker-images: true
           swap-storage: true
-
+      
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Lowercase repository name
+        run: |
+          echo "REPO_LOWER=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
       
       - name: Check for changes
         uses: dorny/paths-filter@v2
@@ -91,6 +95,6 @@ jobs:
           file: ${{ matrix.dockerfile }}
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ github.repository }}-${{ matrix.image_suffix }}:latest
+            ${{ env.REGISTRY }}/${{ env.REPO_LOWER }}-${{ matrix.image_suffix }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max

@@ -71,7 +71,7 @@ services:
 
   # 3. MLflow Server (커스텀 이미지)
   mlflow:
-    image: ghcr.io/abi-hong/covi-mlops-kitech-mlflow:latest
+    image: ghcr.io/codevisionx/covi-kitech-mlops-mlflow:latest
     container_name: mlops_mlflow
     restart: always
     depends_on:
@@ -94,7 +94,7 @@ services:
 
   # 4. FastAPI Backend (커스텀 이미지)
   backend:
-    image: ghcr.io/abi-hong/covi-mlops-kitech-backend:latest
+    image: ghcr.io/codevisionx/covi-kitech-mlops-backend:latest
     container_name: mlops_backend
     restart: always
     environment:
@@ -124,16 +124,16 @@ services:
   
   # 5. BentoML Tools (커스텀 이미지)
   builder-image:
-    image: ghcr.io/abi-hong/covi-mlops-kitech-builder:latest
+    image: ghcr.io/codevisionx/covi-kitech-mlops-builder:latest
     profiles: ["tools"]
 
   base-image:
-    image: ghcr.io/abi-hong/covi-mlops-kitech-base:latest
+    image: ghcr.io/codevisionx/covi-kitech-mlops-base:latest
     profiles: ["tools"]
 
   # 6. Training Worker (커스텀 이미지)
   training:
-    image: ghcr.io/abi-hong/covi-mlops-kitech-training:latest
+    image: ghcr.io/codevisionx/covi-kitech-mlops-training:latest
     container_name: mlops_training
     shm_size: '8gb'
     deploy:
@@ -156,7 +156,7 @@ services:
 
   # 7. Angular Frontend (커스텀 이미지)
   ui:
-    image: ghcr.io/abi-hong/covi-mlops-kitech-ui:latest
+    image: ghcr.io/codevisionx/covi-kitech-mlops-ui:latest
     container_name: mlops_ui
     restart: always
     ports:
