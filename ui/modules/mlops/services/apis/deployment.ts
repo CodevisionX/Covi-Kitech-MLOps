@@ -19,7 +19,7 @@ export class Deployment extends BaseApi {
    * 새로운 모델 배포 요청을 생성합니다.
    */
   createDeployment(deploymentData: IDeploymentCreate): Observable<IDeployment> {
-    return this.http.post<IDeployment>('/deployments', deploymentData)
+    return this.http.post<IDeployment>('/deployments/', deploymentData)
       .pipe(catchError(this.handleError));
   }
 

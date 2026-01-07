@@ -43,19 +43,31 @@ services:
       - minio
     networks:
       - mlops-net
-    entrypoint: >
-      /bin/sh -c "
-      until (/usr/bin/mc alias set myminio http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD}) do echo 'MinIO 서버 기다리는 중...' && sleep 1; done;
-      
-      # 1. MLflow용 버킷 생성 (없을 경우에만)
-      /usr/bin/mc mb --ignore-existing myminio/${MLFLOW_BUCKET_NAME};
-      
-      # 2. 기존 datasets 버킷 권한을 'download'(공개 읽기)로 설정 (선택 사항)
-      /usr/bin/mc anonymous set download myminio/datasets;
-      
-      echo 'MinIO 초기화 완료!';
-      exit 0;
-      "
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MLFLOW_BUCKET_NAME: ${MLFLOW_BUCKET_NAME}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        until /usr/bin/mc alias set myminio http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD}; do
+          echo 'MinIO 서버 기다리는 중...';
+          sleep 2;
+        done;
+        
+        echo 'MinIO 연결 성공! 버킷 생성을 시작합니다.';
+
+        TARGET_BUCKET=$${MLFLOW_BUCKET_NAME:-mlflow-artifacts};
+        
+        /usr/bin/mc mb --ignore-existing myminio/$$TARGET_BUCKET;
+        echo '버킷 생성 완료: ' $$TARGET_BUCKET;
+        
+        /usr/bin/mc mb --ignore-existing myminio/datasets;
+        /usr/bin/mc anonymous set download myminio/datasets;
+        
+        echo 'MinIO 초기화 작업이 모두 완료되었습니다!';
+        exit 0;
 
   # 3. MLflow Server (커스텀 이미지)
   mlflow:
