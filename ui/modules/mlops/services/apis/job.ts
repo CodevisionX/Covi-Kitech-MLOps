@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Sse } from './sse';
 import { BaseApi } from './baseApi';
-import { environment } from '../../../../src/environments/environment';
+import { environment } from './../../../../src/environments/environment';
 import { Observable, catchError } from 'rxjs';
 import { IJobCreate } from './models/job.model';
 import { IJob } from './models/job.model'
@@ -18,7 +18,7 @@ export class Jobs extends BaseApi {
   private readonly baseUrl = environment.apiUrl;
 
   createJob(jobData: IJobCreate): Observable<IJob> {
-    return this.http.post<IJob>('/jobs', jobData)
+    return this.http.post<IJob>('/jobs/', jobData)
       .pipe(catchError(this.handleError));
   }
 

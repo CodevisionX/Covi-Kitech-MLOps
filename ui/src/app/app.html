@@ -2,7 +2,10 @@
   <button mat-icon-button (click)="sidenav.toggle()">
     <mat-icon>menu</mat-icon>
   </button>
-  <span>🚀 KITECH MLOps Platform</span>
+  <div class="branding">
+    <img src="assets/logo.svg" alt="KITECH Logo" class="logo-img">
+    <span class="logo-text">교육용 MLOps 플랫폼</span>
+  </div>
 </mat-toolbar>
 
 <mat-sidenav-container class="main-container" [style.height]="layoutService.getBodyHeight()">

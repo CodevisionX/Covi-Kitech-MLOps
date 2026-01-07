@@ -21,3 +21,22 @@
   width: 250px;
   border-right: 1px solid #e0e0e0;
 }
+
+.branding {
+  display: flex;
+  align-items: center; /* 수직 중앙 정렬 */
+  gap: 10px; /* 로고와 텍스트 사이 간격 */
+  margin-left: 8px; /* 햄버거 메뉴와의 간격 */
+}
+
+.logo-img {
+  height: 40px; /* 툴바 높이에 맞춰 적절히 조절 (보통 30~40px 추천) */
+  width: auto;  /* 비율 유지 */
+  object-fit: contain; /* 이미지 찌그러짐 방지 */
+}
+
+.logo-text {
+  font-weight: 500; /* 텍스트 굵기 조절 (선택사항) */
+  /* 필요하다면 폰트 사이즈 조절 */
+  /* font-size: 1.2rem; */
+}
