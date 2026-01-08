@@ -1,10 +1,10 @@
 # 1. PyTorch & CUDA 베이스 이미지
-FROM pytorch/pytorch:2.1.0-cuda12.1-cudnn8-runtime
+FROM pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
 
 ENV PYTHONUNBUFFERED=1
 ENV POETRY_VERSION=1.7.1
 
-# [추가] 설치 중 질문(Timezone 등)을 하지 않도록 설정 ★★★
+# 설치 중 질문(Timezone 등)을 하지 않도록 설정
 ENV DEBIAN_FRONTEND=noninteractive 
 
 # 2. 시스템 라이브러리 및 Poetry 설치
