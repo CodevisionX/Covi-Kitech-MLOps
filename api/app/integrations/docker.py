@@ -3,6 +3,7 @@ import os
 import docker
 import asyncio
 from typing import Optional, Dict, Any
+from app.core.config import settings
 
 class DockerProvider:
     def __init__(self):
@@ -89,7 +90,10 @@ class DockerProvider:
                 volumes=volumes,
                 network=network,
                 extra_hosts={'host.docker.internal': 'host-gateway'},
-                detach=True  # 비동기 제어를 위해 detach로 시작
+                detach=True,  # 비동기 제어를 위해 detach로 시작
+                mem_limit=settings.BUILDER_MEM_LIMIT,             # 빌더가 최대 4GB만 쓰게 제한
+                nano_cpus=int(settings.BUILDER_CPU_LIMIT * 1e9),      # CPU 코어 4개만 사용하도록 제한
+                memswap_limit="6g",        # 스왑 포함 제한
             )
 
             # 컨테이너가 끝날 때까지 대기 (wait)
