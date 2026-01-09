@@ -1,5 +1,5 @@
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
@@ -16,21 +16,28 @@ router = APIRouter()
 @router.post("/", response_model=DeploymentResponse, status_code=status.HTTP_201_CREATED)
 async def create_deployment(
     deployment_in: DeploymentCreate, 
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
     """
-    새로운 모델 배포 요청을 생성하고 배포 파이프라인(MLflow->BentoML->Docker)을 시작합니다.
+    1. 즉시 DB 레코드를 생성하고 (PENDING)
+    2. 백그라운드 태스크를 등록한 뒤
+    3. 201 응답을 즉시 반환합니다.
     """
-    # deployment_service 내에서 비동기 태스크(asyncio.create_task)가 실행됩니다.
-    service_instance = deployment_service
-    service_instance.db = db # DB 세션 주입
-    return await service_instance.deploy_model(
+    # 1. 초기 레코드 생성 및 자원 확인
+    deployment = await deployment_service.prepare_deployment(
+        db=db,
         project_id=deployment_in.project_id,
         model_name=deployment_in.model_name,
-        model_version=deployment_in.model_version,
         run_id=deployment_in.run_id,
+        model_version=deployment_in.model_version,
         job_id=deployment_in.job_id
     )
+
+    # 2. 무거운 작업(MLflow 등록, 빌드 등)을 백그라운드로 던짐
+    background_tasks.add_task(deployment_service._execute_deployment_flow, deployment.id)
+
+    return deployment
 
 
 @router.get("/active", response_model=List[DeploymentResponse])
@@ -70,14 +77,19 @@ async def stop_deployment(
     """
     배포 중인 서비스를 중단하고 컨테이너를 삭제합니다.
     """
-    service_instance = deployment_service
-    service_instance.db = db
-    await service_instance.stop_deployment(deployment_id)
+    await deployment_service.stop_deployment(deployment_id)
     
     return db.query(Deployment).get(deployment_id)
 
+@router.delete("/{deployment_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_deployment(deployment_id: int):
+    """문제가 있거나 불필요한 배포 이력을 DB에서 완전히 삭제합니다."""
+    await deployment_service.delete_deployment(deployment_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
 @router.get("/{deployment_id}/logs")
 def stream_deployment_logs(deployment_id: int, db: Session = Depends(get_db)):
+
     """
     BentoML 서빙 컨테이너의 로그를 실시간으로 스트리밍합니다.
     """

@@ -172,25 +172,28 @@ export class ModelList implements OnInit, OnDestroy {
     console.log('sse 실시간 업데이트 구독을 시작합니다.');
     this.sseSubscription = this.jobService.getJobUpdates().subscribe({
       next: (event: any) => {
-        // event 구조: { event: 'job_status', data: { project_id: 1, ... } }
         console.log('SSE Event received:', event);
 
-        // 백엔드에서 평탄화했으므로 event.data.project_id로 바로 접근 가능
         const data = event.data;
+        // 프로젝트 아이디가 다르면 무시
+        if (data.project_id != this.selectedProjectId()) return;
 
-        if (event.event === 'job_status' && data.project_id == this.selectedProjectId()) {
-          this.ngZone.run(() => {
-            console.log('상태 변경 감지, 리스트 갱신');
-            this.refreshTrigger.next();
-          });
-        }
+        this.ngZone.run(() => {
+          // [수정] 조건문을 각각 독립적으로 검사합니다.
+          if (event.event === 'new_job') {
+            const exists = this.allActiveJobs().some(j => j.id === data.job_id);
+            if (!exists) {
+              console.log('신규 작업 감지 -> 리스트 갱신');
+              this.refreshTrigger.next();
+            }
+          }
 
-        if (event.event === 'new_job' && data.project_id == this.selectedProjectId()) {
-          this.ngZone.run(() => {
-            console.log('새 작업 감지, 리스트 갱신');
+          // [수정] job_status는 별도의 if 문으로 처리하거나 else if로 뺍니다.
+          if (event.event === 'job_status') {
+            console.log('상태 변경 감지(KILLED/FINISHED 등) -> 리스트 갱신');
             this.refreshTrigger.next();
-          });
-        }
+          }
+        });
       },
       error: (err) => console.error('SSE Error:', err)
     });

@@ -24,14 +24,11 @@ from app.core.config import settings
 from app.services.sse_service import sse_manager
 
 class JobService:
-    def __init__(self, db: Session = None):
-        self.db = db
+    def __init__(self):
         self.log_dir = "/app/runs"
     
-    async def create_job(self, job_in: JobCreate, background_tasks: BackgroundTasks):
-        """
-        사용자 요청 -> DB 저장(Pending) -> 큐 프로세스 트리거
-        """
+    async def register_job(self, job_in: JobCreate, db: Session) -> Job:
+        """단순 DB 등록 및 SSE 알림만 수행 (Non-blocking)"""
         job = Job(
             project_id=job_in.project_id,
             experiment_id=job_in.experiment_id or "0",
@@ -41,36 +38,30 @@ class JobService:
             tags=job_in.tags,
             status=JobStatus.PENDING.value
         )
-        self.db.add(job)
-        self.db.commit()
-        self.db.refresh(job)
+        db.add(job)
+        db.commit()
+        db.refresh(job)
 
-        # 1. 프론트에 "새 작업 등록됨" 알림
         await sse_manager.broadcast("new_job", {
             "job_id": job.id, 
             "status": job.status,
             "project_id": job.project_id 
         })
-
-        # 2. 백그라운드에서 큐 처리 시작 (Trigger Next)
-        background_tasks.add_task(self.process_queue)
         return job
     
     async def process_queue(self):
         """
-        [안정성 강화] 직접 세션을 관리하여 세션 만료를 방지하고, 중복 실행을 막음
+        백그라운드 전용 세션을 사용하여 안전하게 큐 처리
         """
-        # 1. 백그라운드 실행을 위해 새로운 세션 생성 (Context Manager 사용)
         with SessionLocal() as db:
             try:
-                # 2. 중복 실행 방지 로직 (Critical Section)
-                # 현재 'RUNNING' 상태인 작업이 하나라도 있으면 즉시 종료
+                # 1. 실행 중인 작업 확인
                 running_job = db.query(Job).filter(Job.status == JobStatus.RUNNING.value).first()
                 if running_job:
                     print(f"[JobService] Job {running_job.id} is already running. Skipping...")
                     return
 
-                # 3. 대기 중(PENDING)인 가장 오래된 작업 조회
+                # 2. 대기 중(PENDING)인 가장 오래된 작업 조회
                 next_job = db.query(Job).filter(
                     Job.status == JobStatus.PENDING.value
                 ).order_by(Job.id.asc()).first()
@@ -79,107 +70,104 @@ class JobService:
                     print("[JobService] No pending jobs in queue.")
                     return
 
-                # 4. 작업 시작 처리 (세션을 인자로 넘겨줌)
+                # 3. 실제 실행
                 print(f"[JobService] Picking next job ID: {next_job.id}")
-                await self._start_job_execution(next_job, db)
+                await self._start_job_execution(next_job.id)
                 
             except Exception as e:
                 print(f"[Queue Error] Error in process_queue: {e}")
                 db.rollback()
     
-    async def _start_job_execution(self, job: Job, db: Session):
-        """
-        실제 Docker 컨테이너 실행 및 상태 업데이트
-        """
-        try:
-            
-            project = db.query(Project).filter(Project.id == job.project_id).first()
+    async def _start_job_execution(self, job_id: int):
+        """무거운 MLflow 및 Docker API 호출을 비동기로 처리"""
+        loop = asyncio.get_running_loop()
+
+        with SessionLocal() as db:
+            job = db.query(Job).get(job_id)
+            project = db.query(Project).get(job.project_id)
             project_name = project.name if project else "Default"
             experiment_name = f"{project_name}_{job.model_variant}"
 
-            print(f"[JobService] Starting Job ID: {job.id}")
-            # 상태 변경: Pending -> Running
-            job.status = JobStatus.RUNNING.value
+            try:
+                # MLflow Run 생성 (Blocking I/O -> Executor로 격리)
+                run = await loop.run_in_executor(None, lambda: mlflow_provider.create_run(experiment_name=experiment_name))
+                
+                job.status = JobStatus.RUNNING.value
+                job.run_id = run.info.run_id
+                job.experiment_id = run.info.experiment_id
 
-            # MLflow Run 생성
-            run = mlflow_provider.create_run(experiment_name=experiment_name)
-            job.run_id = run.info.run_id
-            job.experiment_id = run.info.experiment_id
+                # MLflow 태그 설정 (Blocking I/O -> Executor)
+                def set_mlflow_tags():
+                    mlflow_provider.client.set_tag(job.run_id, "project_name", project_name)
+                    if job.tags:
+                        for k, v in job.tags.items():
+                            mlflow_provider.client.set_tag(job.run_id, k, v)
 
-            mlflow_provider.client.set_tag(job.run_id, "project_name", project_name)
-            mlflow_provider.client.set_tag(job.run_id, "model_variant", job.model_variant)
+                await loop.run_in_executor(None, set_mlflow_tags)
+                db.commit()
 
-            if job.tags:
-                for key, value in job.tags.items():
-                    mlflow_provider.client.set_tag(job.run_id, key, value)
+                # SSE 알림
+                await sse_manager.broadcast("job_status", {
+                    "job_id": job.id, "status": "RUNNING", "project_id": job.project_id
+                })
+
+                # Docker 컨테이너 가동 (Blocking I/O -> Executor)
+                env_vars = self._prepare_env_vars(job)
+                train_script = "train_yolo.py" if job.model_variant == "YOLOv8" else "train_effnet.py"
+
+                command = ["bash", "-c", f"set -o pipefail; python -u {train_script} 2>&1 | tee /app/runs/{job.id}.log"]
+
+                container = await loop.run_in_executor(None, lambda: docker_provider.run_container(
+                    image=settings.TRAINING_IMAGEL,
+                    command=command,
+                    environment=env_vars,
+                    network="mlops-net",
+                    volumes={'mlops_kitech_training_results': {'bind': '/app/runs', 'mode': 'rw'}},
+                    detach=True
+                ))
+
+                job.container_id = container.id
+                db.commit()
+
+                # 완료 모니터링 시작
+                asyncio.create_task(self._monitor_container_completion(job.id, container))
             
-            db.commit()
+            except Exception as e:
+                print(f"[Execution Error] {e}")
+                job.status = JobStatus.FAILED.value
+                job.error_message = str(e)
+                db.commit()
 
-            # SSE 알림
-            await sse_manager.broadcast("job_status", {
-                "job_id": job.id, 
-                "status": JobStatus.RUNNING.value,
-                "project_id": job.project_id
-            })
+                await sse_manager.broadcast("job_status", {
+                    "job_id": job.id, 
+                    "status": "FAILED",
+                    "project_id": job.project_id
+                })
+                await self._safe_retry_queue()
+                
+    def _prepare_env_vars(self, job: Job) -> Dict:
+        """환경 변수 준비 (순수 연산)"""
+        env = {
+            "MLFLOW_RUN_ID": job.run_id,
+            "MLFLOW_TRACKING_URI": settings.MLFLOW_TRACKING_URI,
+            "MLFLOW_S3_ENDPOINT_URL": settings.MLFLOW_S3_ENDPOINT_URL,
+            "AWS_ACCESS_KEY_ID": settings.MINIO_ROOT_USER,
+            "AWS_SECRET_ACCESS_KEY": settings.MINIO_ROOT_PASSWORD,
+            "DATASET_PATH": job.dataset,
+            "JOB_ID": str(job.id),
+            "BACKEND_URL": "http://backend:8000",
+            "JOB_TAGS": json.dumps(job.tags),
+            "MLFLOW_S3_IGNORE_TLS": "true", 
+            "AWS_DEFAULT_REGION": "us-east-1",
+            "PYTHONUNBUFFERED": "1",
+            "MLFLOW_PYTHON_IGNORE_GIT_ERROR": "true",
+        }
 
-            # Docker 실행 환경변수 구성
-            env_vars = {
-                "MLFLOW_RUN_ID": job.run_id,
-                "MLFLOW_TRACKING_URI": settings.MLFLOW_TRACKING_URI,
-                "MLFLOW_S3_ENDPOINT_URL": settings.MLFLOW_S3_ENDPOINT_URL,
-                "AWS_ACCESS_KEY_ID": settings.MINIO_ROOT_USER,
-                "AWS_SECRET_ACCESS_KEY": settings.MINIO_ROOT_PASSWORD,
-                "DATASET_PATH": job.dataset,
-                "JOB_ID": str(job.id),
-                "BACKEND_URL": "http://backend:8000",
-                "JOB_TAGS": json.dumps(job.tags),
-                "MLFLOW_S3_IGNORE_TLS": "true",  # HTTP 통신을 위해 반드시 필요!
-                "AWS_DEFAULT_REGION": "us-east-1",
-                "PYTHONUNBUFFERED": "1",
-                "MLFLOW_PYTHON_IGNORE_GIT_ERROR": "true",
-            }
-
-            # JSON 파라미터를 환경변수로 변환 (예: {"epochs": 10} -> EPOCHS=10)
-            if job.params:
-                for k, v in job.params.items():
-                    env_vars[k.upper()] = str(v)
+        if job.params:
+            for k, v in job.params.items():
+                env[k.upper()] = str(v)
+        return env
             
-            train_script = "train_yolo.py" if job.model_variant == "YOLOv8" else "train_effnet.py"
-            log_file = f"/app/runs/{job.id}.log"
-
-            # -u 옵션과 tee 명령어를 더 확실하게 전달
-            command = [
-                "bash", "-c",
-                f"set -o pipefail; python -u {train_script} 2>&1 | tee {log_file}"
-            ]
-
-            # 컨테이너 실행
-            container = docker_provider.run_container(
-                image=settings.TRAINING_IMAGEL,
-                command=command,
-                environment=env_vars,
-                network="mlops-net",
-                volumes={
-                    'mlops_kitech_training_results': {'bind': '/app/runs', 'mode': 'rw'}
-                },
-                detach=True
-            )
-
-            job.container_id = container.id
-            db.commit()
-            asyncio.create_task(self._monitor_container_completion(job.id, container))
-        except Exception as e:
-            print(f"[Critical Error] Job {job.id} failed: {e}")
-            job.status = JobStatus.FAILED.value
-            job.error_message = str(e)
-            db.commit()
-            await sse_manager.broadcast("job_status", {
-                "job_id": job.id, 
-                "status": "FAILED",
-                "project_id": job.project_id
-            })
-            await self._safe_retry_queue()
-    
     async def _monitor_container_completion(self, job_id: int, container):
         try:
             # 1. 컨테이너가 멈출 때까지 기다림 (Blocking 연산이므로 쓰레드 풀에서 실행)
@@ -235,11 +223,11 @@ class JobService:
         await asyncio.sleep(2) 
         await self.process_queue()
     
-    async def cancel_job(self, job_id: int, background_tasks: BackgroundTasks):
+    async def cancel_job(self, db: Session, job_id: int, background_tasks: BackgroundTasks):
         """
         작업 취소 로직
         """
-        job = self.db.query(Job).filter(Job.id == job_id).first()
+        job = db.query(Job).filter(Job.id == job_id).first()
         if not job:
             return None
         
@@ -248,7 +236,7 @@ class JobService:
         if job.status == JobStatus.PENDING.value:
             job.status = JobStatus.CANCELED.value
             job.finished_at = get_kst_now()
-            self.db.commit()
+            db.commit()
 
         # 2. RUNNING 상태 취소 (Docker Kill)
         elif job.status == JobStatus.RUNNING.value:
@@ -273,7 +261,7 @@ class JobService:
                 try:
                     mlflow_provider.update_run_status(job.run_id, "KILLED")
                 except: pass
-            self.db.commit()
+            db.commit()
 
             # 실행 중인 작업이 죽었으므로, 대기 중인 다음 작업 트리거
             background_tasks.add_task(self.process_queue)
@@ -287,11 +275,11 @@ class JobService:
             })
         return job
 
-    async def complete_job(self, job_id: int, status_str: str, message: str, background_tasks: BackgroundTasks):
+    async def complete_job(self, db: Session, job_id: int, status_str: str, message: str, background_tasks: BackgroundTasks):
         """
         [Webhook Handler] 학습 컨테이너가 종료될 때 호출됨
         """
-        job = self.db.query(Job).filter(Job.id == job_id).first()
+        job = db.query(Job).filter(Job.id == job_id).first()
 
         # 이미 취소되었거나 완료된 작업 무시 (중복 호출 방지)
         if job and job.status == JobStatus.RUNNING.value:
@@ -317,7 +305,7 @@ class JobService:
                     print(f"Failed to remove container: {e}")
             
             job.container_id = None
-            self.db.commit()
+            db.commit()
 
             # SSE 알림
             await sse_manager.broadcast("job_status", {
@@ -372,8 +360,8 @@ class JobService:
                     # 아직 실행 중이면 잠깐 대기 후 다시 읽기 (Non-blocking)
                     await asyncio.sleep(0.3)   
     
-    def get_active_jobs(self, project_id: int = None) -> List[Job]:
-        query = self.db.query(Job).filter(
+    def get_active_jobs(self, db: Session, project_id: int = None) -> List[Job]:
+        query = db.query(Job).filter(
             Job.status.in_([
                 JobStatus.RUNNING.value, 
                 JobStatus.PENDING.value
@@ -385,9 +373,9 @@ class JobService:
             
         return query.order_by(Job.id.desc()).all()
 
-    def get_job_history(self, project_id: Optional[int], skip: int = 0, limit: int = 20) -> List[Job]:
+    def get_job_history(self, db: Session, project_id: Optional[int], skip: int = 0, limit: int = 20) -> List[Job]:
         # 1. DB에서 먼저 이력 정보를 가져옵니다.
-        query = self.db.query(Job).options(joinedload(Job.deployment)).filter(
+        query = db.query(Job).options(joinedload(Job.deployment)).filter(
             Job.status.in_([
                 JobStatus.FINISHED.value, 
                 JobStatus.FAILED.value,
@@ -401,11 +389,11 @@ class JobService:
 
         return query.order_by(Job.id.desc()).offset(skip).limit(limit).all()
 
-    def get_job_by_id(self, job_id: int) -> Optional[Job]:
+    def get_job_by_id(self, db: Session, job_id: int) -> Optional[Job]:
         """
         특정 ID의 작업 상세 정보를 조회합니다. (MLflow 메트릭 포함)
         """
-        return self.db.query(Job).filter(Job.id == job_id).first()
+        return db.query(Job).filter(Job.id == job_id).first()
     
     async def get_all_logs(self, job_id: int) -> str:
         """종료된 작업의 로그 파일 전체 내용을 읽어 반환합니다."""

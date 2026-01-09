@@ -19,17 +19,26 @@ async def create_job(
 ):
     """
     새로운 학습 작업을 생성하고 큐 처리를 시작합니다.
+    1. DB에 PENDING 상태로 즉시 저장
+    2. 사용자에게 201 응답 반환
+    3. 백그라운드에서 MLflow 설정 및 컨테이너 가동 시작
     """
-    service = JobService(db)
-    return await service.create_job(job_in, background_tasks)
+    service = JobService()
+
+    # 1. DB 등록
+    job = await service.register_job(job_in, db)
+    # 2. 백그라운드 태스크 등록 (무거운 작업 분리)
+    background_tasks.add_task(service.process_queue)
+    
+    return job
 
 @router.get("/active", response_model=List[JobResponse])
 def read_active_jobs(project_id: Optional[int] = None, db: Session = Depends(get_db)):
     """
     현재 대기 중(Pending)이거나 실행 중(Running)인 작업만 조회합니다.
     """
-    service = JobService(db)
-    return service.get_active_jobs(project_id=project_id)
+    service = JobService()
+    return service.get_active_jobs(db, project_id=project_id)
 
 # 학습 이력 리스트 (History 탭)
 @router.get("/history", response_model=List[JobResponse])
@@ -42,9 +51,9 @@ def read_job_history(
     """
     완료, 실패, 취소된 작업들의 이력을 페이징하여 조회하며 MLflow 지표를 포함합니다.
     """
-    service = JobService(db)
+    service = JobService()
     # 인자 이름(project_id)을 정확히 매칭하여 호출
-    return service.get_job_history(project_id=project_id, skip=skip, limit=limit)
+    return service.get_job_history(db, project_id=project_id, skip=skip, limit=limit)
 
 @router.get("/stream")
 async def stream_events():
@@ -61,8 +70,8 @@ def read_job(job_id: int, db: Session = Depends(get_db)):
     """
     특정 ID를 가진 작업의 상세 정보를 조회합니다.
     """
-    service = JobService(db)
-    job = service.get_job_by_id(job_id) 
+    service = JobService()
+    job = service.get_job_by_id(db, job_id) 
     
     if not job:
         raise HTTPException(
@@ -80,8 +89,8 @@ async def cancel_job(
     """
     작업을 취소합니다. (Pending -> Canceled, Running -> Killed)
     """
-    service = JobService(db)
-    job = await service.cancel_job(job_id, background_tasks)
+    service = JobService()
+    job = await service.cancel_job(db, job_id, background_tasks)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return job
@@ -96,9 +105,10 @@ async def complete_job(
     """
     [Internal] 학습 컨테이너가 작업 완료/실패를 서버에 알리는 Webhook입니다.
     """
-    service = JobService(db)
+    service = JobService()
     # Enum.value를 사용하여 문자열로 변환 후 전달
     await service.complete_job(
+        db,
         job_id, 
         status_update.status.value, 
         status_update.message, 
@@ -107,13 +117,13 @@ async def complete_job(
     return {"status": "ok"}
 
 @router.get("/{job_id}/logs")
-async def stream_logs(job_id: int, db: Session = Depends(get_db)):
+async def stream_logs(job_id: int):
     """
     작업 로그를 실시간으로 스트리밍합니다.
     - Running: Docker 컨테이너 로그
     - Finished/Failed: 저장된 로그 파일
     """
-    service = JobService(db)
+    service = JobService()
     return StreamingResponse(
         service.stream_job_logs(job_id),
         media_type="text/event-stream"
@@ -121,6 +131,6 @@ async def stream_logs(job_id: int, db: Session = Depends(get_db)):
 
 @router.get("/{job_id}/logs/static")
 async def read_static_logs(job_id: int, db: Session = Depends(get_db)):
-    service = JobService(db)
-    logs = await service.get_all_logs(job_id)
+    service = JobService()
+    logs = await service.get_all_logs(db,job_id)
     return {"logs": logs}

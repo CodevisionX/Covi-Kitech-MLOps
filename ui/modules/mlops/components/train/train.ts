@@ -1,10 +1,10 @@
 import { Component, inject, OnInit } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { Model } from '../../services/model';
 import { MODEL_CONFIGS } from '../../configs/model-config';
 import { Jobs } from '../../services/apis/job';
 import { IJobCreate } from '../../services/apis/models/job.model';
+import { Notification } from '../../services/notification';
 import { Project } from '../../services/apis/project';
 import { IProject } from '../../services/apis/models/project.model';
 
@@ -16,10 +16,10 @@ import { IProject } from '../../services/apis/models/project.model';
 })
 export class Train implements OnInit {
 
-  private snackBar = inject(MatSnackBar);
   protected modelService = inject(Model);
   protected readonly jobService = inject(Jobs);
   private readonly projectService = inject(Project);
+  private readonly notificationService = inject(Notification);
   private readonly router = inject(Router);
 
   // 학습 설정 관련 상태
@@ -59,9 +59,8 @@ export class Train implements OnInit {
 
   submitTraining() {
     const currentPath = this.modelService.selectedDatasetPath();
-
     if (!currentPath || !this.selectedModelName || !this.selectedProjectId) {
-      this.snackBar.open('❌ 필수 설정이 누락되었습니다.', '닫기', { duration: 3000 });
+      this.notificationService.showError('❌ 필수 설정이 누락되었습니다.');
       return;
     }
 
@@ -83,20 +82,17 @@ export class Train implements OnInit {
 
     this.jobService.createJob(payload).subscribe({
       next: (res) => {
-        this.snackBar.open(`🚀 학습 작업이 등록되었습니다! (ID: ${res.id})`, '확인', {
-          duration: 3000,
-          horizontalPosition: 'right',
-          verticalPosition: 'top',
-        });
+        this.isSubmitting = false;
+        this.notificationService.showSuccess(`🚀 학습 큐에 등록되었습니다! (ID: ${res.id})`);
 
         this.router.navigate(['/dashboard/models'], {
-          queryParams: { projectId: this.selectedProjectId }
+          queryParams: { projectId: this.selectedProjectId, variant: this.selectedModelName }
         });
       },
       error: (err) => {
         console.error(err);
         this.isSubmitting = false;
-        this.snackBar.open('❌ 학습 요청에 실패했습니다. (422 오류 시 데이터 구조 확인)', '닫기');
+        this.notificationService.showError('❌ 학습 요청 실패: ' + (err.message || '서버 오류'));
       }
     });
   }

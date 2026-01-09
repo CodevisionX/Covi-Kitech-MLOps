@@ -45,6 +45,14 @@ export class Deployment extends BaseApi {
   }
 
   /**
+   * 문제가 있거나 불필요한 배포 이력을 DB에서 완전히 삭제합니다.
+   */
+  deleteDeployment(deploymentId: number): Observable<void> {
+    return this.http.delete<void>(`/deployments/${deploymentId}`)
+      .pipe(catchError(this.handleError));
+  }
+
+  /**
    * 실행 중인 배포 서비스를 중단하고 리소스를 반납합니다.
    */
   stopDeployment(deploymentId: number): Observable<IDeployment> {

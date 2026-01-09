@@ -6,7 +6,8 @@ export enum DeploymentStatus {
   RUNNING = 'RUNNING',
   STOPPED = 'STOPPED',
   CANCELED = 'CANCELED',
-  FAILED = 'FAILED'
+  FAILED = 'FAILED',
+  DELETED = 'DELETED' // SSE 필터링 로직을 위해 추가
 }
 
 export interface IDeploymentBase {

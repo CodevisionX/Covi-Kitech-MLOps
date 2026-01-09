@@ -232,15 +232,59 @@ $transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   }
 
   .error-box {
+    width: 100%;
     color: $error-color;
     display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    font-weight: 500;
+    align-items: flex-start; // 아이콘이 여러 줄 텍스트 상단에 위치하도록
+    gap: 12px;
+    
+    mat-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+      margin-top: 2px; // 텍스트 첫 줄과 높이 맞춤
+    }
+
+    .error-content {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex: 1;
+
+      strong {
+        font-size: 14px;
+        font-weight: 700;
+        display: block;
+      }
+
+      p {
+        margin: 0;
+        font-size: 12.5px;
+        line-height: 1.5;
+        font-weight: 400;
+        color: rgba($error-color, 0.85); // 본문은 살짝 연하게 처리
+        word-break: break-word; // 긴 에러 메시지 줄바꿈 처리
+      }
+    }
   }
 
-  .loading-text { font-size: 13px; color: #999; font-style: italic; }
+  .waiting-box {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+
+    mat-spinner {
+      // 렌더링 시 보일 수 있는 여백 제거
+    }
+    
+    .loading-text { 
+      font-size: 13px; 
+      color: #718096; 
+      font-style: italic;
+      font-weight: 500;
+    }
+  }
 }
 
 // 8. 하단 버튼 영역

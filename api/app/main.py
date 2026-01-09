@@ -53,7 +53,7 @@ async def lifespan(app: FastAPI):
         seed_db(db) # 시딩 함수 호출
         
         # [Startup] 3. 서버 재시작 시 큐 복구 로직
-        service = JobService(db)
+        service = JobService()
         asyncio.create_task(service.process_queue())
     finally:
         db.close()
@@ -90,5 +90,6 @@ def health_check():
 async def validation_exception_handler(request, exc):
     # 이 로그가 서버 터미널에 찍히면 어떤 데이터가 잘못되었는지 바로 알 수 있습니다.
     print(f"Validation Error: {exc.errors()}")
-    print(f"Sent Body: {await request.body()}")
+    body = await request.body()
+    print(f"Sent Body: {body.decode('utf-8') if body else 'Empty'}")
     return JSONResponse(status_code=422, content={"detail": exc.errors()})

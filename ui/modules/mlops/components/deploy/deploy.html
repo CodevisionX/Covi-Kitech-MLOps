@@ -98,16 +98,23 @@
           </mat-card-content>
 
           <mat-card-actions align="end">
-            <button mat-flat-button color="primary" (click)="onNavigateToValidation(dep.id)"
-              [disabled]="dep.status !== 'RUNNING'">
-              <mat-icon>biotech</mat-icon> 모델 검증 및 테스트
-            </button>
-            <button mat-stroked-button color="primary" (click)="viewLogs(dep)" [disabled]="dep.status === 'PENDING'">
-              <mat-icon>terminal</mat-icon> 실시간 로그
-            </button>
-            <button mat-flat-button color="warn" (click)="onStop(dep.id)" [disabled]="dep.status === 'STOPPED'">
-              <mat-icon>stop</mat-icon> 서비스 중단
-            </button>
+            @if (dep.status === 'FAILED') {
+              <button mat-flat-button color="warn" (click)="onDelete(dep.id)">
+                <mat-icon>delete_forever</mat-icon> 이력 삭제
+              </button>
+            }
+            @else {
+              <button mat-flat-button color="primary" (click)="onNavigateToValidation(dep.id)"
+                [disabled]="dep.status !== 'RUNNING'">
+                <mat-icon>biotech</mat-icon> 모델 검증 및 테스트
+              </button>
+              <button mat-stroked-button color="primary" (click)="viewLogs(dep)" [disabled]="dep.status === 'PENDING'">
+                <mat-icon>terminal</mat-icon> 실시간 로그
+              </button>
+              <button mat-flat-button color="warn" (click)="onStop(dep.id)">
+                <mat-icon>stop</mat-icon> 서비스 중단
+              </button>
+            }
           </mat-card-actions>
         </mat-card>
         }

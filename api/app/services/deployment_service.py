@@ -16,35 +16,18 @@ from app.models.job import Job
 logger = logging.getLogger(__name__)
 
 class DeploymentService:
-    def __init__(self, db: Session = None):
-        self.db = db
 
-    async def deploy_model(
-        self, 
-        project_id: int, 
-        model_name: str, 
-        run_id: str, 
-        model_version: Optional[int] = None,
-        job_id: Optional[int] = None
-    ):
-        print(f"[DeploymentService] deploy_model started")
-        print(f" - project_id: {project_id}, model_name: {model_name}, run_id: {run_id}")
-
+    async def prepare_deployment(self, db: Session, project_id: int, model_name: str, run_id: str, model_version: Optional[int], job_id: Optional[int]) -> Deployment:
+        """빠르게 레코드만 생성하여 반환"""
         # 1. 자원 쿼터 확인
         if not resource_manager.check_project_quota(project_id):
-            print(f"[DeploymentService] Quota exceeded for project {project_id}")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, 
-                detail="해당 프로젝트의 배포 쿼터가 초과되었습니다."
-            )
-
+            raise HTTPException(status_code=400, detail="배포 쿼터 초과")
+        
         if job_id is None:
-            existing_job = self.db.query(Job).filter(Job.run_id == run_id).first()
-            if existing_job:
-                job_id = existing_job.id
-                print(f"[DeploymentService] Auto-linked job_id: {job_id} for run_id: {run_id}")
+            existing_job = db.query(Job).filter(Job.run_id == run_id).first()
+            if existing_job: job_id = existing_job.id
 
-        # 2. 초기 DB 레코드 생성 (PENDING)
+        # 2. PENDING 상태로 레코드 생성
         deployment = Deployment(
             project_id=project_id,
             job_id=job_id,
@@ -52,27 +35,22 @@ class DeploymentService:
             model_version=model_version,
             run_id=run_id,
             status=DeploymentStatus.PENDING,
-            status_message="배포 프로세스 시작 대기 중"
+            status_message="배포 예약됨"
         )
-        self.db.add(deployment)
-        self.db.commit()
-        self.db.refresh(deployment)
-        
-        print(f"[DeploymentService] DB record created. ID: {deployment.id}")
-
-        # 3. 비동기 백그라운드 태스크 실행
-        print(f"[DeploymentService] Creating background task for deployment flow")
-        asyncio.create_task(self._execute_deployment_flow(deployment.id))
-        
+        db.add(deployment)
+        db.commit()
+        db.refresh(deployment)
         return deployment
 
     async def _execute_deployment_flow(self, deployment_id: int):
         """
+        실제 무거운 작업을 수행 (Background Task)
         실제 배포 공정 (MLflow 등록 -> 자원 할당 -> Docker 실행)
         [Flow] REGISTERING -> BUILDING -> CREATING -> RUNNING
         """
         print(f"[DeploymentFlow] Start flow for deployment_id: {deployment_id}")
-        loop = asyncio.get_event_loop()
+
+        loop = asyncio.get_running_loop()
 
         async def update_status(status: DeploymentStatus, message: str, **kwargs):
             """DB 업데이트 및 SSE 알림 헬퍼"""
@@ -82,8 +60,7 @@ class DeploymentService:
                 if dep:
                     dep.status = status
                     dep.status_message = message
-                    for key, value in kwargs.items():
-                        setattr(dep, key, value)
+                    for key, value in kwargs.items(): setattr(dep, key, value)
                     db.commit()
                     await sse_manager.broadcast("deployment_status", {
                         "deployment_id": deployment_id,
@@ -101,7 +78,7 @@ class DeploymentService:
             dep_obj = None
             with SessionLocal() as db:
                 dep_obj = db.query(Deployment).get(deployment_id)
-            
+                
             if not dep_obj:
                 print(f"[DeploymentFlow] Error: Deployment object not found for id {deployment_id}")
                 return
@@ -133,7 +110,6 @@ class DeploymentService:
                 "MLFLOW_S3_ENDPOINT_URL": settings.MLFLOW_S3_ENDPOINT_URL,
                 "AWS_ACCESS_KEY_ID": settings.MINIO_ROOT_USER,
                 "AWS_SECRET_ACCESS_KEY": settings.MINIO_ROOT_PASSWORD,
-                # "DOCKER_HOST": "tcp://host.docker.internal:2375"
             }
 
             print(f"[DeploymentFlow] Dispatching builder. Target MLflow: {settings.MLFLOW_TRACKING_URI}")            # 빌더 컨테이너 실행 및 완료 대기
@@ -176,25 +152,57 @@ class DeploymentService:
             await update_status(DeploymentStatus.FAILED, "배포 실패", error_msg=str(e))
 
     async def stop_deployment(self, deployment_id: int):
-        """배포 중단 로직"""
+        """배포 중단 로직 (PENDING, RUNNING 모두 대응)"""
         with SessionLocal() as db:
             dep = db.query(Deployment).get(deployment_id)
-            if dep and dep.status == DeploymentStatus.RUNNING:
+            if not dep: return
+
+            # 현재 상태에 따른 논리적 상태값 결정
+            # 가동 중이면 STOPPED, 준비 중이면 CANCELED
+            target_status = DeploymentStatus.STOPPED
+            if dep.status in [DeploymentStatus.PENDING, DeploymentStatus.REGISTERING, DeploymentStatus.BUILDING, DeploymentStatus.CREATING]:
+                target_status = DeploymentStatus.CANCELED
+            
+            # 1. 리소스 정리 (컨테이너 삭제)
+            if dep.container_id:
                 try:
-                    # Docker 컨테이너 삭제
                     container = docker_provider.get_container(dep.container_id)
                     container.remove(force=True)
-                except Exception as e:
-                    logger.warning(f"Container removal failed: {e}")
-                
-                dep.status = DeploymentStatus.STOPPED
-                dep.status_message = "서비스가 중단되었습니다."
-                db.commit()
+                except: pass
+            
+            # 2. DB 업데이트
+            dep.status = target_status
+            dep.status_message = "사용자 요청에 의해 중단되었습니다."
+            db.commit()
 
-                await sse_manager.broadcast("deployment_status", {
-                    "deployment_id": deployment_id,
-                    "status": DeploymentStatus.STOPPED.value,
-                    "message": "사용자 요청에 의해 배포가 종료되었습니다."
-                })
+            # 3. SSE 알림
+            await sse_manager.broadcast("deployment_status", {
+                "deployment_id": deployment_id,
+                "project_id": dep.project_id,
+                "status": target_status.value,
+                "message": dep.status_message
+            })
+
+    async def delete_deployment(self, deployment_id: int):
+        """배포 이력 완전 삭제 (DB에서 제거)"""
+        with SessionLocal() as db:
+            dep = db.query(Deployment).get(deployment_id)
+            if not dep: return
+
+            # 컨테이너가 있다면 삭제
+            if dep.container_id:
+                try:
+                    container = docker_provider.get_container(dep.container_id)
+                    container.remove(force=True)
+                except: pass
+
+            db.delete(dep)
+            db.commit()
+
+            # SSE로 삭제 알림 (id만 전달하여 목록에서 제거 유도)
+            await sse_manager.broadcast("deployment_status", {
+                "deployment_id": deployment_id,
+                "status": "DELETED"
+            })
 
 deployment_service = DeploymentService()
