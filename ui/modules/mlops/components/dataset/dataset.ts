@@ -1,10 +1,9 @@
-import { Component, inject, OnInit, ViewChild } from '@angular/core';
-import { ArrayDataSource } from '@angular/cdk/collections';
+import { ChangeDetectorRef, Component, inject, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { CdkTree } from '@angular/cdk/tree';
-import { Observable, of, map, tap, catchError } from 'rxjs';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { Observable, of, map, tap, catchError, takeUntil, Subject, BehaviorSubject } from 'rxjs';
 import { Model } from '../../services/model';
 import { Artifact } from '../../services/apis/artifact';
+import { Notification } from '../../services/notification';
 
 interface MinioNode {
   name: string;
@@ -12,7 +11,7 @@ interface MinioNode {
   bucket: string;
   fullPath: string;
   level: number;
-  children?: MinioNode[];
+  children$?: BehaviorSubject<MinioNode[]>;
   isLoading?: boolean;
 }
 
@@ -22,85 +21,113 @@ interface MinioNode {
   templateUrl: './dataset.html',
   styleUrl: './dataset.scss',
 })
-export class Dataset implements OnInit {
+export class Dataset implements OnInit, OnDestroy {
+
   @ViewChild(CdkTree) tree!: CdkTree<MinioNode>;
 
-  // [변경] 데이터 소스를 단순 배열로 관리해도 최신 CDK Tree는 잘 작동합니다.
-  dataSource = new ArrayDataSource<MinioNode>([]);
+  // 데이터 소스를 단순 배열로 관리해도 최신 CDK Tree는 잘 작동합니다.
+  dataSource = new BehaviorSubject<MinioNode[]>([]);
   selectedNode: MinioNode | null = null;
 
-  private snackBar = inject(MatSnackBar);
   private readonly artifact = inject(Artifact);
   protected readonly modelService = inject(Model);
+  private readonly notificationService = inject(Notification);
+  private readonly cdr = inject(ChangeDetectorRef);
+  private destroy$ = new Subject<void>();
 
   ngOnInit() {
     this.loadBuckets();
   }
 
-  loadBuckets() {
-    this.artifact.getBuckets().subscribe(res => {
-      const buckets: MinioNode[] = res.datasets.map(name => ({
-        name,
-        type: 'bucket',
-        bucket: name,
-        fullPath: '',
-        level: 0,
-        children: undefined // undefined로 두어 로드 전임을 표시
-      }));
-      this.dataSource = new ArrayDataSource(buckets);
-    });
+  ngOnDestroy() {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
-  /** * [지연 로딩의 정석] 
-   * 트리는 자식 노드가 필요할 때 이 함수를 호출합니다.
-   */
+  loadBuckets() {
+    this.artifact.getBuckets()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(res => {
+        const initialData: MinioNode[] = res.datasets.map(name => ({
+          name,
+          type: 'bucket' as const,
+          bucket: name,
+          fullPath: '',
+          level: 0,
+          children$: new BehaviorSubject<MinioNode[]>([]) 
+        }));
+        this.dataSource.next(initialData);
+      });
+  }
+
   childrenAccessor = (node: MinioNode): Observable<MinioNode[]> => {
-    if (node.type === 'file') return of([]);
-
-    // 1. 이미 데이터를 불러왔다면 캐시된 데이터 반환
-    if (node.children) return of(node.children);
-
-    // 2. 데이터가 없다면 서버에서 가져오기 (이때 Observable을 반환하면 트리가 기다립니다)
-    node.isLoading = true;
-    return this.artifact.getContents(node.bucket, node.fullPath).pipe(
-      map(res => {
-        const folders = res.folders.map((f: any) => ({
-          name: f.split('/').filter(Boolean).pop() + '/',
-          type: 'folder', bucket: node.bucket, fullPath: f, level: node.level + 1
-        }));
-        const files = res.files.map((f: any) => ({
-          name: f.name, type: 'file', bucket: node.bucket, fullPath: f.full_path, level: node.level + 1
-        }));
-
-        const all = [...folders, ...files];
-        node.children = all; // 데이터 저장(캐싱)
-        return all;
-      }),
-      tap(() => node.isLoading = false),
-      catchError(() => {
-        node.isLoading = false;
-        return of([]);
-      })
-    );
+    if (!node.children$) {
+      node.children$ = new BehaviorSubject<MinioNode[]>([]);
+    }
+    return node.children$.asObservable();
   };
 
-  onNodeClick(node: MinioNode) {
-    // 학습 가능 레벨(2) 체크 및 Signal 업데이트
+  async onNodeClick(node: MinioNode) {
+    // 1. 학습 가능 레벨(2) 체크 및 Signal 업데이트 (기존 로직)
     if (node.level === 2) {
       const fullPath = `${node.bucket}/${node.fullPath}`;
       this.modelService.updatePath(fullPath);
-
-      // SnackBar 알림 (Signal 업데이트와 별개로 사용자 피드백)
-      this.snackBar.open(`📁 데이터셋 선정: ${fullPath}`, '확인', { duration: 2000 });
-    } else {
-      // 레벨 2가 아니면 깔끔하게 비움
-      this.modelService.updatePath('');
+      this.notificationService.showInfo(`📁 데이터셋 선정: ${fullPath}`);
     }
 
+    // 2. 파일이 아니고 자식이 아직 로드되지 않았다면 API 호출
+    if (node.type !== 'file' && (!node.children$ || node.children$.value.length === 0)) {
+       await this.fetchChildren(node);
+    }
+
+    // 3. 트리 토글
     if (this.hasChild(0, node)) {
       this.tree.toggle(node);
     }
   }
 
+  private fetchChildren(node: MinioNode): Promise<void> {
+    return new Promise((resolve) => {
+      // 이미 로딩 중이면 중복 호출 방지
+      if (node.isLoading) return resolve();
+
+      node.isLoading = true;
+      console.log(`Fetching data for: ${node.bucket}/${node.fullPath}`);
+
+      this.artifact.getContents(node.bucket, node.fullPath).pipe(
+        takeUntil(this.destroy$),
+        map(res => {
+          const folders = (res.folders || []).map((f: any) => ({
+            name: f.split('/').filter(Boolean).pop() + '/',
+            type: 'folder' as const, 
+            bucket: node.bucket, 
+            fullPath: f, 
+            level: node.level + 1,
+            children$: new BehaviorSubject<MinioNode[]>([])
+          }));
+          const files = (res.files || []).map((f: any) => ({
+            name: f.name, 
+            type: 'file' as const, 
+            bucket: node.bucket, 
+            fullPath: f.full_path, 
+            level: node.level + 1
+          }));
+          return [...folders, ...files];
+        }),
+        catchError((err) => {
+          console.error('API Error:', err);
+          return of([]);
+        })
+      ).subscribe(all => {
+        node.isLoading = false;
+        if (node.children$) {
+            node.children$.next(all);
+        }
+        resolve();
+      });
+    });
+  }
+  
   hasChild = (_: number, node: MinioNode) => node.type !== 'file';
+  trackByFn = (index: number, node: MinioNode) => node.bucket + node.fullPath;
 }

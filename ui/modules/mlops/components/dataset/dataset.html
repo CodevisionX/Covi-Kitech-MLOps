@@ -13,44 +13,42 @@
       <span>학습에 사용할 이미지가 포함된 <strong>최종 폴더</strong>를 클릭하여 선택하세요.</span>
     </div>
 
-    <cdk-tree [dataSource]="dataSource" [childrenAccessor]="childrenAccessor" class="dataset-tree">
+    <cdk-tree [dataSource]="dataSource" [childrenAccessor]="childrenAccessor" [trackBy]="trackByFn"
+      class="dataset-tree">
+      <cdk-nested-tree-node *cdkTreeNodeDef="let node; when: hasChild" class="tree-node">
+        <div class="node-content"
+          [class.active-node]="modelService.selectedDatasetPath() === (node.bucket + '/' + node.fullPath)"
+          (click)="onNodeClick(node)">
+          <button mat-icon-button class="toggle-btn">
+            <mat-icon class="toggle-icon">
+              {{ tree.isExpanded(node) ? 'expand_more' : 'chevron_right' }}
+            </mat-icon>
+          </button>
+
+          <mat-icon class="node-icon" [ngClass]="node.type"
+            [style.color]="node.type === 'bucket' ? 'var(--warning-color)' : 'var(--main-primary-color)'">
+            {{ node.type === 'bucket' ? 'database' : 'folder' }}
+          </mat-icon>
+
+          <span class="node-label">{{node.name}}</span>
+          @if (node.isLoading) {
+          <mat-progress-spinner diameter="16" mode="indeterminate" class="node-spinner"></mat-progress-spinner>
+          }
+        </div>
+
+        <div [style.display]="tree.isExpanded(node) ? 'block' : 'none'" class="children-group" role="group">
+          <ng-container cdkTreeNodeOutlet></ng-container>
+        </div>
+      </cdk-nested-tree-node>
+
       <cdk-nested-tree-node *cdkTreeNodeDef="let node" class="tree-node">
-        <div class="node-content" 
-             [class.active-node]="modelService.selectedDatasetPath() === (node.bucket + '/' + node.fullPath)"
-             (click)="onNodeClick(node)">
+        <div class="node-content"
+          [class.active-node]="modelService.selectedDatasetPath() === (node.bucket + '/' + node.fullPath)"
+          (click)="onNodeClick(node)">
           <button mat-icon-button disabled class="toggle-placeholder"></button>
           <mat-icon class="node-icon file">insert_drive_file</mat-icon>
           <span class="node-label">{{node.name}}</span>
         </div>
-      </cdk-nested-tree-node>
-
-      <cdk-nested-tree-node *cdkTreeNodeDef="let node; when: hasChild" class="tree-node">
-        <div class="node-content" 
-             [class.active-node]="modelService.selectedDatasetPath() === (node.bucket + '/' + node.fullPath)"
-             (click)="onNodeClick(node)">
-          
-          <button mat-icon-button cdkTreeNodeToggle (click)="$event.stopPropagation()" class="toggle-btn">
-            <mat-icon class="toggle-icon">
-              {{tree.isExpanded(node) ? 'expand_more' : 'chevron_right'}}
-            </mat-icon>
-          </button>
-
-          <mat-icon class="node-icon" [ngClass]="node.type" [style.color]="node.type === 'bucket' ? 'var(--warning-color)' : 'var(--main-primary-color)'">
-            {{ node.type === 'bucket' ? 'database' : 'folder' }}
-          </mat-icon>
-          
-          <span class="node-label">{{node.name}}</span>
-          
-          @if (node.isLoading) {
-            <mat-progress-spinner diameter="16" mode="indeterminate" class="node-spinner"></mat-progress-spinner>
-          }
-        </div>
-
-        @if (tree.isExpanded(node)) {
-          <div class="children-group" role="group">
-            <ng-container cdkTreeNodeOutlet></ng-container>
-          </div>
-        }
       </cdk-nested-tree-node>
     </cdk-tree>
   </div>
