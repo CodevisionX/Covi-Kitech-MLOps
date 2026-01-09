@@ -130,17 +130,20 @@ class DeploymentService:
             gpu_id = resource_manager.get_gpu_assignment()
             await update_status(DeploymentStatus.CREATING, "서빙 컨테이너를 생성 중입니다...", port=port)
 
-            container = docker_provider.run_serving_container(
-                image=settings.SERVING_IMAGE,
-                name=f"bento-serve-{deployment_id}",
-                environment={
-                    "BENTOML_MODEL_TAG": f"model_dep_{deployment_id}:latest",
-                    "PORT": "3000"
-                },
-                port_mapping={3000: port},
-                network="mlops-net",
-                volumes={"bentoml_model_store": {"bind": "/root/.bentoml", "mode": "rw"}},
-                gpu_id=gpu_id,
+            container = await loop.run_in_executor(
+                None, 
+                lambda: docker_provider.run_serving_container(
+                    image=settings.SERVING_IMAGE,
+                    name=f"bento-serve-{deployment_id}",
+                    environment={
+                        "BENTOML_MODEL_TAG": f"model_dep_{deployment_id}:latest",
+                        "PORT": "3000"
+                    },
+                    port_mapping={3000: port},
+                    network="mlops-net",
+                    volumes={"bentoml_model_store": {"bind": "/root/.bentoml", "mode": "rw"}},
+                    gpu_id=gpu_id,
+                )
             )
 
             # --- STEP 4: RUNNING ---
