@@ -320,19 +320,16 @@ class JobService:
     async def stream_job_logs(self, job_id: int):
         """로그 스트리밍 (Running -> Docker, Finished -> File)"""
         log_path = os.path.join(self.log_dir, f"{job_id}.log")
+        loop = asyncio.get_event_loop()
 
         # 1. 파일이 생성될 때까지 대기
-        for _ in range(10): 
+        for _ in range(30): 
             if os.path.exists(log_path): break
             await asyncio.sleep(0.5)
 
         if not os.path.exists(log_path):
-            for _ in range(20): # 최대 10초 대기
-                await asyncio.sleep(0.5)
-                if os.path.exists(log_path):
-                    break
-            else:
-                yield "data: [System] 로그 파일 생성 대기 중... (파일이 아직 없습니다)\n\n"
+            yield "data: [System] 로그 파일 생성 대기 중... (파일이 아직 없습니다)\n\n"
+            return
 
         # 2. 비동기 파일 읽기 시작
         async with aiofiles.open(log_path, mode='r', encoding="utf-8") as f:
@@ -341,24 +338,31 @@ class JobService:
                 if line:
                     yield f"data: {line.rstrip()}\n\n"
                 else:
-                    with SessionLocal() as db:
-                        job = db.query(Job).filter(Job.id == job_id).first()
-                        
-                        if not job:
-                            yield "data: [System] 작업을 찾을 수 없습니다.\n\n"
-                            break
-                        if job.status not in [JobStatus.RUNNING.value, JobStatus.PENDING.value]:
-                            # 마지막으로 파일에 새로 써진 로그가 있는지 한 번 더 확인
-                            remaining = await f.read()
-                            if remaining:
-                                for r_line in remaining.splitlines():
-                                    yield f"data: {r_line}\n\n"
+                    # DB 조회는 무거운 작업이므로 별도 스레드에서 실행
+                    def get_status():
+                        with SessionLocal() as db:
+                            job = db.query(Job).filter(Job.id == job_id).first()
+                            return job.status if job else "NOT_FOUND"
+                    
+                    # 비동기적으로 DB 결과 대기
+                    status = await loop.run_in_executor(None, get_status)
+
+                    if status == "NOT_FOUND":
+                        yield "data: [System] 작업을 찾을 수 없습니다.\n\n"
+                        break
+
+                    if status not in [JobStatus.RUNNING.value, JobStatus.PENDING.value]:
+                        # 마지막으로 파일에 새로 써진 로그가 있는지 한 번 더 확인
+                        remaining = await f.read()
+                        if remaining:
+                            for r_line in remaining.splitlines():
+                                yield f"data: {r_line}\n\n"
                             
-                            yield f"data: [System] 학습이 종료되었습니다. (최종 상태: {job.status})\n\n"
-                            break
+                        yield f"data: [System] 학습이 종료되었습니다. (최종 상태: {job.status})\n\n"
+                        break
                     
                     # 아직 실행 중이면 잠깐 대기 후 다시 읽기 (Non-blocking)
-                    await asyncio.sleep(0.3)   
+                    await asyncio.sleep(0.5)   
     
     def get_active_jobs(self, db: Session, project_id: int = None) -> List[Job]:
         query = db.query(Job).filter(
