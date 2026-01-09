@@ -23,26 +23,52 @@ jobs:
             context: ./api
             dockerfile: ./api/Dockerfile.backend
             image_suffix: backend
+            filter_pattern: |
+              src:
+                - 'api/**'
+                - '!api/Dockerfile.builder'
+                - '!api/Dockerfile.base'
+                - '!api/deploy_worker.py'
+                - '!api/service.py'
           - service_name: ui
             context: ./ui
             dockerfile: ./ui/Dockerfile
             image_suffix: ui
+            filter_pattern: |
+              src:
+                - 'ui/**'
           - service_name: training
             context: ./training
             dockerfile: ./training/Dockerfile
             image_suffix: training
+            filter_pattern: |
+              src:
+                - 'training/**'
           - service_name: mlflow
             context: ./mlflow
             dockerfile: ./mlflow/Dockerfile
             image_suffix: mlflow
+            filter_pattern: |
+              src:
+                - 'mlflow/**'
           - service_name: builder
             context: ./api
             dockerfile: ./api/Dockerfile.builder
             image_suffix: builder
+            filter_pattern: |
+              src:
+                - 'api/Dockerfile.builder'
+                - 'api/deploy_worker.py'
+                - 'api/pyproject.toml'
           - service_name: base
             context: ./api
             dockerfile: ./api/Dockerfile.base
             image_suffix: base
+            filter_pattern: |
+              src:
+                - 'api/Dockerfile.base'
+                - 'api/service.py'
+                - 'api/pyproject.toml'
 
     steps:
       - name: Free Disk Space (Ubuntu)
@@ -67,10 +93,7 @@ jobs:
         uses: dorny/paths-filter@v2
         id: changes
         with:
-          filters: |
-            src:
-              - '${{ matrix.context }}/**'
-              - '${{ matrix.dockerfile }}'
+          filters: ${{ matrix.filter_pattern }}
       
       # 1. QEMU 설정
       - name: Set up QEMU
