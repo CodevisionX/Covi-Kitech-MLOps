@@ -15,9 +15,16 @@ pandas = "^2.0.0"
 opencv-python-headless = "^4.8.0"
 python-dotenv = "^1.0.0"
 
+# ML 관련 의존성
 [tool.poetry.group.ml.dependencies]
-torch = "2.9.1"
-torchvision = "0.21.1"
+torch = { version = "2.9.1", source = "pytorch_cpu" }
+torchvision = { version = "0.21.1", source = "pytorch_cpu" }
+
+# 소스 설정
+[[tool.poetry.source]]
+name = "pytorch_cpu"
+url = "https://download.pytorch.org/whl/cpu"
+priority = "explicit"
 
 [build-system]
 requires = ["poetry-core"]

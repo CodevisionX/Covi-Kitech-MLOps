@@ -31,14 +31,14 @@ fi
 # 3. 전체 이미지 이름 구성 (사용자 계정명/레포지토리명에 맞춰 수정 필요)
 # 예: ghcr.io/codevisionx/covi-kitech-mlops-training
 REGISTRY="ghcr.io"
-REPO_LOWER="codevisionx/covi-kitech-mlops" # 실제 레포지토리 경로로 변경하세요
+REPO_LOWER="codevisionx/covi-kitech-mlops"
 FULL_IMAGE_NAME="${REGISTRY}/${REPO_LOWER}-training:${TAG}"
 
 echo "------------------------------------------------------"
 echo "Selected Image: $FULL_IMAGE_NAME"
 echo "------------------------------------------------------"
 
-# 4. Docker Compose 실행 (환경 변수 주입)
+# 4. Docker Compose 실행
 # .env에 정의된 고정 변수들은 그대로 읽고, TRAINING_IMAGE만 동적으로 주입합니다.
 TRAINING_IMAGE="$FULL_IMAGE_NAME" docker compose up -d
 
