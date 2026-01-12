@@ -1,60 +1,34 @@
 # 1. 빌드 인자 정의
-ARG CUDA_VER=12.4.1
-FROM nvidia/cuda:${CUDA_VER}-runtime-ubuntu22.04
-
-ARG PYTHON_VER=3.10
 ARG TORCH_VER=2.5.1
-ARG CUDA_VER
+ARG CUDA_VER=12.4
+# PyTorch 공식 이미지는 Python 버전을 포함하고 있으므로 해당 이미지를 기반으로 합니다.
+FROM pytorch/pytorch:${TORCH_VER}-cuda${CUDA_VER}-cudnn9-runtime
 
 ENV PYTHONUNBUFFERED=1 \
     POETRY_VERSION=1.7.1 \
     DEBIAN_FRONTEND=noninteractive
 
-WORKDIR /app
-
-# 2. 시스템 라이브러리 및 특정 Python 버전 설치
-RUN sed -i 's/archive.ubuntu.com/mirror.kakao.com/g' /etc/apt/sources.list && \
-    sed -i 's/security.ubuntu.com/mirror.kakao.com/g' /etc/apt/sources.list && \
-    apt-get update && apt-get install -y --no-install-recommends \
-    software-properties-common && \
-    add-apt-repository ppa:deadsnakes/ppa -y && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends \
-    python${PYTHON_VER} \
-    python${PYTHON_VER}-dev \
-    python${PYTHON_VER}-distutils \
-    curl \
+# 2. 시스템 라이브러리 및 Poetry 설치
+RUN apt-get update && apt-get install -y \
     libgl1-mesa-glx \
     libglib2.0-0 \
-    build-essential && \
-    # [핵심 수정] 시스템에 설치된 blinker를 강제로 삭제하여 pip와의 충돌을 방지합니다.
-    apt-get remove -y python3-blinker && \
-    # pip 설치
-    curl -sS https://bootstrap.pypa.io/get-pip.py | python${PYTHON_VER} && \
-    pip install --no-cache-dir "poetry==$POETRY_VERSION" && \
-    rm -rf /var/lib/apt/lists/*
+    build-essential \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install "poetry==$POETRY_VERSION"
 
-# 3. Poetry 설정
+# 3. Poetry 설정: 시스템 파이썬에 바로 설치
 RUN poetry config virtualenvs.create false
+WORKDIR /app
 
-# 4. 의존성 설치
+# 4. 의존성 파일 복사 및 설치
 COPY pyproject.toml poetry.lock* /app/
+RUN poetry install --no-interaction --no-ansi --no-root --without ml
 
-# [핵심 수정] --ignore-installed와 함께 설치를 진행합니다.
-RUN poetry export -f requirements.txt --output requirements.txt --without-hashes && \
-    pip install --no-cache-dir --ignore-installed -r requirements.txt && \
-    rm requirements.txt
 
-# 5. PyTorch 설치 (최종 단계)
-RUN CUDA_TAG=$(echo $CUDA_VER | cut -d'.' -f1,2 | sed 's/\.//g') && \
-    pip install --no-cache-dir \
-    torch==${TORCH_VER} \
-    torchvision \
-    --index-url https://download.pytorch.org/whl/cu${CUDA_TAG}
-
-# 6. 소스 코드 복사
+# 5. 소스 코드 복사
 COPY . /app
+
 RUN chmod +x *.py
 
 # 실행 명령
-CMD ["sh", "-c", "python${PYTHON_VER} train_yolo.py"]
+CMD ["python", "train_yolo.py"]
