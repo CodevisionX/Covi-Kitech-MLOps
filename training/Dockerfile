@@ -19,7 +19,6 @@ RUN sed -i 's/archive.ubuntu.com/mirror.kakao.com/g' /etc/apt/sources.list && \
     software-properties-common && \
     add-apt-repository ppa:deadsnakes/ppa -y && \
     apt-get update && \
-    # 패키지 설치 시 버전을 고정하지 않고 최신 버전을 가져오도록 유도
     apt-get install -y --no-install-recommends \
     python${PYTHON_VER} \
     python${PYTHON_VER}-dev \
@@ -28,30 +27,32 @@ RUN sed -i 's/archive.ubuntu.com/mirror.kakao.com/g' /etc/apt/sources.list && \
     libgl1-mesa-glx \
     libglib2.0-0 \
     build-essential && \
+    # [핵심 수정] 시스템에 설치된 blinker를 강제로 삭제하여 pip와의 충돌을 방지합니다.
+    apt-get remove -y python3-blinker && \
     # pip 설치
     curl -sS https://bootstrap.pypa.io/get-pip.py | python${PYTHON_VER} && \
     pip install --no-cache-dir "poetry==$POETRY_VERSION" && \
     rm -rf /var/lib/apt/lists/*
 
-# 3. Poetry 설정: 가상환경 생성 안 함
+# 3. Poetry 설정
 RUN poetry config virtualenvs.create false
 
-# 4. 의존성 설치 (가장 효율적인 방식)
+# 4. 의존성 설치
 COPY pyproject.toml poetry.lock* /app/
 
-# Poetry에서 리스트만 뽑아서 pip로 설치 (충돌 방지 및 그룹 에러 차단)
+# [핵심 수정] --ignore-installed와 함께 설치를 진행합니다.
 RUN poetry export -f requirements.txt --output requirements.txt --without-hashes && \
-    pip install --no-cache-dir -r requirements.txt && \
-    rm requirements.txt  # 임시 파일 삭제
+    pip install --no-cache-dir --ignore-installed -r requirements.txt && \
+    rm requirements.txt
 
-# GPU 버전에 맞는 PyTorch 설치 (최종 단계에 배치하여 캐시 활용)
+# 5. PyTorch 설치 (최종 단계)
 RUN CUDA_TAG=$(echo $CUDA_VER | cut -d'.' -f1,2 | sed 's/\.//g') && \
     pip install --no-cache-dir \
     torch==${TORCH_VER} \
     torchvision \
     --index-url https://download.pytorch.org/whl/cu${CUDA_TAG}
 
-# 5. 소스 코드 복사
+# 6. 소스 코드 복사
 COPY . /app
 RUN chmod +x *.py
 
