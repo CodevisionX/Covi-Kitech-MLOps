@@ -23,6 +23,7 @@ jobs:
             context: ./api
             dockerfile: ./api/Dockerfile.backend
             image_suffix: backend
+            tag_suffix: "latest"
             filter_pattern: |
               src:
                 - 'api/**'
@@ -30,7 +31,6 @@ jobs:
                 - '!api/Dockerfile.base'
                 - '!api/deploy_worker.py'
                 - '!api/service.py'
-          # 1. Blackwell 최첨단 환경
           - service_name: training-blackwell
             context: ./training
             dockerfile: ./training/Dockerfile
@@ -39,7 +39,6 @@ jobs:
             torch_ver: "2.6.0"
             tag_suffix: "py3.11-torch2.6.0-cuda12.8"
             filter_pattern: "src: ['training/**']"
-          # 2. Ada Lovelace 표준 환경
           - service_name: training-ada
             context: ./training
             dockerfile: ./training/Dockerfile
@@ -48,7 +47,6 @@ jobs:
             torch_ver: "2.5.1"
             tag_suffix: "py3.10-torch2.5.1-cuda12.4"
             filter_pattern: "src: ['training/**']"
-          # 3. Ampere 하위 호환 환경
           - service_name: training-ampere
             context: ./training
             dockerfile: ./training/Dockerfile
@@ -61,6 +59,7 @@ jobs:
             context: ./ui
             dockerfile: ./ui/Dockerfile
             image_suffix: ui
+            tag_suffix: "latest"
             filter_pattern: |
               src:
                 - 'ui/**'
@@ -68,6 +67,7 @@ jobs:
             context: ./mlflow
             dockerfile: ./mlflow/Dockerfile
             image_suffix: mlflow
+            tag_suffix: "latest"
             filter_pattern: |
               src:
                 - 'mlflow/**'
@@ -75,6 +75,7 @@ jobs:
             context: ./api
             dockerfile: ./api/Dockerfile.builder
             image_suffix: builder
+            tag_suffix: "latest"
             filter_pattern: |
               src:
                 - 'api/Dockerfile.builder'
@@ -84,6 +85,7 @@ jobs:
             context: ./api
             dockerfile: ./api/Dockerfile.base
             image_suffix: base
+            tag_suffix: "latest"
             filter_pattern: |
               src:
                 - 'api/Dockerfile.base'
@@ -143,7 +145,6 @@ jobs:
             CUDA_VER=${{ matrix.cuda_ver }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.REPO_LOWER }}-${{ matrix.image_suffix }}:${{ matrix.tag_suffix }}
-            # Ada Lovelace 버전을 기본 latest로 지정 (원할 경우 수정 가능)
             ${{ matrix.service_name == 'training-ada' && format('{0}/{1}-{2}:latest', env.REGISTRY, env.REPO_LOWER, matrix.image_suffix) || '' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
