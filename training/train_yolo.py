@@ -33,7 +33,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# YOLO 자동 MLflow 로깅 비활성화 (충돌 방지)
+# YOLO 자동 MLflow 로깅 비활성화
 settings.update({"mlflow": False})
 
 BACKEND_URL = os.getenv("BACKEND_URL", "http://backend:8000")

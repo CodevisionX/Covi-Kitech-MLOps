@@ -22,7 +22,8 @@ elif [[ "$GPU_NAME" == *"RTX 40"* ]] || [[ "$GPU_NAME" == *"Ada"* ]] || [[ "$GPU
     echo "Architecture: Ada Lovelace detected."
     TAG="py3.10-torch2.5.1-cuda12.4"
 
-elif [[ "$GPU_NAME" == *"RTX 30"* ]] || [[ "$GPU_NAME" == *"A100"* ]] || [[ "$GPU_NAME" == *"Ampere"* ]]; then
+elif [[ "$GPU_NAME" == *"RTX 30"* ]] || [[ "$GPU_NAME" == *"A100"* ]] || [[ "$GPU_NAME" == *"Ampere"* ]] || [[ "$GPU_NAME" == *"A6000"* ]]; then
+    # 단, A6000 Ada Generation과 겹칠 수 있으므로 순서상 Ada 분기를 먼저 체크하는 것이 안전
     echo "Architecture: Ampere detected."
     TAG="py3.10-torch2.4.1-cuda11.8"
 fi
