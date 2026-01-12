@@ -358,7 +358,7 @@ class JobService:
                             for r_line in remaining.splitlines():
                                 yield f"data: {r_line}\n\n"
                             
-                        yield f"data: [System] 학습이 종료되었습니다. (최종 상태: {job.status})\n\n"
+                        yield f"data: [System] 학습이 종료되었습니다. (최종 상태: {status})\n\n"
                         break
                     
                     # 아직 실행 중이면 잠깐 대기 후 다시 읽기 (Non-blocking)
