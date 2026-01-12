@@ -130,7 +130,7 @@ async def stream_logs(job_id: int):
     )
 
 @router.get("/{job_id}/logs/static")
-async def read_static_logs(job_id: int, db: Session = Depends(get_db)):
+async def read_static_logs(job_id: int):
     service = JobService()
-    logs = await service.get_all_logs(db,job_id)
+    logs = await service.get_all_logs(job_id)
     return {"logs": logs}
