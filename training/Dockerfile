@@ -13,10 +13,14 @@ ENV PYTHONUNBUFFERED=1 \
 WORKDIR /app
 
 # 2. 시스템 라이브러리 및 특정 Python 버전 설치
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN sed -i 's/archive.ubuntu.com/mirror.kakao.com/g' /etc/apt/sources.list && \
+    sed -i 's/security.ubuntu.com/mirror.kakao.com/g' /etc/apt/sources.list && \
+    apt-get update && apt-get install -y --no-install-recommends \
     software-properties-common && \
     add-apt-repository ppa:deadsnakes/ppa -y && \
-    apt-get update && apt-get install -y --no-install-recommends \
+    apt-get update && \
+    # 패키지 설치 시 버전을 고정하지 않고 최신 버전을 가져오도록 유도
+    apt-get install -y --no-install-recommends \
     python${PYTHON_VER} \
     python${PYTHON_VER}-dev \
     python${PYTHON_VER}-distutils \
@@ -24,6 +28,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1-mesa-glx \
     libglib2.0-0 \
     build-essential && \
+    # pip 설치
     curl -sS https://bootstrap.pypa.io/get-pip.py | python${PYTHON_VER} && \
     pip install --no-cache-dir "poetry==$POETRY_VERSION" && \
     rm -rf /var/lib/apt/lists/*
@@ -51,4 +56,4 @@ COPY . /app
 RUN chmod +x *.py
 
 # 실행 명령
-CMD ["python3", "train_yolo.py"]
+CMD ["sh", "-c", "python${PYTHON_VER} train_yolo.py"]
