@@ -23,3 +23,5 @@ venv/
 # OS 관련
 .DS_Store
 Thumbs.db
+
+test.sh
