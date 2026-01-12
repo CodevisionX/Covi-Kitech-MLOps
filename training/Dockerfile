@@ -1,5 +1,5 @@
 # 1. 빌드 인자 정의
-ARG CUDA_VER=12.4
+ARG CUDA_VER=12.4.1
 FROM nvidia/cuda:${CUDA_VER}-runtime-ubuntu22.04
 
 ARG PYTHON_VER=3.10
@@ -36,7 +36,8 @@ RUN poetry config virtualenvs.create false
 COPY pyproject.toml poetry.lock* /app/
 
 # CUDA 버전을 파이썬 설치 경로 형식으로 변환 (예: 12.4 -> cu124)
-RUN CUDA_TAG=$(echo $CUDA_VER | sed 's/\.//g') && \
+RUN CUDA_TAG=$(echo $CUDA_VER | cut -d'.' -f1,2 | sed 's/\.//g') && \
+    echo "가공된 CUDA 태그: cu${CUDA_TAG}" && \
     pip install --no-cache-dir \
     torch==${TORCH_VER} \
     torchvision \

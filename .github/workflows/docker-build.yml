@@ -36,7 +36,7 @@ jobs:
             dockerfile: ./training/Dockerfile
             image_suffix: training
             python_ver: "3.11"
-            cuda_ver: "12.8"
+            cuda_ver: "12.8.0"
             torch_ver: "2.9.1"
             tag_suffix: "py3.11-torch2.9.1-cuda12.8"
             filter_pattern: "src: ['training/**']"
@@ -45,7 +45,7 @@ jobs:
             dockerfile: ./training/Dockerfile
             image_suffix: training
             python_ver: "3.10"
-            cuda_ver: "12.4"
+            cuda_ver: "12.4.1"
             torch_ver: "2.5.1"
             tag_suffix: "py3.10-torch2.5.1-cuda12.4"
             filter_pattern: "src: ['training/**']"
@@ -54,7 +54,7 @@ jobs:
             dockerfile: ./training/Dockerfile
             image_suffix: training
             python_ver: "3.10"
-            cuda_ver: "11.8"
+            cuda_ver: "11.8.0"
             torch_ver: "2.4.1"
             tag_suffix: "py3.10-torch2.4.1-cuda11.8"
             filter_pattern: "src: ['training/**']"
