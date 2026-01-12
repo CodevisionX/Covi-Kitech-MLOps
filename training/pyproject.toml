@@ -17,14 +17,14 @@ python-dotenv = "^1.0.0"
 
 # ML 관련 의존성
 [tool.poetry.group.ml.dependencies]
-torch = { version = ">=2.6.0", source = "pytorch_cpu" }
-torchvision = { version = ">=0.21.0", source = "pytorch_cpu" }
+torch = ">=2.5.1"
+torchvision = ">=0.20.1"
 
 # 소스 설정
 [[tool.poetry.source]]
 name = "pytorch_cpu"
 url = "https://download.pytorch.org/whl/cpu"
-priority = "explicit"
+priority = "supplemental"
 
 [build-system]
 requires = ["poetry-core"]
