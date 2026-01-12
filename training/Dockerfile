@@ -1,5 +1,5 @@
 # 1. 빌드 인자 정의
-ARG CUDA_VER=12.4.0
+ARG CUDA_VER=12.4
 FROM nvidia/cuda:${CUDA_VER}-runtime-ubuntu22.04
 
 ARG PYTHON_VER=3.10
