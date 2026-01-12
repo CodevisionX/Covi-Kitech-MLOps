@@ -1,6 +1,7 @@
 # 1. 빌드 인자 정의
 ARG TORCH_VER=2.5.1
 ARG CUDA_VER=12.4
+
 # PyTorch 공식 이미지는 Python 버전을 포함하고 있으므로 해당 이미지를 기반으로 합니다.
 FROM pytorch/pytorch:${TORCH_VER}-cuda${CUDA_VER}-cudnn9-runtime
 
