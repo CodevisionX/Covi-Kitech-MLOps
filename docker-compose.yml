@@ -134,7 +134,7 @@ services:
 
   # 6. Training Worker (커스텀 이미지)
   training:
-    image: ${TRAINING_IMAGE}
+    image: ${TRAINING_IMAGE:-ghcr.io/codevisionx/covi-kitech-mlops-training:py3.10-torch2.5.1-cuda12.4}
     container_name: mlops_training
     shm_size: '8gb'
     deploy:

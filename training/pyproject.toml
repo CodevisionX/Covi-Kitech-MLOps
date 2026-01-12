@@ -5,7 +5,7 @@ description = "YOLO & EfficientNet Training Environment"
 authors = ["Hong Hee-soo"]
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = ">=3.10,<3.12"
 ultralytics = "8.3.0"
 mlflow = "2.14.0"
 bentoml = "1.2.0"
@@ -17,14 +17,8 @@ python-dotenv = "^1.0.0"
 
 # ML 관련 의존성
 [tool.poetry.group.ml.dependencies]
-torch = ">=2.5.1"
-torchvision = ">=0.20.1"
-
-# 소스 설정
-[[tool.poetry.source]]
-name = "pytorch_cpu"
-url = "https://download.pytorch.org/whl/cpu"
-priority = "supplemental"
+torch = ">=2.4.1" 
+torchvision = ">=0.19.1"
 
 [build-system]
 requires = ["poetry-core"]
