@@ -1,4 +1,4 @@
-# 1. 빌드 인자 정의
+# 1. 빌드 인자  정의
 ARG CUDA_VER=12.4.1
 FROM nvidia/cuda:${CUDA_VER}-runtime-ubuntu22.04
 
