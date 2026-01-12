@@ -36,8 +36,8 @@ jobs:
             dockerfile: ./training/Dockerfile
             image_suffix: training
             cuda_ver: "12.8"
-            torch_ver: "2.6.0"
-            tag_suffix: "py3.11-torch2.6.0-cuda12.8"
+            torch_ver: "2.9.1"
+            tag_suffix: "py3.11-torch2.9.1-cuda12.8"
             filter_pattern: "src: ['training/**']"
           - service_name: training-ada
             context: ./training

@@ -16,7 +16,7 @@ TAG="py3.10-torch2.5.1-cuda12.4"
 
 if [[ "$GPU_NAME" == *"RTX 50"* ]] || [[ "$GPU_NAME" == *"Blackwell"* ]]; then
     echo "Architecture: Blackwell detected."
-    TAG="py3.11-torch2.6.0-cuda12.8"
+    TAG="py3.11-torch2.9.1-cuda12.8"
 
 elif [[ "$GPU_NAME" == *"RTX 40"* ]] || [[ "$GPU_NAME" == *"Ada"* ]] || [[ "$GPU_NAME" == *"L4"* ]]; then
     echo "Architecture: Ada Lovelace detected."
