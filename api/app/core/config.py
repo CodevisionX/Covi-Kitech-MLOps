@@ -18,7 +18,7 @@ class Settings(BaseSettings):
 
     MAX_DEPLOYMENTS_PER_PROJECT: int = 1
 
-    TRAINING_IMAGE: str = "ghcr.io/codevisionx/covi-kitech-mlops-training:py3.10-torch2.5.1-cuda12.4"
+    TRAINING_IMAGE: str = "ghcr.io/codevisionx/covi-kitech-mlops-training:py3.11-torch2.5.1-cuda12.4"
     SERVING_IMAGE: str = "ghcr.io/codevisionx/covi-kitech-mlops-base:latest"
 
     BUILDER_CPU_LIMIT: float = 4.0

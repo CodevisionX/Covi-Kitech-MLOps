@@ -12,7 +12,7 @@ echo "Detected GPU: $GPU_NAME"
 
 # 2. 아키텍처별 이미지 태그 매핑
 # 기본값: Ada Lovelace (RTX 40 시리즈)
-TAG="py3.10-torch2.5.1-cuda12.4"
+TAG="py3.11-torch2.5.1-cuda12.4"
 
 if [[ "$GPU_NAME" == *"RTX 50"* ]] || [[ "$GPU_NAME" == *"Blackwell"* ]]; then
     echo "Architecture: Blackwell detected."
@@ -20,11 +20,11 @@ if [[ "$GPU_NAME" == *"RTX 50"* ]] || [[ "$GPU_NAME" == *"Blackwell"* ]]; then
 
 elif [[ "$GPU_NAME" == *"RTX 40"* ]] || [[ "$GPU_NAME" == *"Ada"* ]] || [[ "$GPU_NAME" == *"L4"* ]]; then
     echo "Architecture: Ada Lovelace detected."
-    TAG="py3.10-torch2.5.1-cuda12.4"
+    TAG="py3.11-torch2.5.1-cuda12.4"
 
 elif [[ "$GPU_NAME" == *"RTX 30"* ]] || [[ "$GPU_NAME" == *"A100"* ]] || [[ "$GPU_NAME" == *"Ampere"* ]] || [[ "$GPU_NAME" == *"A6000"* ]]; then
     echo "Architecture: Ampere detected."
-    TAG="py3.10-torch2.4.1-cuda11.8"
+    TAG="py3.11-torch2.4.1-cuda11.8"
 fi
 
 # 3. 전체 이미지 이름 구성
