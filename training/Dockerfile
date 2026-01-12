@@ -1,4 +1,4 @@
-# 1. 빌드 인자  정의
+# 1. 빌드 인자 정의
 ARG CUDA_VER=12.4.1
 FROM nvidia/cuda:${CUDA_VER}-runtime-ubuntu22.04
 
@@ -31,20 +31,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # 3. Poetry 설정: 가상환경 생성 안 함
 RUN poetry config virtualenvs.create false
 
-# 4. 의존성 설치 
-# 핵심: PyTorch는 시스템 CUDA 버전에 맞춰 pip로 선제 설치 (용량 및 버전 관리)
+# 4. 의존성 설치 (가장 효율적인 방식)
 COPY pyproject.toml poetry.lock* /app/
 
-# CUDA 버전을 파이썬 설치 경로 형식으로 변환 (예: 12.4 -> cu124)
+# Poetry에서 리스트만 뽑아서 pip로 설치 (충돌 방지 및 그룹 에러 차단)
+RUN poetry export -f requirements.txt --output requirements.txt --without-hashes && \
+    pip install --no-cache-dir -r requirements.txt && \
+    rm requirements.txt  # 임시 파일 삭제
+
+# GPU 버전에 맞는 PyTorch 설치 (최종 단계에 배치하여 캐시 활용)
 RUN CUDA_TAG=$(echo $CUDA_VER | cut -d'.' -f1,2 | sed 's/\.//g') && \
-    echo "가공된 CUDA 태그: cu${CUDA_TAG}" && \
     pip install --no-cache-dir \
     torch==${TORCH_VER} \
     torchvision \
     --index-url https://download.pytorch.org/whl/cu${CUDA_TAG}
-
-# 나머지 종속성 설치
-RUN poetry install --no-interaction --no-ansi --no-root --without ml
 
 # 5. 소스 코드 복사
 COPY . /app
