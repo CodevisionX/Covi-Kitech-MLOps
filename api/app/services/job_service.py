@@ -118,7 +118,7 @@ class JobService:
                 command = ["bash", "-c", f"set -o pipefail; python -u {train_script} 2>&1 | tee /app/runs/{job.id}.log"]
 
                 container = await loop.run_in_executor(None, lambda: docker_provider.run_container(
-                    image=settings.TRAINING_IMAGEL,
+                    image=settings.TRAINING_IMAGE,
                     command=command,
                     environment=env_vars,
                     network="mlops-net",

@@ -6,9 +6,6 @@ authors = ["Hong Hee-soo"]
 
 [tool.poetry.dependencies]
 python = "^3.10"
-# 베이스 이미지(pytorch:2.1.0)와 일치
-torch = "2.5.1"
-torchvision = "0.20.1"
 ultralytics = "8.3.0"
 mlflow = "2.14.0"
 bentoml = "1.2.0"
@@ -17,6 +14,10 @@ psycopg2-binary = "^2.9.9"
 pandas = "^2.0.0"
 opencv-python-headless = "^4.8.0"
 python-dotenv = "^1.0.0"
+
+[tool.poetry.group.ml.dependencies]
+torch = "2.5.1"
+torchvision = "0.20.1"
 
 [build-system]
 requires = ["poetry-core"]
