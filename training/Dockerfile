@@ -27,7 +27,9 @@ WORKDIR /app
 
 # 4. 의존성 파일 복사 및 설치
 COPY pyproject.toml poetry.lock* /app/
-RUN poetry install --no-interaction --no-ansi --no-root
+RUN poetry config virtualenvs.create false \
+    && poetry install --no-interaction --no-ansi --no-root \
+    && pip install --no-cache-dir ultralytics==8.3.0
 
 # 5. 소스 코드 복사
 COPY . /app
