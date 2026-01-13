@@ -15,11 +15,6 @@ pandas = "^2.0.0"
 opencv-python-headless = "^4.8.0"
 python-dotenv = "^1.0.0"
 
-# ML 관련 의존성
-[tool.poetry.group.ml.dependencies]
-torch = ">=2.4.1" 
-torchvision = ">=0.19.1"
-
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

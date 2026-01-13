@@ -2403,9 +2403,10 @@ files = [
 
 [package.dependencies]
 numpy = [
+    {version = ">=1.26.0", markers = "python_version >= \"3.12\""},
+    {version = ">=1.23.5", markers = "python_version >= \"3.11\" and python_version < \"3.12\""},
     {version = ">=1.21.4", markers = "python_version >= \"3.10\" and platform_system == \"Darwin\" and python_version < \"3.11\""},
     {version = ">=1.21.2", markers = "platform_system != \"Darwin\" and python_version >= \"3.10\" and python_version < \"3.11\""},
-    {version = ">=1.23.5", markers = "python_version >= \"3.11\""},
 ]
 
 [[package]]
@@ -2426,9 +2427,10 @@ files = [
 
 [package.dependencies]
 numpy = [
+    {version = ">=1.26.0", markers = "python_version >= \"3.12\""},
+    {version = ">=1.23.5", markers = "python_version >= \"3.11\" and python_version < \"3.12\""},
     {version = ">=1.21.4", markers = "python_version >= \"3.10\" and platform_system == \"Darwin\" and python_version < \"3.11\""},
     {version = ">=1.21.2", markers = "platform_system != \"Darwin\" and python_version >= \"3.10\" and python_version < \"3.11\""},
-    {version = ">=1.23.5", markers = "python_version >= \"3.11\""},
 ]
 
 [[package]]
@@ -2621,8 +2623,9 @@ files = [
 
 [package.dependencies]
 numpy = [
-    {version = ">=1.22.4", markers = "python_version < \"3.11\""},
+    {version = ">=1.26.0", markers = "python_version >= \"3.12\""},
     {version = ">=1.23.2", markers = "python_version == \"3.11\""},
+    {version = ">=1.22.4", markers = "python_version < \"3.11\""},
 ]
 python-dateutil = ">=2.8.2"
 pytz = ">=2020.1"
@@ -4189,6 +4192,7 @@ nvidia-nccl-cu12 = {version = "2.27.5", markers = "platform_system == \"Linux\" 
 nvidia-nvjitlink-cu12 = {version = "12.8.93", markers = "platform_system == \"Linux\" and platform_machine == \"x86_64\""}
 nvidia-nvshmem-cu12 = {version = "3.3.20", markers = "platform_system == \"Linux\" and platform_machine == \"x86_64\""}
 nvidia-nvtx-cu12 = {version = "12.8.90", markers = "platform_system == \"Linux\" and platform_machine == \"x86_64\""}
+setuptools = {version = "*", markers = "python_version >= \"3.12\""}
 sympy = ">=1.13.3"
 triton = {version = "3.5.1", markers = "platform_system == \"Linux\" and platform_machine == \"x86_64\""}
 typing-extensions = ">=4.10.0"
@@ -4861,5 +4865,5 @@ type = ["pytest-mypy"]
 
 [metadata]
 lock-version = "2.0"
-python-versions = ">=3.10,<3.12"
-content-hash = "6cbbd58757cb97c9e17495ccfaf9a327a2cba371a33800bf241c2972dd8f6685"
+python-versions = ">=3.10,<3.13"
+content-hash = "428406c22e0350977e887f291b8284659c94d9fb3549a0ba2b38229fc6c11c99"
