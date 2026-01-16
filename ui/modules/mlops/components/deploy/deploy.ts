@@ -72,7 +72,6 @@ export class Deploy implements OnInit, OnDestroy {
     this.activeDeployments.update(list => {
       // 1. 삭제되었거나, 사용자가 중단/취소한 경우 목록에서 즉시 제거
       if (data.status === 'DELETED' || data.status === 'STOPPED' || data.status === 'CANCELED') {
-        console.log(`ID ${data.deployment_id} 항목을 목록에서 제거합니다.`);
         return list.filter(d => d.id !== data.deployment_id);
       }
 

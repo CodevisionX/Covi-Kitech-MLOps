@@ -28,8 +28,10 @@
     <div class="header-actions">
       <button mat-flat-button color="primary" class="deploy-btn"
         [disabled]="isDeploying() || runInfo()?.status !== 'FINISHED'" (click)="onDeployModel()">
-        <mat-icon>{{ isDeploying() ? 'sync' : 'rocket_launch' }}</mat-icon>
-        {{ isDeploying() ? '배포 중...' : 'BentoML 배포' }}
+        @if (isDeploying()) {
+          <mat-icon>sync</mat-icon>
+        }
+        {{ isDeploying() ? '배포 중...' : '모델 배포' }}
       </button>
     </div>
   </header>

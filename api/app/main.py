@@ -25,12 +25,12 @@ def seed_db(db: Session):
         if project_count == 0:
             print("Project table is empty. Seeding default project...")
             default_project = Project(
-                name="base",
-                description="기본 프로젝트입니다."
+                name="vision_algorithm(YOLOv8_Detection)",
+                description="YOLOv8 기반 객체 탐지 알고리즘 기본 프로젝트입니다."
             )
             db.add(default_project)
             db.commit()
-            print("[+] Default project 'base' created.")
+            print("[+] Default project 'vision_algorithm(YOLOv8_Detection)' created.")
         else:
             print(f"[*] Project table already has {project_count} projects. Skipping seed.")
     except Exception as e:

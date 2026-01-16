@@ -60,7 +60,7 @@ export class Train implements OnInit {
   submitTraining() {
     const currentPath = this.modelService.selectedDatasetPath();
     if (!currentPath || !this.selectedModelName || !this.selectedProjectId) {
-      this.notificationService.showError('❌ 필수 설정이 누락되었습니다.');
+      this.notificationService.showError('필수 설정이 누락되었습니다.');
       return;
     }
 
@@ -78,12 +78,11 @@ export class Train implements OnInit {
         "dataset_path": currentPath
       }
     }
-    console.log('Training Payload:', payload);
 
     this.jobService.createJob(payload).subscribe({
       next: (res) => {
         this.isSubmitting = false;
-        this.notificationService.showSuccess(`🚀 학습 큐에 등록되었습니다! (ID: ${res.id})`);
+        this.notificationService.showSuccess(`학습 큐에 등록되었습니다! (ID: ${res.id})`);
 
         this.router.navigate(['/dashboard/models'], {
           queryParams: { projectId: this.selectedProjectId, variant: this.selectedModelName }
@@ -92,7 +91,7 @@ export class Train implements OnInit {
       error: (err) => {
         console.error(err);
         this.isSubmitting = false;
-        this.notificationService.showError('❌ 학습 요청 실패: ' + (err.message || '서버 오류'));
+        this.notificationService.showError('학습 요청 실패: ' + (err.message || '서버 오류'));
       }
     });
   }

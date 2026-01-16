@@ -92,7 +92,6 @@ export class Dataset implements OnInit, OnDestroy {
       if (node.isLoading) return resolve();
 
       node.isLoading = true;
-      console.log(`Fetching data for: ${node.bucket}/${node.fullPath}`);
 
       this.artifact.getContents(node.bucket, node.fullPath).pipe(
         takeUntil(this.destroy$),

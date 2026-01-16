@@ -186,7 +186,7 @@
           </div>
           <div class="best-actions">
             <button mat-flat-button class="best-deploy-btn" (click)="navigateToRunDetail(best)">
-              <mat-icon>insights</mat-icon> 상세 분석 및 배포
+              <mat-icon>insights</mat-icon> 분석 및 배포
             </button>
           </div>
         </div>
@@ -250,7 +250,7 @@
               @if (isLoading()) { <div class="skeleton-loader cell-skeleton-chip" style="width: 60px"></div> }
               @else {
               <button mat-button class="btn-result-view" (click)="navigateToRunDetail(job)" [disabled]="!job.run_id">
-                <mat-icon>insights</mat-icon><span>분석</span>
+                <mat-icon>insights</mat-icon><span>분석 및 배포</span>
               </button>
               }
             </td>

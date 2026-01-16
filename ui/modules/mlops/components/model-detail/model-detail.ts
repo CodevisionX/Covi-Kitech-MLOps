@@ -7,6 +7,7 @@ import { IMLflowRun } from '../../services/apis/models/experiment.model';
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { Deployment } from '../../services/apis/deployment';
+import { HttpErrorResponse, HttpResponse } from '@angular/common/http';
 
 Chart.register(...registerables);
 
@@ -85,14 +86,13 @@ export class ModelDetail {
     this.deploymentService.createDeployment(deployRequest).subscribe({
       next: (response) => {
         this.isDeploying.set(false);
-        this.notificationService.showSuccess('🚀 배포 프로세스가 시작되었습니다.');
+        this.notificationService.showSuccess('배포 프로세스가 시작되었습니다.');
         this.router.navigate(['/dashboard/deployments']);
       },
-      error: (err) => {
+      error: (err: HttpErrorResponse) => {
         this.isDeploying.set(false);
-        const serverMessage = err || '배포 요청 중 오류가 발생했습니다.';
-        this.notificationService.showError(serverMessage);
-        console.error('Deployment Error:', err);
+        const serverMessage = '모델은 한 번에 하나만 배포 가능합니다. 기존 배포를 먼저 중단해 주세요.';
+        this.notificationService.showWarning(serverMessage);
       }
     });
   }

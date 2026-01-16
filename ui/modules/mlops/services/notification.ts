@@ -25,7 +25,6 @@ export class Notification {
     });
   }
 
-  // ✅ 추가: 경고 알림 (주황색/노란색 계열)
   showWarning(message: string) {
     this.snackBar.open(`⚠️ 주의: ${message}`, '확인', {
       ...this.config,

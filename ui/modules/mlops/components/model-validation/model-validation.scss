@@ -1,6 +1,6 @@
 .validation-container {
   padding: var(--base-padding);
-  background-color: var(--bg-body); // #f8f9fa 대체
+  background-color: var(--bg-body);
   min-height: calc(100vh - var(--header-height));
 
   .page-header {
@@ -12,11 +12,11 @@
       gap: 12px;
       font-size: 24px;
       font-weight: 600;
-      color: var(--text-main); // #202124 대체
+      color: var(--text-main);
       margin: 0 0 8px 0;
 
       mat-icon {
-        color: var(--main-primary-color); // #3f51b5 대체
+        color: var(--main-primary-color);
         font-size: 28px;
         width: 28px;
         height: 28px;
@@ -24,7 +24,7 @@
     }
 
     p {
-      color: var(--text-muted); // #5f6368 대체
+      color: var(--text-muted);
       margin: 0;
     }
   }
@@ -41,16 +41,17 @@
   }
 }
 
+// 공통 카드 스타일
 .upload-card, .result-card {
   border-radius: var(--card-radius);
-  box-shadow: var(--shadow-md) !important; // 기존 그림자 대체
+  box-shadow: var(--shadow-md) !important;
   overflow: hidden;
   background-color: var(--bg-card);
 
   mat-card-header {
     background-color: var(--bg-card);
     padding: 16px;
-    border-bottom: 1px solid var(--border-color); // #f0f0f0 대체
+    border-bottom: 1px solid var(--border-color);
 
     mat-card-title {
       font-size: 16px;
@@ -61,31 +62,35 @@
 
   mat-card-content {
     padding: 20px;
-    min-height: 400px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
+    // 고정 컨테이너들이 내부 높이를 잡으므로 min-height는 제거하거나 작게 조정합니다.
+    min-height: auto; 
+    display: block; 
   }
 }
 
-// 이미지 업로드 영역 (Drop Zone)
-.drop-zone {
-  border: 2px dashed var(--border-color); // #dadce0 대체
-  border-radius: 8px;
-  height: 350px;
+// [핵심] 입력 및 결과 공통 컨테이너 (높이 고정 및 중앙 정렬)
+.drop-zone, .result-viewport {
+  height: 350px; 
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  transition: all var(--transition-speed) ease;
+  border-radius: 8px;
   background-color: #fafafa;
   position: relative;
   overflow: hidden;
+}
+
+// 1. 입력 영역 (점선 테두리 및 호버 효과)
+.drop-zone {
+  border: 2px dashed var(--border-color);
+  cursor: pointer;
+  transition: all var(--transition-speed) ease;
 
   &:hover {
     border-color: var(--main-primary-color);
-    background-color: var(--main-primary-light); // #f0f2ff 대체
+    background-color: var(--main-primary-light);
   }
 
   .placeholder {
@@ -99,13 +104,10 @@
       margin-bottom: 12px;
     }
 
-    p {
-      margin: 0;
-      font-size: 14px;
-    }
+    p { margin: 0; font-size: 14px; }
   }
 
-  .preview-img, .result-img {
+  .preview-img {
     width: 100%;
     height: 100%;
     object-fit: contain;
@@ -113,56 +115,68 @@
   }
 }
 
-.empty-result {
-  text-align: center;
-  color: var(--text-muted); // #bdc1c6 대체
+// 2. 결과 영역 (이미지 및 JSON 고정 높이 처리)
+.result-viewport {
+  border: 1px solid var(--border-color);
+  background-color: #f0f0f0; // 이미지가 없을 때의 배경색
 
-  mat-icon {
-    font-size: 64px;
-    width: 64px;
-    height: 64px;
-    margin-bottom: 16px;
+  .result-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain; // 비율 유지하며 350px 안에 맞춤
+    background-color: #000;
+  }
+
+  .json-result {
+    width: 100%;
+    height: 100%; // 부모(.result-viewport)의 350px을 꽉 채움
+    background-color: #2c2c2c;
+    color: #a8ff60;
+    padding: 16px;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 12px;
+    overflow-y: auto;
+    border-radius: 0; // 컨테이너에 맞게 0으로 조정
+
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+  }
+
+  .empty-result {
+    text-align: center;
+    color: var(--text-muted);
+    mat-icon {
+      font-size: 64px;
+      width: 64px;
+      height: 64px;
+      margin-bottom: 16px;
+    }
+    p { margin: 0; }
   }
 }
 
-.json-result {
-  background-color: #2c2c2c; // 터미널 느낌을 위해 유지하거나 --main-primary-dark 활용 가능
-  color: #a8ff60;
-  padding: 16px;
-  border-radius: 4px;
-  font-family: 'Roboto Mono', monospace;
-  font-size: 12px;
-  height: 350px;
-  overflow-y: auto;
-
-  pre {
-    margin: 0;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-  }
-}
-
+// 버튼 및 기타 섹션 스타일 (기존 유지)
 mat-card-actions {
   display: flex;
   justify-content: flex-end;
   padding: 16px !important;
 
   button[mat-flat-button] {
-    // 1. 활성화(Active) 상태 (기본)
     background-color: var(--main-primary-color) !important;
     color: var(--text-on-primary) !important;
     transition: all var(--transition-speed) ease;
     cursor: pointer;
 
-    // 2. 비활성화(Disabled) 상태
     &:disabled {
-      background-color: var(--border-color) !important; // 회색 배경
-      color: var(--text-muted) !important;             // 흐린 글자색
+      background-color: var(--border-color) !important;
+      color: var(--text-muted) !important;
       cursor: not-allowed;
-      filter: grayscale(1); // 아이콘까지 무채색으로 변경
+      filter: grayscale(1);
     }
 
-    // 3. 마우스 호버 효과 (활성 상태일 때만)
     &:not(:disabled):hover {
       background-color: var(--main-primary-dark) !important;
       box-shadow: var(--shadow-sm);
@@ -172,7 +186,7 @@ mat-card-actions {
     align-items: center;
     justify-content: center;
     gap: 8px;
-    padding: 0 24px; // 조금 더 넓게 수정
+    padding: 0 24px;
 
     mat-icon {
       margin: 0 !important;
@@ -184,12 +198,11 @@ mat-card-actions {
     span {
       display: inline-block;
       line-height: 1;
-      transform: translate(3px, -4px);
+      transform: translate(0px, 0px); // 텍스트 정렬 미세 조정 필요 시 사용
     }
   }
 }
 
-// 모델 정보 및 파라미터 섹션
 .model-info-section {
   margin-bottom: 24px;
 
@@ -223,35 +236,27 @@ mat-card-actions {
       font-size: 15px;
       color: var(--text-main);
       font-weight: 600;
-
-      &.highlight {
-        color: var(--main-primary-color);
-      }
+      &.highlight { color: var(--main-primary-color); }
     }
   }
 
   .params-list {
     flex: 1;
     min-width: 300px;
-
     .chips {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
       margin-top: 4px;
     }
-
     .param-chip {
-      background: var(--highlight-bg); // styles.scss의 하이라이트 배경 활용
+      background: var(--highlight-bg);
       padding: 4px 10px;
       border-radius: 16px;
       font-size: 13px;
       color: var(--main-primary-dark);
       border: 1px solid var(--border-color);
-
-      b {
-        color: var(--main-primary-color);
-      }
+      b { color: var(--main-primary-color); }
     }
   }
 }

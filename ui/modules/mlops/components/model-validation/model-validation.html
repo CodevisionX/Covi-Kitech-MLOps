@@ -20,7 +20,7 @@
                     <span class="label">주요 하이퍼파라미터</span>
                     <div class="chips">
                         @for (param of paramsArray; track param[0]) {
-                            <span class="param-chip"><b>{{ param[0] }}</b>: {{ param[1] }}</span>
+                        <span class="param-chip"><b>{{ param[0] }}</b>: {{ param[1] }}</span>
                         }
                     </div>
                 </div>
@@ -71,18 +71,20 @@
             </mat-card-header>
 
             <mat-card-content>
-                @if (resultImage()) {
-                <img [src]="resultImage()" class="result-img">
-                } @else if (predictionResult()) {
-                <div class="json-result">
-                    <pre>{{ predictionResult() | json }}</pre>
+                <div class="result-viewport">
+                    @if (resultImage()) {
+                    <img [src]="resultImage()" class="result-img">
+                    } @else if (predictionResult()) {
+                    <div class="json-result">
+                        <pre>{{ predictionResult() | json }}</pre>
+                    </div>
+                    } @else {
+                    <div class="empty-result">
+                        <mat-icon>biotech</mat-icon>
+                        <p>분석 결과가 여기에 표시됩니다.</p>
+                    </div>
+                    }
                 </div>
-                } @else {
-                <div class="empty-result">
-                    <mat-icon>biotech</mat-icon>
-                    <p>분석 결과가 여기에 표시됩니다.</p>
-                </div>
-                }
             </mat-card-content>
         </mat-card>
     </div>
