@@ -1,3 +1,13 @@
+"""
+## YOLOv8 기반 실시간 객체 탐지 서비스 (MLOps)
+이 서비스는 YOLOv8 모델을 사용하여 이미지 내의 객체를 탐지합니다.
+두 가지 방식의 API를 제공합니다:
+1. **JSON 기반 데이터 추출**: 탐지된 객체의 좌표와 확률 정보를 반환 (자동화 시스템용)
+2. **시각화 이미지 반환**: 이미지 위에 바운딩 박스를 그려서 반환 (모니터링/확인용)
+
+**참고:** 모든 입력 이미지는 모델 추론 전 내부적으로 640x640 사이즈로 리사이즈됩니다.
+"""
+
 import os
 import glob
 import bentoml
@@ -136,16 +146,6 @@ yolo_runner = bentoml.Runner(YoloRunnable, name="yolo_runner")
 
 # 4. 서비스 정의
 svc = bentoml.Service("yolo_mlops_service", runners=[yolo_runner])
-
-svc.__doc__ = """
-## YOLOv8 기반 실시간 객체 탐지 서비스 (MLOps)
-이 서비스는 YOLOv8 모델을 사용하여 이미지 내의 객체를 탐지합니다.
-두 가지 방식의 API를 제공합니다:
-1. **JSON 기반 데이터 추출**: 탐지된 객체의 좌표와 확률 정보를 반환 (자동화 시스템용)
-2. **시각화 이미지 반환**: 이미지 위에 바운딩 박스를 그려서 반환 (모니터링/확인용)
-
-**참고:** 모든 입력 이미지는 모델 추론 전 내부적으로 640x640 사이즈로 리사이즈됩니다.
-"""
 
 @svc.api(
     input=bentoml.io.Image(), 
