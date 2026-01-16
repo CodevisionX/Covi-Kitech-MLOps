@@ -104,7 +104,7 @@ def stream_deployment_logs(deployment_id: int, db: Session = Depends(get_db)):
         media_type="text/event-stream"
     )
 
-@router.post("/{deployment_id}/predict_visual")
+@router.post("/{deployment_id}/predict/visual")
 async def predict_visual(
     deployment_id: int, 
     upload_file: UploadFile = File(...), 
@@ -112,7 +112,7 @@ async def predict_visual(
 ):
     """
     [Proxy] 시각화된(Bounding Box가 그려진) 이미지를 반환합니다.
-    Target BentoML: POST /predict_visual (BentoML 서비스 구현에 따라 경로 수정 필요)
+    Target BentoML: POST /predict/visual (BentoML 서비스 구현에 따라 경로 수정 필요)
     """
     # 1. 배포 정보 조회
     dep = db.query(Deployment).get(deployment_id)
@@ -123,7 +123,7 @@ async def predict_visual(
             detail="배포 정보를 찾을 수 없거나 컨테이너가 실행 중이지 않습니다."
         )
 
-    target_url = f"http://bento-serve-{deployment_id}:3000/predict_visual"
+    target_url = f"http://bento-serve-{deployment_id}:3000/predict/visual"
     
     try:
         async with httpx.AsyncClient() as client:

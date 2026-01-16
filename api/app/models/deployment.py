@@ -31,7 +31,7 @@ class Deployment(Base):
         default=DeploymentStatus.PENDING,
         nullable=False
     )
-    endpoint_url = Column(String, nullable=True)     # http://localhost:8001/predict
+    endpoint_url = Column(String, nullable=True)     # http://localhost:8001/predict/visual
     container_id = Column(String, nullable=True)     # 실행된 Docker ID
     port = Column(Integer, nullable=True)            # 할당된 포트
 

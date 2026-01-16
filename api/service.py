@@ -137,7 +137,37 @@ yolo_runner = bentoml.Runner(YoloRunnable, name="yolo_runner")
 # 4. 서비스 정의
 svc = bentoml.Service("yolo_mlops_service", runners=[yolo_runner])
 
-@svc.api(input=bentoml.io.Image(), output=bentoml.io.JSON())
+svc.__doc__ = """
+## YOLOv8 기반 실시간 객체 탐지 서비스 (MLOps)
+이 서비스는 YOLOv8 모델을 사용하여 이미지 내의 객체를 탐지합니다.
+두 가지 방식의 API를 제공합니다:
+1. **JSON 기반 데이터 추출**: 탐지된 객체의 좌표와 확률 정보를 반환 (자동화 시스템용)
+2. **시각화 이미지 반환**: 이미지 위에 바운딩 박스를 그려서 반환 (모니터링/확인용)
+
+**참고:** 모든 입력 이미지는 모델 추론 전 내부적으로 640x640 사이즈로 리사이즈됩니다.
+"""
+
+@svc.api(
+    input=bentoml.io.Image(), 
+    output=bentoml.io.JSON(),
+    route="/predict/data",
+    doc="""
+### 객체 탐지 결과 (JSON)
+업로드된 이미지에서 객체를 찾아 좌표와 클래스 정보를 JSON 형태로 반환합니다.
+
+**추론 프로세스:**
+- 이미지 RGB 변환 및 640x640 리사이즈
+- 정규화 (0~1) 및 NMS(Non-Maximum Suppression) 적용
+
+**응답 데이터 구조:**
+- `status`: 요청 처리 상태 (success/error)
+- `model_tag`: 추론에 사용된 모델의 BentoML 태그
+- `prediction`: 탐지된 객체 리스트
+    - `class_id`: 객체 카테고리 인덱스
+    - `confidence`: 탐지 확신도 (0.0 ~ 1.0)
+    - `box`: [x1, y1, x2, y2] (640x640 기준 좌표)
+    """
+)
 async def predict_data(input_img: Image.Image):
     # 흑백/투명 배경 이미지가 들어와도 강제로 3채널(RGB)로 변환
     input_img = input_img.convert("RGB")
@@ -166,7 +196,20 @@ async def predict_data(input_img: Image.Image):
         "prediction": result
     }
 
-@svc.api(input=bentoml.io.Image(), output=bentoml.io.Image()) # 출력 타입을 Image로 변경
+@svc.api(
+    input=bentoml.io.Image(), 
+    output=bentoml.io.Image(),
+    route="/predict/visual", # 경로를 조금 더 직관적으로 변경
+    doc="""
+### 시각화된 이미지 반환
+이미지 위에 탐지된 객체의 **바운딩 박스(Red Line)**와 **라벨**을 그려서 이미지 파일 자체를 반환합니다.
+
+**주요 특징:**
+- 원본 이미지 크기에 맞춰 좌표가 복원(Rescale)되어 그려집니다.
+- 별도의 파싱 없이 결과를 즉시 이미지 뷰어로 확인할 때 유용합니다.
+- 출력 포맷: 입력과 동일한 이미지 포맷 (JPG/PNG 등)
+    """
+)
 async def predict_visual(input_img: Image.Image):
     
     input_img = input_img.convert("RGB")

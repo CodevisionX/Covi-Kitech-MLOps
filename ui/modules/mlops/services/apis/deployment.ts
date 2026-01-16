@@ -85,7 +85,7 @@ export class Deployment extends BaseApi {
     const formData = new FormData();
     formData.append('upload_file', file); 
 
-    return this.http.post(`/deployments/${deploymentId}/predict_visual`, formData, {
+    return this.http.post(`/deployments/${deploymentId}/predict/visual`, formData, {
       responseType: 'blob'
     }).pipe(catchError(this.handleError));
   }
