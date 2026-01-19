@@ -153,7 +153,7 @@ svc = bentoml.Service("yolo_mlops_service", runners=[yolo_runner])
     output=bentoml.io.JSON(),
     route="/predict/data",
     doc="""
-### 객체 탐지 결과 (JSON)ㅎㅎ
+### 객체 탐지 결과 (JSON)
 업로드된 이미지에서 객체를 찾아 좌표와 클래스 정보를 JSON 형태로 반환합니다.
 
 **추론 프로세스:**
