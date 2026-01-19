@@ -145,7 +145,8 @@ class YoloRunnable(bentoml.Runnable):
 yolo_runner = bentoml.Runner(YoloRunnable, name="yolo_runner")
 
 # 4. 서비스 정의
-svc = bentoml.Service("yolo_mlops_service", runners=[yolo_runner], description=SERVICE_DESCRIPTION)
+svc = bentoml.Service("yolo_mlops_service", runners=[yolo_runner])
+
 
 @svc.api(
     input=bentoml.io.Image(), 
