@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 
 from app.db.dependencies import get_db
+from app.models.job import Job
 from app.models.deployment import Deployment
 from app.schemas.deployment import DeploymentCreate, DeploymentResponse
 from app.services.deployment_service import deployment_service
@@ -45,14 +46,17 @@ def read_active_deployments(project_id: Optional[int] = None, db: Session = Depe
     """
     현재 실행 중(RUNNING)이거나 준비 중인 배포만 조회합니다.
     """
-    query = db.query(Deployment).filter(
-        Deployment.status.in_([
-            "PENDING", "REGISTERING", "BUILDING", "CREATING", "RUNNING"
-        ])
+    query = db.query(Deployment).join(Job, Deployment.job_id == Job.id).filter(
+        Deployment.status.in_(["PENDING", "REGISTERING", "BUILDING", "CREATING", "RUNNING"])
     )
-    if project_id:
-        query = query.filter(Deployment.project_id == project_id)
-    return query.all()
+
+    deployments = query.all()
+    for d in deployments:
+        exp_id = d.job.experiment_id 
+        run_id = d.run_id
+        d.artifact_uri = f"s3://mlflow-artifacts/{exp_id}/{run_id}/artifacts/plots/weights/best.pt"
+    
+    return deployments
 
 @router.get("/{deployment_id}", response_model=DeploymentResponse)
 def read_deployment(deployment_id: int, db: Session = Depends(get_db)):

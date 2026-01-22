@@ -28,6 +28,7 @@ export interface IDeployment extends IDeploymentBase {
   container_id?: string;
   port?: number;
   endpoint_url?: string;
+  artifact_uri?: string;
   created_at: string;
   updated_at?: string;
 }

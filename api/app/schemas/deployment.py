@@ -43,6 +43,7 @@ class DeploymentResponse(DeploymentBase):
     container_id: Optional[str] = None
     port: Optional[int] = None
     endpoint_url: Optional[str] = None
+    artifact_uri: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime]
 

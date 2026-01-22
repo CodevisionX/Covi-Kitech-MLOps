@@ -213,7 +213,7 @@ $transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
     display: flex;
     align-items: center;
     width: 100%;
-    gap: 12px;
+    gap: 8px;
 
     mat-icon { color: #666; font-size: 20px; }
 
@@ -230,6 +230,7 @@ $transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
       &:hover { text-decoration: underline; }
     }
   }
+  
 
   .error-box {
     width: 100%;
