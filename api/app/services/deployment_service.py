@@ -101,21 +101,26 @@ class DeploymentService:
             # 2. BUILDING: 별도의 컨테이너에게 일을 시킵니다.
             await update_status(DeploymentStatus.BUILDING, "빌드 전용 컨테이너를 가동합니다...")
 
+            model_name_lower = dep_obj.model_name.lower()
+            derived_model_type = "yolo" if "yolo" in model_name_lower else "cnn"
+
             # 빌더 컨테이너가 사용할 환경 변수 설정
             builder_env = {
                 "MODEL_URI": f"models:/{dep_obj.model_name}/{new_version}",
                 "MODEL_NAME": dep_obj.model_name,
                 "DEPLOYMENT_ID": str(deployment_id),
+                "MODEL_TYPE": derived_model_type,
                 "MLFLOW_TRACKING_URI": settings.MLFLOW_TRACKING_URI,
                 "MLFLOW_S3_ENDPOINT_URL": settings.MLFLOW_S3_ENDPOINT_URL,
                 "AWS_ACCESS_KEY_ID": settings.MINIO_ROOT_USER,
                 "AWS_SECRET_ACCESS_KEY": settings.MINIO_ROOT_PASSWORD,
             }
 
+            print(f"[DeploymentFlow] Dispatching builder for {dep_obj.model_name} as {derived_model_type}")
             print(f"[DeploymentFlow] Dispatching builder. Target MLflow: {settings.MLFLOW_TRACKING_URI}")            # 빌더 컨테이너 실행 및 완료 대기
             
             build_success = await loop.run_in_executor(None, lambda: docker_provider.run_builder_container(
-                image="ghcr.io/codevisionx/covi-kitech-mlops-builder:latest",
+                image="ghcr.io/codevisionx/covi-kitech-mlops-builder:latest", # "mlops-builder:latest",
                 name=f"bento-builder-{deployment_id}",
                 environment=builder_env,
                 volumes={"bentoml_model_store": {"bind": "/root/.bentoml", "mode": "rw"}},

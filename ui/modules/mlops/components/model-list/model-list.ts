@@ -70,13 +70,23 @@ export class ModelList implements OnInit, OnDestroy {
     if (history.length === 0) return null;
 
     return history.reduce((prev, current) => {
-      const getScore = (job: IJob) =>
-        job.metrics?.['metrics/mAP50(B)'] ??
-        job.metrics?.['metrics/mAP50B'] ??
-        job.metrics?.['metrics/mAP50_B'] ??
-        job.metrics?.['mAP50(B)'] ?? 0;
+      const variant = current.model_variant;
+      
+      if (variant === '1D-CNN') {
+        const prevLoss = prev.metrics?.['train_loss'] ?? Infinity;
+        const currentLoss = current.metrics?.['train_loss'] ?? Infinity;
+        return currentLoss < prevLoss ? current : prev;
+      }
 
-      return getScore(current) > getScore(prev) ? current : prev;
+      else {
+        const getScore = (job: IJob) =>
+          job.metrics?.['metrics/mAP50(B)'] ??
+          job.metrics?.['metrics/mAP50B'] ??
+          job.metrics?.['metrics/mAP50_B'] ??
+          job.metrics?.['mAP50(B)'] ?? 0;
+
+        return getScore(current) > getScore(prev) ? current : prev;
+      }
     });
   });
   bestJobId = computed(() => this.bestJob()?.id || null);
@@ -270,7 +280,15 @@ export class ModelList implements OnInit, OnDestroy {
 
   navigateToRunDetail(job: IJob) {
     if (!job.run_id) return;
-    this.router.navigate(['/dashboard/models/run', job.run_id], {
+
+    const pathMap: Record<string, string> = {
+      'YOLOv8': 'yolo',
+      '1D-CNN': 'cnn'
+    };
+
+    const segment = pathMap[job.model_variant] || 'yolo';
+
+    this.router.navigate(['/dashboard/models/run', segment, job.run_id], {
       queryParams: {
         projectId: job.project_id,
         expId: job.experiment_id, // 상세 페이지에서도 MLflow API 호출을 위해 필요

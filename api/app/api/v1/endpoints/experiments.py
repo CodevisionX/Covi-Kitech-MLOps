@@ -66,29 +66,25 @@ async def get_run_detail(run_id: str):
 @router.get("/{run_id}/metrics/history")
 async def get_metrics_history(run_id: str):
     try:
-        # YOLOv8 기준 주요 지표 매핑 (학습 스크립트의 로그 키와 일치해야 함)
-        metric_keys = [
-            "metrics/mAP50B", 
-            "metrics/mAP50-95B",
-            "metrics/mAP50_B",
-            "metrics/mAP50-95_B",
-            "train/box_loss", 
-            "train/cls_loss",
-            "val/box_loss",
-            "val/cls_loss"
-        ]
-        
+        run = mlflow_provider.client.get_run(run_id)
+        available_metrics = run.data.metrics.keys()
+
         history_data = {}
-        for key in metric_keys:
+
+        for key in available_metrics:
             try:
                 history = mlflow_provider.client.get_metric_history(run_id, key)
-                history_data[key] = [m.value for m in history]
-            except:
+                if history:
+                    history_data[key] = [m.value for m in history]
+                else:
+                    history_data[key] = []
+                    
+            except Exception as e:
                 history_data[key] = []
         
         return history_data
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=500, detail=str(e))
 
 # [유지/보합] 아티팩트 미리보기
 @router.get("/{run_id}/artifacts/preview")

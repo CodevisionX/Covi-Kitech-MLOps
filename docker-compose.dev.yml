@@ -28,7 +28,7 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     ports:
       - "${MINIO_PORT}:9000"
-      - "${MINIO_CONSOLE_PORT}:9001"
+      - "${MINIO_CONSOLE_PORT}:${MINIO_CONSOLE_PORT}"
     volumes:
       - ./minio_data:/data
     networks:
@@ -78,6 +78,8 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
       - PYTHONUNBUFFERED=1  # 로그 실시간 확인을 위해 권장
       - MAX_DEPLOYMENTS_PER_PROJECT=${MAX_DEPLOYMENTS_PER_PROJECT}
+      - TRAINING_IMAGE=${TRAINING_IMAGE}
+      - SERVING_IMAGE=${SERVING_IMAGE}
     ports:
       - "8000:8000"
     volumes:

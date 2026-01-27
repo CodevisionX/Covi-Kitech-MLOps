@@ -1,0 +1,111 @@
+<div class="model-detail-container">
+  <header class="page-header">
+    <div class="header-left">
+      <nav class="breadcrumb">
+        <div class="breadcrumb-item link" (click)="goBack()">
+          <mat-icon>science</mat-icon>
+          <span>실험 목록</span>
+        </div>
+        <mat-icon class="separator">chevron_right</mat-icon>
+        <div class="breadcrumb-item current">
+          <span>Run 상세 분석</span>
+        </div>
+      </nav>
+
+      <div class="title-group">
+        <button mat-icon-button (click)="goBack()" class="back-btn">
+          <mat-icon>arrow_back</mat-icon>
+        </button>
+        <div class="title-with-badge">
+          <h1>Run Detail: {{ runId().substring(0, 8) }}</h1>
+          <span class="status-badge" [attr.data-status]="runInfo()?.status">
+            {{ runInfo()?.status }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <button mat-flat-button color="primary" class="deploy-btn"
+        [disabled]="isDeploying() || runInfo()?.status !== 'FINISHED'" (click)="onDeployModel()">
+        @if (isDeploying()) {
+          <mat-icon>sync</mat-icon>
+        }
+        {{ isDeploying() ? '배포 중...' : '모델 배포' }}
+      </button>
+    </div>
+  </header>
+
+  <div class="content-layout">
+    <section class="summary-section">
+      <mat-card class="summary-card">
+        <mat-card-content>
+          <div class="info-grid">
+            <div class="info-item">
+              <label>프로젝트 ID</label>
+              <div class="value">{{ projectId() || '-' }}</div>
+            </div>
+            <div class="info-item">
+              <label>모델 변형 (Variant)</label>
+              <div class="value">{{ runInfo()?.tags?.['model_variant'] || '1D-CNN' }}</div>
+            </div>
+            <div class="info-item">
+              <label>학습 시작</label>
+              <div class="value">{{ getRelativeTime(runInfo()?.start_time) }}</div>
+            </div>
+            <div class="info-item tags-item">
+              <label>사용자 태그</label>
+              <div class="tag-cloud">
+                @for (tag of runInfo()?.tags | keyvalue; track tag.key) {
+                @if (!tag.key.startsWith('mlflow.')) {
+                <span class="custom-tag"><strong>{{ tag.key }}:</strong> {{ tag.value }}</span>
+                }
+                }
+              </div>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </section>
+
+    <section class="metrics-section">
+      <h3 class="section-title"><mat-icon>analytics</mat-icon> 학습 성능 추이</h3>
+      <div class="charts-grid">
+        <!-- <mat-card class="chart-card">
+          <mat-card-header><mat-card-title>성능 지표 (Accuracy/mAP)</mat-card-title></mat-card-header>
+          <mat-card-content>
+            <div class="canvas-wrapper">
+              <canvas baseChart [data]="mAPChartData()" [options]="chartOptions" [type]="'line'"></canvas>
+            </div>
+          </mat-card-content>
+        </mat-card> -->
+        <mat-card class="chart-card">
+          <mat-card-header><mat-card-title>손실 함수 (Loss Trend)</mat-card-title></mat-card-header>
+          <mat-card-content>
+            <div class="canvas-wrapper">
+              <canvas baseChart [data]="lossChartData()" [options]="chartOptions" [type]="'line'"></canvas>
+            </div>
+          </mat-card-content>
+        </mat-card>
+      </div>
+    </section>
+
+    <section class="artifacts-section">
+      <h3 class="section-title"><mat-icon>image_search</mat-icon> 시각화 분석 결과</h3>
+      <div class="image-grid">
+        <mat-card class="image-card">
+          <div class="img-container">
+            <span class="img-tag label">Learning Curves</span>
+            <img [src]="learningCurveUrl()" (error)="onImgError($event)" alt="Learning Curves">
+          </div>
+        </mat-card>
+        <mat-card class="image-card">
+          <div class="img-container">
+            <span class="img-tag pred">Sensor Samples</span>
+            <img [src]="sensorSampleUrl()" (error)="onImgError($event)" alt="Sensor Samples">
+          </div>
+        </mat-card>
+      </div>
+    </section>
+  </div>
+</div>

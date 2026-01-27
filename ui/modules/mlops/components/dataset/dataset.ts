@@ -69,10 +69,10 @@ export class Dataset implements OnInit, OnDestroy {
 
   async onNodeClick(node: MinioNode) {
     // 1. 학습 가능 레벨(2) 체크 및 Signal 업데이트 (기존 로직)
-    if (node.level === 2) {
+    if (node.level === 3) {
       const fullPath = `${node.bucket}/${node.fullPath}`;
       this.modelService.updatePath(fullPath);
-      this.notificationService.showInfo(`📁 데이터셋 선정: ${fullPath}`);
+      this.notificationService.showInfo(`📁 데이터셋 분석 완료: ${fullPath}`);
     }
 
     // 2. 파일이 아니고 자식이 아직 로드되지 않았다면 API 호출

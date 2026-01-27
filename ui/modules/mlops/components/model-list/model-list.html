@@ -8,7 +8,7 @@
       <p>실험별 학습 내역 및 MLflow 모델 상태를 실시간으로 모니터링합니다.</p>
     </div>
 
-    <div class="project-controls">
+    <!-- <div class="project-controls">
       <div class="selector-wrapper">
         @if (isLoading() && projects().length === 0) {
         <div class="skeleton-loader selector-skeleton"></div>
@@ -29,7 +29,7 @@
         <mat-icon [class.spinning]="isLoading()">refresh</mat-icon>
         <span>{{ isLoading() ? '동기화 중...' : '새로고침' }}</span>
       </button>
-    </div>
+    </div> -->
   </header>
 
   <nav class="experiment-tabs">
@@ -179,8 +179,14 @@
             <h2 class="best-run-name">{{ best.model_variant }}</h2>
             <div class="best-metrics">
               <div class="metric-box">
-                <span class="m-label">mAP@0.5</span>
-                <span class="m-value">{{ (best.metrics?.['metrics/mAP50_B'] || 0) | number:'1.2-4' }}</span>
+                <span class="m-label">
+                  {{ best.model_variant === '1D-CNN' ? 'Train Loss' : 'mAP@0.5' }}
+                </span>
+                <span class="m-value">
+                  {{ (best.model_variant === '1D-CNN' 
+                      ? best.metrics?.['train_loss'] 
+                      : (best.metrics?.['metrics/mAP50_B'] || 0)) | number:'1.2-4' }}
+                </span>
               </div>
             </div>
           </div>

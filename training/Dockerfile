@@ -27,8 +27,7 @@ WORKDIR /app
 
 # 4. 의존성 파일 복사 및 설치
 COPY pyproject.toml poetry.lock* /app/
-RUN poetry config virtualenvs.create false \
-    && poetry install --no-interaction --no-ansi --no-root \
+RUN poetry install --no-interaction --no-ansi --no-root \
     && pip install --no-cache-dir ultralytics==8.3.0
 
 # 5. 소스 코드 복사
@@ -38,4 +37,4 @@ RUN chmod +x *.py
 RUN python -c "import torch; print(f'Final PyTorch: {torch.__version__}')"
 
 # 실행 명령
-CMD ["python", "train_yolo.py"]
+CMD ["python", "--help"]

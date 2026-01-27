@@ -54,7 +54,8 @@ def read_active_deployments(project_id: Optional[int] = None, db: Session = Depe
     for d in deployments:
         exp_id = d.job.experiment_id 
         run_id = d.run_id
-        d.artifact_uri = f"s3://mlflow-artifacts/{exp_id}/{run_id}/artifacts/plots/weights/best.pt"
+        if "yolo" in d.model_name.lower():
+            d.artifact_uri = f"s3://mlflow-artifacts/{exp_id}/{run_id}/artifacts/plots/weights/best.pt"
     
     return deployments
 
@@ -108,6 +109,23 @@ def stream_deployment_logs(deployment_id: int, db: Session = Depends(get_db)):
         media_type="text/event-stream"
     )
 
+@router.post("/{deployment_id}/predict")
+async def predict_data(
+    deployment_id: int, 
+    payload: dict, # JSON 데이터 수신
+    db: Session = Depends(get_db)    
+):
+    dep = db.query(Deployment).get(deployment_id)
+    target_url = f"http://bento-serve-{deployment_id}:3000/predict"
+
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(target_url, json=payload, timeout=10.0)
+            return response.json()
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/{deployment_id}/predict/visual")
 async def predict_visual(
     deployment_id: int, 
@@ -127,7 +145,7 @@ async def predict_visual(
             detail="배포 정보를 찾을 수 없거나 컨테이너가 실행 중이지 않습니다."
         )
 
-    target_url = f"http://bento-serve-{deployment_id}:3000/predict/visual"
+    target_url = f"http://bento-serve-{deployment_id}:3000/predict"
     
     try:
         async with httpx.AsyncClient() as client:
@@ -152,3 +170,35 @@ async def predict_visual(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"BentoML 컨테이너 연결 실패: {str(exc)}"
         )
+
+@router.post("/{deployment_id}/extract-sample")
+async def extract_sample_proxy(
+    deployment_id: int, 
+    upload_file: UploadFile = File(...), 
+    db: Session = Depends(get_db)
+):
+    """
+    [Proxy] 사용자가 업로드한 .npy 파일에서 샘플 데이터를 추출하여 반환합니다.
+    Target BentoML: POST /utils/extract-sample
+    """
+    dep = db.query(Deployment).get(deployment_id)
+    if not dep or not dep.container_id:
+        raise HTTPException(status_code=404, detail="배포 컨테이너를 찾을 수 없습니다.")
+
+    target_url = f"http://bento-serve-{deployment_id}:3000/utils/extract-sample"
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            file_content = await upload_file.read()
+            files = {'input_file': (upload_file.filename, file_content, 'application/octet-stream')}
+            
+            # BentoML 유틸리티 엔드포인트로 파일 전달
+            response = await client.post(target_url, files=files, timeout=10.0)
+            
+            if response.status_code != 200:
+                raise HTTPException(status_code=response.status_code, detail=response.text)
+            
+            return response.json()
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"샘플 추출 실패: {str(e)}")

@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, effect, inject, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { Model } from '../../services/model';
 import { MODEL_CONFIGS } from '../../configs/model-config';
@@ -31,6 +31,18 @@ export class Train implements OnInit {
   dynamicParams: any = {};
   projects: IProject[] = [];
 
+  constructor() {
+    effect(() => {
+      const autoModel = this.modelService.inferredModelName();
+      if (autoModel && this.configs[autoModel]) {
+        if (this.selectedModelName !== autoModel) {
+          this.onModelChange(autoModel);
+          this.notificationService.showInfo(`🤖 알고리즘이 자동으로 '${autoModel}'로 설정되었습니다.`);
+        }
+      }
+    })
+  }
+
   ngOnInit() {
     this.loadProjects();
   }
@@ -57,7 +69,26 @@ export class Train implements OnInit {
     }
   }
 
+  get isCompatible(): boolean {
+    const currentPath = this.modelService.selectedDatasetPath();
+    if (!currentPath || !this.selectedModelName) return false;
+
+    const config = this.configs[this.selectedModelName];
+    if (!config) return true;
+    
+    const pathNormalized = currentPath.toLowerCase();
+    const requiredKeyword = config.requiredKeyword.toLowerCase();
+    
+    return pathNormalized.includes(requiredKeyword);
+
+  }
+
   submitTraining() {
+    if (!this.isCompatible) {
+      this.notificationService.showError('선택한 모델과 데이터셋이 호환되지 않습니다.');
+      return;
+    }
+
     const currentPath = this.modelService.selectedDatasetPath();
     if (!currentPath || !this.selectedModelName || !this.selectedProjectId) {
       this.notificationService.showError('필수 설정이 누락되었습니다.');

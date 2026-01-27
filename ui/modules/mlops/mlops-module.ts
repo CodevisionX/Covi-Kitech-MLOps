@@ -11,6 +11,8 @@ import { Dashboard } from './pages/dashboard/dashboard';
 import { Train } from './components/train/train';
 import { SharedModule } from '../shared/shared-module';
 import { ModelValidation } from './components/model-validation/model-validation';
+import { ModelDetailCnn } from './components/model-detail-cnn/model-detail-cnn';
+import { ModelValidationCnn } from './components/model-validation-cnn/model-validation-cnn';
 
 @NgModule({
   declarations: [
@@ -22,6 +24,8 @@ import { ModelValidation } from './components/model-validation/model-validation'
     Deploy,
     ModelDetail,
     ModelValidation,
+    ModelDetailCnn,
+    ModelValidationCnn,
   ],
   imports: [
     CommonModule,

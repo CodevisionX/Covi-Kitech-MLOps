@@ -2,7 +2,7 @@
   <header class="page-header">
     <div class="header-left">
       <h1><mat-icon>hub</mat-icon>모델 배포 이력</h1>
-      <p>BentoML 기반 실시간 추론 엔드포인트를 모니터링하고 관리합니다.</p>
+      <p>실시간 추론 엔드포인트를 모니터링하고 관리합니다.</p>
     </div>
     <div class="summary-stats">
       <div class="stat-item">
@@ -12,7 +12,7 @@
     </div>
   </header>
 
-  <div class="resource-overview">
+  <!-- <div class="resource-overview">
     @if (isLoading()) {
     @for (i of [1,2]; track i) {
     <div class="skeleton-loader metric-card-skeleton"></div>
@@ -40,7 +40,7 @@
       <mat-progress-bar mode="determinate" value="15"></mat-progress-bar>
     </div>
     }
-  </div>
+  </div> -->
 
   <section class="active-section">
     <div class="deployment-grid">
@@ -98,8 +98,8 @@
             }
           </div>
 
+          @if (dep.status === 'RUNNING' && dep.artifact_uri) {
           <div class="info-panel">
-            @if (dep.status === 'RUNNING' && dep.artifact_uri) {
             <div class="url-box">
               <mat-icon>storage</mat-icon>
               <a [href]="dep.endpoint_url" target="_blank" class="endpoint-link">{{ dep.artifact_uri }}</a>
@@ -107,8 +107,8 @@
                 <mat-icon>content_copy</mat-icon>
               </button>
             </div>
-            }
           </div>
+          }
         </mat-card-content>
 
         <mat-card-actions align="end">
@@ -118,7 +118,7 @@
           </button>
           }
           @else {
-          <button mat-flat-button color="primary" (click)="onNavigateToValidation(dep.id)"
+          <button mat-flat-button color="primary" (click)="onNavigateToValidation(dep)"
             [disabled]="dep.status !== 'RUNNING'">
             <mat-icon>biotech</mat-icon> 모델 검증 및 테스트
           </button>

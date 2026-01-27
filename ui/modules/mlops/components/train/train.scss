@@ -54,7 +54,7 @@ $transition-base: all var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
   &.ready {
     border-color: var(--success-color);
     background: rgba(46, 125, 50, 0.05);
-    
+
     .status-badge.active {
       background: var(--success-color);
       color: var(--text-on-primary);
@@ -109,6 +109,65 @@ $transition-base: all var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
       height: 18px;
       color: var(--text-muted);
     }
+  }
+
+  .path-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px; // 경로 라인과 분석 결과 사이 간격
+  }
+
+  /* ✨ 추가: 분석 결과 영역 스타일 */
+  .analysis-result-area {
+    margin-top: 4px;
+    padding-left: 4px;
+
+    .analysis-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      background: var(--success-color);
+      color: white;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: 0 4px 10px rgba(var(--main-primary-rgb), 0.2);
+
+      mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+      }
+
+      .label {
+        opacity: 0.8;
+        font-weight: 400;
+      }
+
+      .value {
+        // text-decoration: underline;
+        text-underline-offset: 4px;
+      }
+    }
+  }
+}
+
+.option-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+
+  .auto-badge {
+    background: var(--success-color);
+    color: white;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 800;
+    margin-left: 10px;
+    text-transform: uppercase;
   }
 }
 
@@ -228,5 +287,24 @@ $transition-base: all var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
     mat-icon {
       margin-right: 8px;
     }
+  }
+}
+
+.analysis-desc {
+  margin: 8px 0 0 0;
+  font-size: 14px;
+  color: var(--main-primary-color);
+  font-style: italic;
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

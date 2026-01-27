@@ -85,6 +85,13 @@ class JobService:
         with SessionLocal() as db:
             job = db.query(Job).get(job_id)
             project = db.query(Project).get(job.project_id)
+
+            script_mapping = {
+                "YOLOv8": "train_yolo.py",
+                "1D-CNN": "train_cnn.py"
+            }
+            train_script = script_mapping.get(job.model_variant, "train_yolo.py")
+
             project_name = project.name if project else "Default"
             experiment_name = f"{project_name}_{job.model_variant}"
 
@@ -113,10 +120,9 @@ class JobService:
 
                 # Docker 컨테이너 가동 (Blocking I/O -> Executor)
                 env_vars = self._prepare_env_vars(job)
-                train_script = "train_yolo.py" if job.model_variant == "YOLOv8" else "train_effnet.py"
 
                 command = ["bash", "-c", f"set -o pipefail; python -u {train_script} 2>&1 | tee /app/runs/{job.id}.log"]
-
+        
                 container = await loop.run_in_executor(None, lambda: docker_provider.run_container(
                     image=settings.TRAINING_IMAGE,
                     command=command,

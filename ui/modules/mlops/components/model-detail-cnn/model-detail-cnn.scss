@@ -1,0 +1,271 @@
+// 변수 설정
+:host {
+  --main-primary-color: #002387; 
+  --bg-light: #f8fafc; // 좀 더 세련된 연그레이
+  --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  --border-color: #e2e8f0;
+}
+
+.model-detail-container {
+  padding: 32px;
+  background-color: var(--bg-light);
+  min-height: 100vh;
+  font-family: 'Inter', sans-serif;
+}
+
+// 1. 페이지 헤더 & 브레드크럼
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 32px;
+
+  .header-left {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+
+    .breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      color: #64748b;
+      font-size: 14px;
+
+      .link {
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 8px;
+        border-radius: 6px;
+        transition: all 0.2s;
+
+        mat-icon { font-size: 18px; width: 18px; height: 18px; }
+
+        &:hover {
+          background-color: #e2e8f0;
+          color: var(--main-primary-color);
+          text-decoration: none; // 밑줄보다는 배경색 변화가 더 세련됨
+        }
+      }
+
+      .separator {
+        color: #cbd5e1;
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
+      }
+
+      .current {
+        font-weight: 600;
+        color: #1e293b;
+        padding-left: 4px;
+      }
+    }
+
+    .title-group {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+
+      .back-btn {
+        background: white;
+        border: 1px solid var(--border-color);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      }
+
+      .title-with-badge {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+
+        h1 {
+          margin: 0;
+          font-size: 28px;
+          font-weight: 800;
+          color: #0f172a;
+          letter-spacing: -0.02em;
+        }
+
+        // 상태 배지 디자인 개선 (텍스트와 조화롭게)
+        .status-badge {
+          padding: 4px 12px;
+          border-radius: 6px;
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: 0.05em;
+          border: 1px solid transparent;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+
+          &[data-status="FINISHED"] { 
+            background: #f0fdf4; 
+            color: #166534; 
+            border-color: #bbf7d0; 
+          }
+          &[data-status="FAILED"] { 
+            background: #fef2f2; 
+            color: #991b1b; 
+            border-color: #fecaca; 
+          }
+          &[data-status="RUNNING"] { 
+            background: #eff6ff; 
+            color: #1e40af; 
+            border-color: #bfdbfe; 
+          }
+        }
+      }
+    }
+  }
+
+  .deploy-btn {
+    height: 48px;
+    padding: 0 24px;
+    font-weight: 700;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #ff5722 0%, #f44336 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(244, 67, 54, 0.3);
+    transition: transform 0.2s;
+
+    &:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(244, 67, 54, 0.4);
+    }
+    &:disabled { 
+      background: #e2e8f0; 
+      color: #94a3b8; 
+      box-shadow: none;
+    }
+  }
+}
+
+// 2. 요약 정보 섹션
+.summary-section {
+  margin-bottom: 40px;
+  .summary-card {
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    border-left: 6px solid var(--main-primary-color);
+    box-shadow: var(--card-shadow);
+    
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+
+      .info-item {
+        label { font-size: 12px; color: #64748b; font-weight: 600; margin-bottom: 4px; display: block; }
+        .value { font-size: 16px; font-weight: 700; color: #1e293b; }
+      }
+
+      .tags-item {
+        grid-column: span 3;
+        border-top: 1px solid #f1f5f9;
+        padding-top: 16px;
+        
+        .tag-cloud {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          .custom-tag {
+            background: #f1f5f9;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            color: #475569;
+            border: 1px solid #e2e8f0;
+            strong { color: var(--main-primary-color); }
+          }
+        }
+      }
+    }
+  }
+}
+
+// 3. 차트 및 분석 공통
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1e293b;
+  mat-icon { color: var(--main-primary-color); }
+}
+
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+  gap: 24px;
+  margin-bottom: 40px;
+
+  .chart-card {
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    box-shadow: var(--card-shadow);
+
+    mat-card-header { margin-bottom: 16px; }
+    mat-card-title { font-size: 15px; font-weight: 700; color: #334155; }
+
+    .canvas-wrapper {
+      position: relative;
+      height: 320px;
+      width: 100%;
+    }
+  }
+}
+
+// 4. 이미지 결과 섹션
+.image-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+
+  .image-card {
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    box-shadow: var(--card-shadow);
+
+    .img-container {
+      position: relative;
+      width: 100%;
+      background-color: #0f172a;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 350px;
+
+      img { max-width: 100%; height: auto; display: block; }
+
+      .img-tag {
+        position: absolute;
+        top: 16px;
+        left: 16px;
+        padding: 6px 14px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 800;
+        color: white;
+        z-index: 2;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+
+        &.label { background-color: #10b981; }
+        &.pred { background-color: #3b82f6; }
+      }
+    }
+  }
+}
+
+// 반응형 대응
+@media (max-width: 1024px) {
+  .image-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 768px) {
+  .page-header { flex-direction: column; gap: 20px; }
+  .charts-grid { grid-template-columns: 1fr; }
+  .summary-section .summary-card .info-grid { grid-template-columns: 1fr; }
+}

@@ -78,6 +78,29 @@ export class Deployment extends BaseApi {
   }
 
   /**
+   * .npy 파일을 서버로 전송하여 모델 추론에 즉시 사용할 수 있는 
+   * 샘플 데이터(JSON) 리스트를 추출합니다.
+   */
+  extractSample(deploymentId: number, file: File): Observable<any> {
+    const formData = new FormData();
+    formData.append('upload_file', file); 
+
+    return this.http.post<any>(`/deployments/${deploymentId}/extract-sample`, formData)
+      .pipe(catchError(this.handleError));
+  }
+
+  /**
+   * 배포된 모델(CNN 등)에 수치 데이터를 전송하여 추론 결과를 받습니다.
+   * @param deploymentId 배포 ID
+   * @param payload { "data": [[[...]]] } 형태의 수치 데이터
+   */
+  predictData(deploymentId: number, payload: any): Observable<any> {
+    // 백엔드 @router.post("/{deployment_id}/predict") 엔드포인트를 호출합니다.
+    return this.http.post<any>(`/deployments/${deploymentId}/predict`, payload)
+      .pipe(catchError(this.handleError));
+  }
+
+  /**
    * 배포된 모델에 이미지를 전송하여 시각화된(Bounding Box) 결과 이미지를 받습니다.
    * 반환 타입은 Blob(이미지 바이너리)입니다.
    */

@@ -1,0 +1,205 @@
+import { Component, computed, inject, signal } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
+import { Chart, registerables, ChartConfiguration, ChartOptions } from 'chart.js';
+import { Experiment } from '../../services/apis/experiment';
+import { Notification } from '../../services/notification';
+import { IMLflowRun } from '../../services/apis/models/experiment.model';
+import { formatDistanceToNow } from 'date-fns';
+import { ko } from 'date-fns/locale';
+import { Deployment } from '../../services/apis/deployment';
+import { HttpErrorResponse, HttpResponse } from '@angular/common/http';
+
+Chart.register(...registerables);
+
+@Component({
+  selector: 'app-model-detail-cnn',
+  standalone: false,
+  templateUrl: './model-detail-cnn.html',
+  styleUrl: './model-detail-cnn.scss',
+})
+export class ModelDetailCnn {
+
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  protected readonly experimentService = inject(Experiment);
+  private readonly notificationService = inject(Notification);
+  private readonly deploymentService = inject(Deployment);
+
+  // 상태 관리 Signals
+  runId = signal<string>('');
+  projectId = signal<number | null>(null);
+  jobId = signal<number | null>(null);
+  runInfo = signal<IMLflowRun | null>(null); // 상세 정보 추가
+  metricsData = signal<any>(null);
+  isDeploying = signal<boolean>(false);
+
+  protected readonly learningCurveUrl = computed(() =>
+    this.experimentService.getArtifactPreviewUrl(this.runId(), 'learning_curves.png')
+  );
+
+  protected readonly sensorSampleUrl = computed(() =>
+    this.experimentService.getArtifactPreviewUrl(this.runId(), 'sensor_samples.png')
+  );
+
+  ngOnInit() {
+    const id = this.route.snapshot.paramMap.get('runId')!;
+    const pId = this.route.snapshot.queryParamMap.get('projectId');
+    const jId = this.route.snapshot.queryParamMap.get('jobId');
+
+    this.runId.set(id);
+    if (pId) this.projectId.set(+pId);
+    if (jId) this.jobId.set(+jId);
+
+    this.loadRunDetail(id);
+    this.loadMetricsHistory(id);
+  }
+
+  loadRunDetail(runId: string) {
+    this.experimentService.getRunDetail(runId).subscribe({
+      next: (info) => this.runInfo.set(info),
+      error: (err) => this.notificationService.showError('상세 정보를 불러오지 못했습니다.')
+    });
+  }
+
+  loadMetricsHistory(runId: string) {
+    this.experimentService.getMetricsHistory(runId).subscribe({
+      next: (data) => this.metricsData.set(data),
+      error: (err) => console.error('메트릭 로드 실패:', err)
+    });
+  }
+
+  onDeployModel() {
+    const info = this.runInfo();
+    if (!info) return;
+    if (!confirm(`현재 모델(Run ID: ${this.runId().substring(0, 8)})을 BentoML로 배포하시겠습니까?`)) return;
+
+    this.isDeploying.set(true);
+    // 2. 백엔드로 보낼 데이터 구성
+    const deployRequest = {
+      project_id: this.projectId()!,
+      model_name: info.tags?.['model_variant'] || '1D-CNN_Model',
+      run_id: this.runId(),
+      job_id: this.jobId() || (info.tags?.['job_id'] ? +info.tags['job_id'] : undefined)
+    };
+
+    // 3. 실제 API 호출
+    this.deploymentService.createDeployment(deployRequest).subscribe({
+      next: (response) => {
+        this.isDeploying.set(false);
+        this.notificationService.showSuccess('배포 프로세스가 시작되었습니다.');
+        this.router.navigate(['/dashboard/deployments']);
+      },
+      error: (err: HttpErrorResponse) => {
+        this.isDeploying.set(false);
+        const serverMessage = '모델은 한 번에 하나만 배포 가능합니다. 기존 배포를 먼저 중단해 주세요.';
+        this.notificationService.showWarning(serverMessage);
+      }
+    });
+  }
+  
+  goBack() {
+    this.router.navigate(['/dashboard/models'], {
+      queryParams: { projectId: this.projectId() }
+    });
+  }
+
+  onImgError(event: any) {
+    const fallbackSrc = 'assets/no_image.png';
+
+    if (event.target.src !== fallbackSrc) {
+      event.target.src = fallbackSrc;
+    }
+  }
+
+  mAPChartData = computed<ChartConfiguration<'line'>['data']>(() => {
+    const data = this.metricsData();
+    if (!data) return { labels: [], datasets: [] };
+
+    const performanceKey = data['train_loss'] ? 'train_loss' : 'metrics/mAP50_B';
+    const chartLabels = data[performanceKey] ? data[performanceKey].map((_: any, i: number) => `Epoch ${i + 1}`) : [];
+    const chartValues = data[performanceKey] || [];
+
+    return {
+      labels: chartLabels,
+      datasets: [{
+        data: chartValues,
+        label: performanceKey === 'train_loss' ? 'Accuracy' : 'mAP@0.5',
+        borderColor: '#002387',
+        backgroundColor: 'rgba(0, 35, 135, 0.1)',
+        fill: true,
+        tension: 0.4,
+        pointRadius: 2
+      }]
+    };
+  });
+
+  lossChartData = computed<ChartConfiguration<'line'>['data']>(() => {
+    const data = this.metricsData();
+    if (!data) return { labels: [], datasets: [] };
+
+    const datasets: any[] = [];
+    let labels: string[] = [];
+
+    // CNN 지표 확인
+    if (data['train_loss']) {
+      datasets.push({ 
+        data: data['train_loss'], 
+        label: 'Total Loss (CNN)', 
+        borderColor: '#F44336', 
+        tension: 0.4, 
+        fill: false 
+      });
+      labels = data['train_loss'].map((_: any, i: number) => `Epoch ${i + 1}`);
+    } 
+    // YOLO 지표 확인 (기존 유지)
+    else {
+      const boxLoss = data['train/box_loss'] || [];
+      const clsLoss = data['train/cls_loss'] || [];
+      if (boxLoss.length > 0) datasets.push({ data: boxLoss, label: 'Box Loss', borderColor: '#E91E63', tension: 0.4, fill: false });
+      if (clsLoss.length > 0) datasets.push({ data: clsLoss, label: 'Class Loss', borderColor: '#4CAF50', tension: 0.4, fill: false });
+      labels = boxLoss.length > 0 ? boxLoss.map((_: any, i: number) => `Epoch ${i + 1}`) : [];
+    }
+
+    return { labels, datasets };
+  });
+
+  chartOptions: ChartOptions<'line'> = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'top' },
+      tooltip: { mode: 'index', intersect: false }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        ticks: {
+          // 소수점이 매우 길 경우를 대비해 포맷팅
+          callback: function (value) {
+            return Number(value).toFixed(4);
+          }
+        }
+      },
+      x: {
+        grid: { display: false }
+      }
+    }
+  };
+
+  getRelativeTime(timestamp?: number | string | null): string {
+    if (!timestamp) return '-';
+
+    try {
+      // 숫자인 경우(MLflow 타임스탬프)와 문자열인 경우 모두 처리
+      const date = typeof timestamp === 'number' ? new Date(timestamp) : new Date(timestamp);
+
+      // 유효하지 않은 날짜 체크
+      if (isNaN(date.getTime())) return '-';
+
+      return formatDistanceToNow(date, { addSuffix: true, locale: ko });
+    } catch (error) {
+      return '-';
+    }
+  }
+
+}

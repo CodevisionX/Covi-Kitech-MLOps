@@ -1,5 +1,5 @@
 # Dockerfile.base (Serving용)
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 # 1. 시스템 의존성 설치
 RUN apt-get update && apt-get install -y \
@@ -26,8 +26,11 @@ RUN poetry install --no-interaction --no-ansi --no-root --with inference --witho
 # 5. 소스 코드는 라이브러리 설치 후에 복사합니다.
 # 이렇게 해야 service.py만 수정했을 때 라이브러리를 다시 설치하지 않습니다.
 COPY service.py /app/
+COPY runnables /app/runnables/
+COPY utils /app/utils/
 
 # 6. BentoML 홈 디렉토리 설정 (공유 볼륨과 일치)
+ENV PYTHONPATH=/app
 ENV BENTOML_HOME=/root/.bentoml
 
 # 7. 실행 명령어

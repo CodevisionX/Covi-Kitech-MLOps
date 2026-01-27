@@ -79,7 +79,12 @@ export class Deploy implements OnInit, OnDestroy {
       if (target) {
         // 2. 진행 중 상태 업데이트
         return list.map(d => d.id === data.deployment_id 
-          ? { ...d, status: data.status, status_message: data.message || d.status_message } 
+          ? { 
+              ...d, 
+              ...data,
+              status: data.status,
+              status_message: data.message || d.status_message
+            } 
           : d
         );
       } else {
@@ -162,8 +167,16 @@ export class Deploy implements OnInit, OnDestroy {
     this.notificationService.showInfo('엔드포인트 URL이 클립보드에 복사되었습니다.');
   }
 
-  onNavigateToValidation(id: number) {
-    this.router.navigate(['/dashboard', 'deployments', id]);
+  onNavigateToValidation(dep: IDeployment) {
+    if (!dep || !dep.id || !dep.model_name) return;
+
+    const isYolo = dep.model_name.toLowerCase().includes('yolo');
+
+    console.log('isYolo', isYolo);
+
+    const modelType = isYolo ? 'yolo' : 'cnn';
+
+    this.router.navigate(['/dashboard', 'deployments', modelType, dep.id]);
   }
 
   ngOnDestroy() {

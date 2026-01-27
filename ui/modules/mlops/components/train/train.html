@@ -28,6 +28,18 @@
             {{ modelService.selectedDatasetPath() || '왼쪽 브라우저에서 학습할 폴더를 선택해주세요.' }}
           </code>
         </div>
+
+        @if (modelService.inferredModelName()) {
+        <div class="analysis-result-area" @fadeInScale>
+          <div class="analysis-tag">
+            <mat-icon>psychology</mat-icon>
+            <span class="label">시스템 분석 결과:</span>
+            <span class="value">{{ modelService.inferredModelName() }}</span>
+          </div>
+        </div>
+        }
+
+
       </div>
     </div>
   </section>
@@ -37,77 +49,94 @@
       <div class="form-row">
         <mat-form-field appearance="outline" class="full-width">
           <mat-label>학습 알고리즘 선택</mat-label>
-          <mat-select (selectionChange)="onModelChange($event.value)">
+          <mat-select [ngModel]="selectedModelName" (selectionChange)="onModelChange($event.value)">
             @for (m of configs | keyvalue; track m.key) {
-              <mat-option [value]="m.key">
+            <mat-option [value]="m.key">
+              <div class="option-content">
                 <strong>{{ m.key }}</strong> - {{ m.value.description }}
-              </mat-option>
+                @if (m.key === modelService.inferredModelName()) {
+                <span class="auto-badge">Auto</span>
+                }
+              </div>
+            </mat-option>
             }
           </mat-select>
         </mat-form-field>
       </div>
 
       @if (selectedModelName) {
-        <div class="params-container">
-          <div class="params-header">
-            <mat-icon>settings</mat-icon>
-            <span>하이퍼파라미터 설정 ({{ selectedModelName }})</span>
-          </div>
-          
-          <div class="params-grid">
-            @for (p of configs[selectedModelName].parameters; track p.name) {
-              <div class="param-item">
-                @if (p.type === 'number') {
-                  <mat-form-field appearance="outline">
-                    <mat-label>
-                      <div class="label-with-info">
-                        {{ p.label }}
-                        <mat-icon class="help-icon" [matTooltip]="p.tooltip" matTooltipPosition="above">help_outline</mat-icon>
-                      </div>
-                    </mat-label>
-                    <input matInput type="number" [(ngModel)]="dynamicParams[p.name]" [min]="p.min ?? null">
-                  </mat-form-field>
-                }
+      <div class="params-container">
+        <div class="params-header">
+          <mat-icon>settings</mat-icon>
+          <span>하이퍼파라미터 설정 ({{ selectedModelName }})</span>
+        </div>
 
-                @if (p.type === 'select') {
-                  <mat-form-field appearance="outline">
-                    <mat-label>
-                      <div class="label-with-info">
-                        {{ p.label }}
-                        <mat-icon class="help-icon" [matTooltip]="p.tooltip" matTooltipPosition="above">help_outline</mat-icon>
-                      </div>
-                    </mat-label>
-                    <mat-select [(ngModel)]="dynamicParams[p.name]">
-                      @for (opt of p.options; track opt) {
-                        <mat-option [value]="opt">{{ opt }}</mat-option>
-                      }
-                    </mat-select>
-                  </mat-form-field>
+        <div class="params-grid">
+          @for (p of configs[selectedModelName].parameters; track p.name) {
+          <div class="param-item">
+            @if (p.type === 'number') {
+            <mat-form-field appearance="outline">
+              <mat-label>
+                <div class="label-with-info">
+                  {{ p.label }}
+                  <mat-icon class="help-icon" [matTooltip]="p.tooltip"
+                    matTooltipPosition="above">help_outline</mat-icon>
+                </div>
+              </mat-label>
+              <input matInput type="number" [(ngModel)]="dynamicParams[p.name]" [min]="p.min ?? null">
+            </mat-form-field>
+            }
+
+            @if (p.type === 'select') {
+            <mat-form-field appearance="outline">
+              <mat-label>
+                <div class="label-with-info">
+                  {{ p.label }}
+                  <mat-icon class="help-icon" [matTooltip]="p.tooltip"
+                    matTooltipPosition="above">help_outline</mat-icon>
+                </div>
+              </mat-label>
+              <mat-select [(ngModel)]="dynamicParams[p.name]">
+                @for (opt of p.options; track opt) {
+                <mat-option [value]="opt">{{ opt }}</mat-option>
                 }
-              </div>
+              </mat-select>
+            </mat-form-field>
             }
           </div>
+          }
         </div>
+      </div>
       }
 
       <div class="action-row">
-        @if (modelService.selectedDatasetPath() && selectedModelName) {
-          <div class="launch-summary">
-            <mat-icon>info</mat-icon>
-            <span>선택된 데이터셋으로 <strong>{{ selectedModelName }}</strong> 모델 학습을 시작할 준비가 되었습니다.</span>
-          </div>
+        @if (modelService.selectedDatasetPath() && selectedModelName && !isCompatible) {
+        <div class="incompatible-warning" @fadeInScale>
+          <!-- <mat-icon>warning</mat-icon> -->
+          <p class="analysis-desc">
+            올바른 알고리즘인지 확인해주세요.
+          </p>
+        </div>
+        }
+
+        @if (modelService.selectedDatasetPath() && selectedModelName && isCompatible) {
+        <div class="launch-summary">
+          <mat-icon>info</mat-icon>
+          <span>선택된 데이터셋으로 <strong>{{ selectedModelName }}</strong> 모델 학습을 시작할 준비가 되었습니다.</span>
+        </div>
         }
 
         <button mat-flat-button class="start-btn"
-          [disabled]="!modelService.selectedDatasetPath() || !selectedModelName || isSubmitting"
+          [disabled]="!modelService.selectedDatasetPath() || !selectedModelName || isSubmitting || !isCompatible"
           (click)="submitTraining()">
           @if (isSubmitting) {
-            <mat-spinner diameter="24"></mat-spinner>
+          <mat-spinner diameter="24"></mat-spinner>
           } @else {
-            <span>학습 시작</span>
+          <span>학습 시작</span>
           }
         </button>
       </div>
     </div>
   </section>
+
 </div>

@@ -1,5 +1,5 @@
 # Dockerfile.builder
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 # 1. 시스템 라이브러리 설치
 # MLflow 및 BentoML 내부 파일 처리를 위한 최소한의 라이브러리만 유지합니다.
