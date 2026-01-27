@@ -77,25 +77,32 @@ else:
 
             num_total = data.shape[0]
             window_size = data.shape[1] if len(data.shape) > 1 else 0
+
+            np.random.seed(42)
+
+            sample_size = min(num_total, 5)
             
             if window_size > 1:
                 # 시계열 흐름이 있는 데이터 (TEP 등)
-                size = min(num_total, 3)
-                start_idx = np.random.randint(0, num_total - size + 1)
-                indices = list(range(start_idx, start_idx + size))
-                mode = "Sequential (Window > 1)"
+                start_idx = np.random.randint(0, num_total - sample_size + 1)
+                indices = list(range(start_idx, start_idx + sample_size))
+                mode = "Fixed Sequential (Windowed)"
             else:
                 # 단일 시점 데이터 (Gas Turbine 등)
-                size = min(num_total, 3)
-                indices = np.random.choice(num_total, size=size, replace=False).tolist()
-                mode = "Random (Window = 1)"
+                indices = np.random.choice(num_total, size=sample_size, replace=False).tolist()
+                indices.sort()
+                mode = "Fixed Random (Single Point)"
 
             sample_data = data[indices].tolist()
             return {
                 "status": "success",
-                "sampling_mode": mode,
-                "extracted_indices": indices,
-                "shape": str(data.shape),
+                "metadata": {
+                    "sampling_mode": mode,
+                    "total_samples": num_total,
+                    "window_size": window_size,
+                    "extracted_indices": indices,
+                    "reproducibility": "Fixed with Seed 42"
+                },
                 "data": sample_data
             }
         except Exception as e:

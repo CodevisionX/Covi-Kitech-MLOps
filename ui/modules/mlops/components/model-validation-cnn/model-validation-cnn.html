@@ -69,7 +69,7 @@
                         <div class="prediction-status-card">
                             <mat-icon class="result-icon">analytics</mat-icon>
                             <span class="status-label">최종 시점 분석 결과</span>
-                            <span class="status-value" [class.anomaly]="isAnomaly()">{{ interpretedResult() }}</span>
+                            <span class="status-value" [class.anomaly]="isAnomaly() && analysisType().includes('분류')">{{ interpretedResult() }}</span>
 
                             <div class="index-details-list">
                                 <div class="list-header">추출 데이터 상세 (Index)</div>

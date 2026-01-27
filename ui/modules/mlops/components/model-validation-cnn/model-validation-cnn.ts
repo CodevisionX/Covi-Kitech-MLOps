@@ -64,11 +64,13 @@ export class ModelValidationCnn implements OnInit {
     return datasetName.includes('tep') ? '이상 분류 (Classification)' : '배출량 예측 (Regression)';
   });
 
-  // [추가] 결과 해석 로직: 인덱스를 사람이 이해할 수 있는 텍스트로 변환
+  // 결과 해석 로직: 인덱스를 사람이 이해할 수 있는 텍스트로 변환
   interpretedResult = computed(() => {
     const results = this.detailedResults();
     if (results.length === 0) return null;
-    return results[results.length - 1].label; // 마지막 시점의 결과를 대표로 표시
+
+    const lastLabel = results[results.length - 1].label;
+    return typeof lastLabel === 'number' ? lastLabel.toFixed(4) : lastLabel;
   });
 
   isAnomaly = computed(() => {
@@ -89,12 +91,14 @@ export class ModelValidationCnn implements OnInit {
     // 인덱스와 결과를 1:1로 매핑
     return indices.map((idx: number, i: number) => {
       const val = predictions[i];
-      let label = '';
+      let label: string | number = '';
 
-      if (dataset.includes('tep')) {
+      if (res.type === 'classification' || dataset.includes('tep')) {
         label = TEP_FAULT_MAP[val] || `Fault ${val}`;
+      } else if (dataset.includes('gas') || res.type === 'regression') {
+        label = val; 
       } else {
-        label = GT_GRADE_MAP[val] || `Grade ${val}`;
+        label = GT_GRADE_MAP[val] || `Value: ${val}`;
       }
 
       return { index: idx, label: label, raw: val };
@@ -164,7 +168,7 @@ export class ModelValidationCnn implements OnInit {
         this.extractedData.set(res.data);
         return this.deploymentService.predictData(dep.id, { 
           data: res.data, 
-          extracted_indices: res.extracted_indices 
+          extracted_indices: res.metadata.extracted_indices
         });
       }),
       // 로딩 상태 해제
