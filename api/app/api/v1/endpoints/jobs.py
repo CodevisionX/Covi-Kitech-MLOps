@@ -134,3 +134,17 @@ async def read_static_logs(job_id: int):
     service = JobService()
     logs = await service.get_all_logs(job_id)
     return {"logs": logs}
+
+@router.post("/jupyter", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
+async def create_jupyter_job(
+    job_in: JobCreate, 
+    db: Session = Depends(get_db)
+):
+    """
+    주피터 노트북 전용 학습 작업 등록 엔드포인트.
+    Docker 컨테이너를 가동하지 않고 즉시 MLflow Run ID를 반환합니다.
+    """
+    service = JobService()
+    # 새롭게 추가한 주피터 전용 서비스 메서드 호출
+    job = await service.register_jupyter_job(job_in, db)
+    return job

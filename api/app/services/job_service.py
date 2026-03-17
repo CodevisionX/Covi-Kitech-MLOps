@@ -414,3 +414,48 @@ class JobService:
         async with aiofiles.open(log_path, mode='r', encoding="utf-8") as f:
             content = await f.read()
             return content
+        
+    async def register_jupyter_job(self, job_in: JobCreate, db: Session) -> Job:
+        """
+        주피터 노트북 등 외부 실행 환경을 위한 작업 등록.
+        Docker 컨테이너를 실행하지 않으며, 즉시 MLflow Run을 생성하여 RUNNING 상태로 반환합니다.
+        """
+        # 1. DB에 기본 정보 등록 (상태는 즉시 RUNNING)
+        job = Job(
+            project_id=job_in.project_id,
+            experiment_id="0", # 임시값, 아래에서 MLflow 연동 후 업데이트
+            dataset=job_in.dataset,
+            model_variant=job_in.model_variant,
+            params=job_in.params,
+            tags=job_in.tags,
+            status=JobStatus.RUNNING.value
+        )
+        db.add(job)
+        db.commit()
+        db.refresh(job)
+
+        # 2. MLflow Run 즉시 생성 (동기 작업을 비동기로 안전하게 처리)
+        project = db.query(Project).get(job.project_id)
+        project_name = project.name if project else "Default"
+        experiment_name = f"{project_name}_{job.model_variant}"
+        
+        loop = asyncio.get_running_loop()
+        run = await loop.run_in_executor(
+            None, 
+            lambda: mlflow_provider.create_run(experiment_name=experiment_name)
+        )
+
+        # 3. 발급받은 Run ID를 DB에 업데이트
+        job.run_id = run.info.run_id
+        job.experiment_id = run.info.experiment_id
+        db.commit()
+        db.refresh(job)
+
+        # 4. 프론트엔드 UI에 새 작업 시작 알림
+        await sse_manager.broadcast("job_status", {
+            "job_id": job.id, 
+            "status": job.status,
+            "project_id": job.project_id 
+        })
+
+        return job

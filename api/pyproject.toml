@@ -1,43 +1,86 @@
 [tool.poetry]
-name = "my-mlops-project"
+name = "base-fastapi"
 version = "0.1.0"
-package-mode = false
-description = "FastAPI and MLOps Platform"
+description = "Manufacturing FastAPI backend template"
+authors = ["your-name <your-email@example.com>"]
+package-mode = false          # 애플리케이션 모드 — 패키지 빌드 안 함
 
 [tool.poetry.dependencies]
-python = "^3.10"
-fastapi = "0.109.0"
-uvicorn = {extras = ["standard"], version = "0.27.0"}
-httpx = "^0.27.0"
-python-multipart = "0.0.6"
-docker = "7.1.0"
-requests = "2.31.0"
-urllib3 = "1.26.20"
-boto3 = "1.34.0"
-mlflow = "2.14.0"
-python-dotenv = "1.0.0"
-bentoml = "1.2.0"
-pillow = "^10.0.0"
-pydantic-settings = "^2.1.0"
-aiofiles = "^23.2.1"
-sqlalchemy = "2.0.25"
-psycopg2-binary = "^2.9.9"
-prometheus-client = "^0.19.0"
+python = ">=3.11,<3.14"
 
+# ── Server ────────────────────────────────────────────────────────────────────
+fastapi = ">=0.115.0"
+uvicorn = {extras = ["standard"], version = ">=0.32.0"}
 
-[tool.poetry.group.inference.dependencies]
-ultralytics = "8.2.0"
-torch = {version = "2.3.1", source = "pytorch-gpu-src"}
-torchvision = {version = "0.18.1", source = "pytorch-gpu-src"}
+# ── Validation / Settings ─────────────────────────────────────────────────────
+pydantic = ">=2.9.0"
+pydantic-settings = ">=2.6.0"
 
-[[tool.poetry.source]]
-name = "pytorch-gpu-src"
-url = "https://download.pytorch.org/whl/cu121"
-priority = "explicit"
+# ── Database ──────────────────────────────────────────────────────────────────
+sqlalchemy = ">=2.0.0"
+alembic = ">=1.14.0"
+aiosqlite = ">=0.20.0"
+asyncpg = ">=0.30.0"
+psycopg2-binary = ">=2.9.9"
+
+# ── Security ──────────────────────────────────────────────────────────────────
+python-jose = {extras = ["cryptography"], version = ">=3.3.0"}
+passlib = {extras = ["bcrypt"], version = ">=1.7.4"}
+python-multipart = ">=0.0.12"
+
+# ── HTTP Client ───────────────────────────────────────────────────────────────
+httpx = ">=0.27.0"
+zeep = ">=4.2.1"
+
+# ── 제조 현장 장비 통신 ───────────────────────────────────────────────────────
+pyserial = ">=3.5"
+asyncio-mqtt = ">=0.16.2"
+pymodbus = ">=3.7.0"
+asyncua = ">=1.1.5"
+
+# ── Infra ─────────────────────────────────────────────────────────────────────
+boto3 = ">=1.35.0"
+docker = ">=7.1.0"
+mlflow = ">=2.17.0"
+
+# ── Utilities ─────────────────────────────────────────────────────────────────
+tenacity = ">=9.0.0"
+structlog = ">=24.4.0"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.0.0"
-black = "^24.0.0"
+pytest = ">=8.3.0"
+pytest-asyncio = ">=0.24.0"
+pytest-cov = ">=6.0.0"
+ruff = ">=0.8.0"
+mypy = ">=1.13.0"
+pre-commit = ">=4.0.0"
+
+# ── Ruff ──────────────────────────────────────────────────────────────────────
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+ignore = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+# ── Mypy ──────────────────────────────────────────────────────────────────────
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true
+
+# ── Pytest ────────────────────────────────────────────────────────────────────
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["."]
+omit = ["tests/*", "alembic/*", ".venv/*"]
 
 [build-system]
 requires = ["poetry-core"]

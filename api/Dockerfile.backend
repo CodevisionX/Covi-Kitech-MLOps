@@ -1,4 +1,4 @@
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 WORKDIR /app
 ENV BENTOML_HOME=/root/.bentoml
@@ -7,7 +7,7 @@ RUN pip install poetry
 COPY pyproject.toml poetry.lock* ./
 # inference 그룹을 제외하고 설치하여 용량 최적화
 RUN poetry config virtualenvs.create false \
-    && poetry install --no-root --without inference --without dev --no-interaction --no-ansi
+    && poetry install --no-root --without dev --no-interaction --no-ansi
 
 COPY . .
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

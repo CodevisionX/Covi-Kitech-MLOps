@@ -1,0 +1,33 @@
+# ./jupyter/Dockerfile.jupyter
+
+ARG TORCH_VER=2.5.1
+ARG CUDA_VER=12.4
+
+# Training과 동일한 PyTorch/CUDA 베이스 이미지 사용
+FROM pytorch/pytorch:${TORCH_VER}-cuda${CUDA_VER}-cudnn9-runtime
+
+ENV PYTHONUNBUFFERED=1 \
+    POETRY_VERSION=1.7.1 \
+    DEBIAN_FRONTEND=noninteractive
+
+# 시스템 라이브러리 설치 (YOLO 구동용 libgl1-mesa-glx 등 필수)
+RUN apt-get update && apt-get install -y \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    build-essential \
+    wget \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Poetry, JupyterLab, MLflow 설치
+RUN pip install "poetry==$POETRY_VERSION" jupyterlab mlflow boto3
+RUN poetry config virtualenvs.create false
+
+# 기본 작업 디렉토리 설정
+WORKDIR /home/jovyan/work
+
+# YOLO 및 의존성 패키지 설치 (필요에 따라 pyproject.toml 복사 방식으로 변경 가능)
+RUN pip install --no-cache-dir ultralytics==8.3.0
+
+# JupyterLab 실행 명령어 (비밀번호 없이 접속 허용)
+CMD ["jupyter", "lab", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root", "--NotebookApp.token=''"]

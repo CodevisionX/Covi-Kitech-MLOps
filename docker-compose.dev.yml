@@ -156,6 +156,37 @@ services:
     depends_on:
       - backend
 
+  jupyter:
+    build:
+      context: ./jupyter
+      dockerfile: Dockerfile.jupyter
+    container_name: mlops_jupyter
+    user: root
+    shm_size: '8gb' 
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - MLFLOW_S3_ENDPOINT_URL=${MLFLOW_S3_ENDPOINT_URL}
+      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER}
+      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD}
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./notebooks:/home/jovyan/work   # 노트북 파일 로컬 동기화
+      - training_results:/app/runs      # 학습 결과물 볼륨 공유
+    networks:
+      - mlops-net
+    depends_on:
+      - mlflow
+      - minio
+
 networks:
   mlops-net:
     name: mlops-net
