@@ -12,8 +12,8 @@ echo "Target: Unified NVIDIA NGC-based Environment"
 echo "------------------------------------------------------"
 
 # 1. Pull the latest images from the Container Registry
-echo "[1/3] Updating images from GHCR..."
-docker compose pull
+echo "[1/3] Updating all images (including tools and job profiles) from GHCR..."
+docker compose --profile tools --profile job pull
 
 # 2. Start the services in detached mode
 echo "[2/3] Starting all services in the background..."
