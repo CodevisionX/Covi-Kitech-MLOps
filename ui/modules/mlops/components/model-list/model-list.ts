@@ -92,7 +92,16 @@ export class ModelList implements OnInit, OnDestroy {
   bestJobId = computed(() => this.bestJob()?.id || null);
 
   activeDisplayedColumns = ['modelInfo', 'status', 'startTime', 'dashboard', 'actions', 'cancel'];
-  historyDisplayedColumns = ['modelInfo', 'status', 'startTime', 'dashboard', 'management', 'actions'];
+  historyDisplayedColumns = computed(() => {
+    const variant = this.selectedVariant();
+    
+    if (variant === '1D-CNN' || variant === 'YOLOv8') {
+      return ['modelInfo', 'status', 'startTime', 'dashboard', 'management', 'actions'];
+    }
+    
+    // 그 외의 모델(XGBoost 등)일 경우 'management'(분석 및 배포) 제외
+    return ['modelInfo', 'status', 'startTime', 'dashboard', 'actions'];
+  });
 
   private sseSubscription: Subscription | null = null;
   private currentLogDialogRef: MatDialogRef<TerminalLog> | null = null;

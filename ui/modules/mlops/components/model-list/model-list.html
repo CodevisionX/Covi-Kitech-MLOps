@@ -191,9 +191,11 @@
             </div>
           </div>
           <div class="best-actions">
-            <button mat-flat-button class="best-deploy-btn" (click)="navigateToRunDetail(best)">
-              <mat-icon>insights</mat-icon> 분석 및 배포
-            </button>
+            @if (best.model_variant === '1D-CNN' || best.model_variant === 'YOLOv8') {
+              <button mat-flat-button class="best-deploy-btn" (click)="navigateToRunDetail(best)">
+                <mat-icon>insights</mat-icon> 분석 및 배포
+              </button>
+            }
           </div>
         </div>
       </div>
@@ -274,12 +276,12 @@
             </td>
           </ng-container>
 
-          <tr mat-header-row *matHeaderRowDef="historyDisplayedColumns"></tr>
-          <tr mat-row *matRowDef="let row; columns: historyDisplayedColumns;"
+          <tr mat-header-row *matHeaderRowDef="historyDisplayedColumns()"></tr>
+          <tr mat-row *matRowDef="let row; columns: historyDisplayedColumns();"
             [class.is-best-row]="row.id === bestJobId()"></tr>
 
           <tr class="mat-row" *matNoDataRow>
-            <td class="mat-cell no-data-cell" [attr.colspan]="historyDisplayedColumns.length">
+            <td class="mat-cell no-data-cell" [attr.colspan]="historyDisplayedColumns().length">
               @if (!isLoading()) {
               <div class="empty-state">
                 <mat-icon>history_toggle_off</mat-icon>
