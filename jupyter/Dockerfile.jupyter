@@ -1,33 +1,39 @@
-# ./jupyter/Dockerfile.jupyter
-
-ARG TORCH_VER=2.5.1
-ARG CUDA_VER=12.4
-
-# Training과 동일한 PyTorch/CUDA 베이스 이미지 사용
-FROM pytorch/pytorch:${TORCH_VER}-cuda${CUDA_VER}-cudnn9-runtime
+# 1. Training과 동일한 NVIDIA NGC PyTorch 이미지 사용 (Blackwell 완벽 지원)
+FROM nvcr.io/nvidia/pytorch:26.02-py3
 
 ENV PYTHONUNBUFFERED=1 \
     POETRY_VERSION=1.7.1 \
     DEBIAN_FRONTEND=noninteractive
 
-# 시스템 라이브러리 설치 (YOLO 구동용 libgl1-mesa-glx 등 필수)
+# 2. 시스템 라이브러리 설치 (OpenCV 및 기본 빌드 도구)
 RUN apt-get update && apt-get install -y \
-    libgl1-mesa-glx \
+    libgl1 \
     libglib2.0-0 \
     build-essential \
     wget \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# Poetry, JupyterLab, MLflow 설치
-RUN pip install "poetry==$POETRY_VERSION" jupyterlab mlflow boto3
-RUN poetry config virtualenvs.create false
+# 3. 시스템 상속 가상환경 생성 및 PATH 설정
+# NGC의 PyTorch/CUDA를 상속받으면서 패키지 충돌을 방지합니다.
+RUN python -m venv --system-site-packages /opt/venv
+ENV PATH="/opt/venv/bin:${PATH}"
 
-# 기본 작업 디렉토리 설정
+# 4. 핵심 인프라 패키지만 설치
+# ipykernel은 주피터가 이 가상환경을 인식하게 하는 필수 다리입니다.
+RUN pip install --no-cache-dir \
+    "poetry==$POETRY_VERSION" \
+    jupyterlab \
+    mlflow \
+    boto3 \
+    ultralytics==8.3.0 \
+    ipykernel
+
+# 주피터 커널 등록: 이제 노트북을 열면 자동으로 이 가상환경이 잡힙니다.
+RUN /opt/venv/bin/python -m ipykernel install --user --name=python3 --display-name="Python 3 (NGC-Venv)"
+
+# 5. 기본 작업 디렉토리 설정
 WORKDIR /home/jovyan/work
 
-# YOLO 및 의존성 패키지 설치 (필요에 따라 pyproject.toml 복사 방식으로 변경 가능)
-RUN pip install --no-cache-dir ultralytics==8.3.0
-
-# JupyterLab 실행 명령어 (비밀번호 없이 접속 허용)
+# 6. JupyterLab 실행 명령어 (비밀번호 없이 접속 허용)
 CMD ["jupyter", "lab", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root", "--NotebookApp.token=''"]

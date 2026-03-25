@@ -120,8 +120,14 @@ class JobService:
 
                 # Docker 컨테이너 가동 (Blocking I/O -> Executor)
                 env_vars = self._prepare_env_vars(job)
+                
+                python_path = "/app/.venv/bin/python"
+                shell_path = "/bin/sh"
 
-                command = ["bash", "-c", f"set -o pipefail; python -u {train_script} 2>&1 | tee /app/runs/{job.id}.log"]
+                command = [
+                    shell_path, "-c", 
+                    f"{python_path} -u {train_script} 2>&1 | tee /app/runs/{job.id}.log"
+                ]
         
                 container = await loop.run_in_executor(None, lambda: docker_provider.run_container(
                     image=settings.TRAINING_IMAGE,
@@ -142,6 +148,13 @@ class JobService:
                 print(f"[Execution Error] {e}")
                 job.status = JobStatus.FAILED.value
                 job.error_message = str(e)
+
+                if 'container' in locals():
+                    try:
+                        loop.run_in_executor(None, lambda: container.remove(force=True))
+                    except:
+                        pass
+                    
                 db.commit()
 
                 await sse_manager.broadcast("job_status", {

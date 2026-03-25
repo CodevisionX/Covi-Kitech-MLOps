@@ -6,6 +6,10 @@ datasets/
 mlops_images/
 images_compressed/
 
+notebooks/.ipynb_checkpoints/
+notebooks/.Trash-0/
+notebooks/data/
+
 # 환경 변수 및 설정
 .env
 *.pyc
