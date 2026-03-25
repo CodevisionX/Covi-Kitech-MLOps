@@ -31,36 +31,22 @@ jobs:
                 - '!api/Dockerfile.base'
                 - '!api/deploy_worker.py'
                 - '!api/service.py'
-          - service_name: training-blackwell
+          - service_name: training
             context: ./training
             dockerfile: ./training/Dockerfile
             image_suffix: training
-            cuda_ver: "12.8"
-            torch_ver: "2.9.1"
-            tag_suffix: "py3.11-torch2.9.1-cuda12.8"
+            tag_suffix: "latest"
             filter_pattern: |
               src:
                 - 'training/**'
-          - service_name: training-ada
-            context: ./training
-            dockerfile: ./training/Dockerfile
-            image_suffix: training
-            cuda_ver: "12.4"
-            torch_ver: "2.5.1"
-            tag_suffix: "py3.11-torch2.5.1-cuda12.4"
+          - service_name: jupyter
+            context: ./jupyter
+            dockerfile: ./jupyter/Dockerfile.jupyter
+            image_suffix: jupyter
+            tag_suffix: "latest"
             filter_pattern: |
               src:
-                - 'training/**'
-          - service_name: training-ampere
-            context: ./training
-            dockerfile: ./training/Dockerfile
-            image_suffix: training
-            cuda_ver: "11.8"
-            torch_ver: "2.4.1"
-            tag_suffix: "py3.11-torch2.4.1-cuda11.8"
-            filter_pattern: |
-              src:
-                - 'training/**'
+                - 'jupyter/**'
           - service_name: ui
             context: ./ui
             dockerfile: ./ui/Dockerfile
@@ -145,12 +131,7 @@ jobs:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
           push: true
-          # Dockerfile의 ARG로 매트릭스 변수 전달
-          build-args: |
-            TORCH_VER=${{ matrix.torch_ver }}
-            CUDA_VER=${{ matrix.cuda_ver }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.REPO_LOWER }}-${{ matrix.image_suffix }}:${{ matrix.tag_suffix }}
-            ${{ matrix.service_name == 'training-ada' && format('{0}/{1}-{2}:latest', env.REGISTRY, env.REPO_LOWER, matrix.image_suffix) || '' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

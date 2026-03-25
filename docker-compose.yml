@@ -134,7 +134,7 @@ services:
 
   # 6. Training Worker (커스텀 이미지)
   training:
-    image: ${TRAINING_IMAGE:-ghcr.io/codevisionx/covi-kitech-mlops-training:py3.11-torch2.5.1-cuda12.4}
+    image: ${TRAINING_IMAGE:-ghcr.io/codevisionx/covi-kitech-mlops-training:latest}
     container_name: mlops_training
     shm_size: '8gb'
     deploy:
@@ -154,6 +154,30 @@ services:
     networks:
       - mlops-net
     profiles: ["job"]
+  
+  jupyter:
+    image: ghcr.io/codevisionx/covi-kitech-mlops-jupyter:latest
+    container_name: mlops_jupyter
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - MLFLOW_S3_ENDPOINT_URL=${MLFLOW_S3_ENDPOINT_URL}
+      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER}
+      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD}
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./notebooks:/home/jovyan/work
+      - training_results:/app/runs
+    networks:
+      - mlops-net
 
   # 7. Angular Frontend (커스텀 이미지)
   ui:
