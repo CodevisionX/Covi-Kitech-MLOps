@@ -114,7 +114,10 @@ services:
   
   # 6. Training Worker
   training:
-    build: ./training
+    build:
+      context: ./training
+      dockerfile: Dockerfile
+    image: mlops-training:latest
     container_name: mlops_training
     shm_size: '8gb'
     deploy:

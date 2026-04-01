@@ -27,7 +27,6 @@ RUN poetry install --no-interaction --no-ansi --no-root
 
 # 이후의 모든 명령어(pip, python)가 가상환경을 우선적으로 바라보도록 PATH 설정
 ENV PATH="/app/.venv/bin:${PATH}"
-ENV PYTHONPATH="/app/.venv/lib/python3.10/site-packages:${PYTHONPATH}"
 
 # Ultralytics를 가상환경 내부에 추가 설치
 RUN pip install --no-cache-dir ultralytics==8.3.0
