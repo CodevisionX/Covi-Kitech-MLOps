@@ -133,6 +133,7 @@ services:
     volumes:
       - ./training:/app             
       - training_results:/app/runs
+      - /app/.venv
     command: sh -c "python train_yolo.py 2>&1 | tee /app/runs/$$(hostname).log"
     networks:
       - mlops-net
