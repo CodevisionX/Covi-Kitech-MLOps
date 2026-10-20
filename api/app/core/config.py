@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     # 클래스 변수가 아닌 프로퍼티로 선언하여 최신 값을 반영하도록 함
     @property
     def DATABASE_URL(self) -> str:
-        return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:5432/{self.POSTGRES_DB}"
+        return f"postgresql+psycopg2://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:5432/{self.POSTGRES_DB}"
 
     class Config:
         case_sensitive = True # 대소문자 구분
