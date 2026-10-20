@@ -1,18 +1,21 @@
 import os
 import boto3
+from botocore.config import Config
 
 def download_dataset(bucket_name, prefix, local_dir="/app/data"):
-    """MinIO의 특정 폴더를 로컬로 재귀적으로 다운로드"""
+    """S3 호환 스토리지(RustFS)의 특정 폴더를 로컬로 재귀적으로 다운로드"""
     s3 = boto3.client('s3',
-        endpoint_url=os.getenv('MLFLOW_S3_ENDPOINT_URL', "http://minio:9000"),
+        endpoint_url=os.getenv('MLFLOW_S3_ENDPOINT_URL', "http://rustfs:9000"),
         aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-        aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
+        aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
+        region_name=os.getenv('AWS_DEFAULT_REGION', 'us-east-1'),
+        config=Config(s3={'addressing_style': 'path'}),
     )
 
     if not os.path.exists(local_dir):
         os.makedirs(local_dir)
 
-    print(f"MinIO 다운로드 시작: {bucket_name}/{prefix} -> {local_dir}")
+    print(f"데이터셋 다운로드 시작: {bucket_name}/{prefix} -> {local_dir}")
     
     paginator = s3.get_paginator('list_objects_v2')
     for result in paginator.paginate(Bucket=bucket_name, Prefix=prefix):

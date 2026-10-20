@@ -1,6 +1,7 @@
 # 데이터 저장 폴더 (DB 및 스토리지)
 pg_data/
 minio_data/
+rustfs_data/
 training_results/
 datasets/
 mlops_images/
@@ -14,6 +15,7 @@ notebooks/data/
 .env
 *.pyc
 __pycache__/
+api/artifact_cache/
 
 # Angular (UI) 의존성 및 빌드 결과물
 ui/node_modules/

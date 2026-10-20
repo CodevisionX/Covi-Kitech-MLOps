@@ -6,7 +6,7 @@ services:
     restart: always
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?.env 에 POSTGRES_PASSWORD 를 설정하세요}
       POSTGRES_DB: ${POSTGRES_DB}
     ports:
       - "${POSTGRES_PORT}:5432"
@@ -20,54 +20,77 @@ services:
       timeout: 5s
       retries: 5
 
-  # 2. Object Storage (MinIO) - 공식 이미지 사용
-  minio:
-    image: minio/minio
-    container_name: mlops-minio
+  # 2. Object Storage (RustFS) - S3 호환 오브젝트 스토리지 (Apache-2.0)
+  #    MinIO 커뮤니티 에디션 단종(2025-10 이미지 배포 중단, 2026-04 레포 아카이브)으로 교체
+  rustfs:
+    image: rustfs/rustfs:${RUSTFS_VERSION:-1.0.1}
+    container_name: mlops_rustfs
     restart: always
-    command: server /data --console-address ":${MINIO_CONSOLE_PORT}"
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY:?.env 에 S3_ACCESS_KEY 를 설정하세요}
+      RUSTFS_SECRET_KEY: ${S3_SECRET_KEY:?.env 에 S3_SECRET_KEY 를 설정하세요}
+      RUSTFS_VOLUMES: /data
+      RUSTFS_ADDRESS: ":9000"
+      RUSTFS_CONSOLE_ENABLE: "true"
+      RUSTFS_CONSOLE_ADDRESS: ":9001"
+      RUSTFS_OBS_LOG_DIRECTORY: ""   # 로그를 stdout으로 (docker logs 로 확인)
     ports:
-      - "${MINIO_PORT}:9000"
-      - "${MINIO_CONSOLE_PORT}:${MINIO_CONSOLE_PORT}"
+      - "${S3_PORT:-9000}:9000"
+      - "${S3_CONSOLE_PORT:-9001}:9001"
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
     volumes:
-      - ./minio_data:/data
+      # RustFS는 UID 10001로 실행되므로 호스트 폴더 대신 named volume 사용 (권한 문제 방지)
+      - rustfs_data:/data
     networks:
       - mlops-net
-    
-  minio-init:
-    image: minio/mc
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # 버킷 초기화 (1회성). 별도 클라이언트 이미지 없이 RustFS 이미지의 curl(SigV4 서명)을 사용
+  rustfs-init:
+    image: rustfs/rustfs:${RUSTFS_VERSION:-1.0.1}
+    container_name: mlops_rustfs_init
+    restart: "no"
     depends_on:
-      - minio
+      rustfs:
+        condition: service_healthy
+    environment:
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:?.env 에 S3_ACCESS_KEY 를 설정하세요}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:?.env 에 S3_SECRET_KEY 를 설정하세요}
+      MLFLOW_BUCKET_NAME: ${MLFLOW_BUCKET_NAME:-mlflow-artifacts}
+      DATASET_BUCKET_NAME: ${DATASET_BUCKET_NAME:-datasets}
     networks:
       - mlops-net
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-      MLFLOW_BUCKET_NAME: ${MLFLOW_BUCKET_NAME}
     entrypoint:
       - /bin/sh
       - -c
       - |
-        until /usr/bin/mc alias set myminio http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD}; do
-          echo 'MinIO 서버 기다리는 중...';
-          sleep 2;
-        done;
-        
-        echo 'MinIO 연결 성공! 버킷 생성을 시작합니다.';
+        set -e
+        S3=http://rustfs:9000
+        s3() {
+          curl -sS -o /dev/null -w '%{http_code}' \
+            --aws-sigv4 "aws:amz:us-east-1:s3" --user "$$S3_ACCESS_KEY:$$S3_SECRET_KEY" \
+            -H "x-amz-content-sha256: UNSIGNED-PAYLOAD" "$$@"
+        }
+        check() { case "$$1" in 2??) echo "  OK ($$1)";; *) echo "  FAILED (HTTP $$1)"; exit 1;; esac; }
 
-        TARGET_BUCKET=$${MLFLOW_BUCKET_NAME:-mlflow-artifacts};
-        
-        /usr/bin/mc mb --ignore-existing myminio/$$TARGET_BUCKET;
-        echo '버킷 생성 완료: ' $$TARGET_BUCKET;
-        
-        /usr/bin/mc mb --ignore-existing myminio/datasets;
-        /usr/bin/mc anonymous set download myminio/datasets;
-        
-        echo 'MinIO 초기화 작업이 모두 완료되었습니다!';
-        exit 0;
+        for b in "$$MLFLOW_BUCKET_NAME" "$$DATASET_BUCKET_NAME"; do
+          echo "버킷 생성: $$b"
+          check "$$(s3 -X PUT "$$S3/$$b")"
+        done
+
+        # 데이터셋 버킷은 익명 다운로드 허용 (기존 'mc anonymous set download' 와 동일)
+        echo "익명 다운로드 정책 적용: $$DATASET_BUCKET_NAME"
+        check "$$(s3 -X PUT "$$S3/$$DATASET_BUCKET_NAME?policy" -H 'Content-Type: application/json' \
+          --data "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"AWS\":[\"*\"]},\"Action\":[\"s3:GetObject\"],\"Resource\":[\"arn:aws:s3:::$$DATASET_BUCKET_NAME/*\"]}]}")"
+
+        echo 'RustFS 초기화 완료'
 
   # 3. MLflow Server (커스텀 이미지)
   mlflow:
@@ -76,14 +99,14 @@ services:
     restart: always
     depends_on:
       - postgres
-      - minio
+      - rustfs
     environment:
       MLFLOW_S3_ENDPOINT_URL: ${MLFLOW_S3_ENDPOINT_URL}
-      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
-      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:?.env 에 S3_ACCESS_KEY 를 설정하세요}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:?.env 에 S3_SECRET_KEY 를 설정하세요}
     command: >
       mlflow server
-      --backend-store-uri postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      --backend-store-uri postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD:?.env 에 POSTGRES_PASSWORD 를 설정하세요}@postgres:5432/${POSTGRES_DB}
       --default-artifact-root s3://${MLFLOW_BUCKET_NAME}/
       --host 0.0.0.0
       --port 5000
@@ -98,12 +121,12 @@ services:
     container_name: mlops_backend
     restart: always
     environment:
-      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER}
-      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD}
+      - AWS_ACCESS_KEY_ID=${S3_ACCESS_KEY:?.env 에 S3_ACCESS_KEY 를 설정하세요}
+      - AWS_SECRET_ACCESS_KEY=${S3_SECRET_KEY:?.env 에 S3_SECRET_KEY 를 설정하세요}
       - MLFLOW_S3_ENDPOINT_URL=${MLFLOW_S3_ENDPOINT_URL}
       - MLFLOW_TRACKING_URI=http://mlflow:5000
       - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?.env 에 POSTGRES_PASSWORD 를 설정하세요}
       - POSTGRES_DB=${POSTGRES_DB}
       - MAX_DEPLOYMENTS_PER_PROJECT=${MAX_DEPLOYMENTS_PER_PROJECT}
       - TRAINING_IMAGE=${TRAINING_IMAGE}
@@ -118,8 +141,8 @@ services:
     depends_on:
       mlflow:
         condition: service_started
-      minio:
-        condition: service_started
+      rustfs-init:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
   
@@ -147,8 +170,8 @@ services:
     environment:
       MLFLOW_TRACKING_URI: http://mlflow:5000
       MLFLOW_S3_ENDPOINT_URL: ${MLFLOW_S3_ENDPOINT_URL}
-      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
-      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:?.env 에 S3_ACCESS_KEY 를 설정하세요}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:?.env 에 S3_SECRET_KEY 를 설정하세요}
     volumes:
       - training_results:/app/runs 
     networks:
@@ -169,8 +192,8 @@ services:
       - JUPYTER_ENABLE_LAB=yes
       - MLFLOW_TRACKING_URI=http://mlflow:5000
       - MLFLOW_S3_ENDPOINT_URL=${MLFLOW_S3_ENDPOINT_URL}
-      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER}
-      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD}
+      - AWS_ACCESS_KEY_ID=${S3_ACCESS_KEY:?.env 에 S3_ACCESS_KEY 를 설정하세요}
+      - AWS_SECRET_ACCESS_KEY=${S3_SECRET_KEY:?.env 에 S3_SECRET_KEY 를 설정하세요}
     ports:
       - "8888:8888"
     volumes:
@@ -197,6 +220,8 @@ networks:
     driver: bridge
 
 volumes:
+  rustfs_data:
+    name: mlops_rustfs_data
   training_results:
     name: mlops_kitech_training_results
     driver: local

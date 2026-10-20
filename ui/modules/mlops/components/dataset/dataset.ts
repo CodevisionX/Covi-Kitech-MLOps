@@ -5,13 +5,13 @@ import { Model } from '../../services/model';
 import { Artifact } from '../../services/apis/artifact';
 import { Notification } from '../../services/notification';
 
-interface MinioNode {
+interface StorageNode {
   name: string;
   type: 'bucket' | 'folder' | 'file';
   bucket: string;
   fullPath: string;
   level: number;
-  children$?: BehaviorSubject<MinioNode[]>;
+  children$?: BehaviorSubject<StorageNode[]>;
   isLoading?: boolean;
 }
 
@@ -23,11 +23,11 @@ interface MinioNode {
 })
 export class Dataset implements OnInit, OnDestroy {
 
-  @ViewChild(CdkTree) tree!: CdkTree<MinioNode>;
+  @ViewChild(CdkTree) tree!: CdkTree<StorageNode>;
 
   // 데이터 소스를 단순 배열로 관리해도 최신 CDK Tree는 잘 작동합니다.
-  dataSource = new BehaviorSubject<MinioNode[]>([]);
-  selectedNode: MinioNode | null = null;
+  dataSource = new BehaviorSubject<StorageNode[]>([]);
+  selectedNode: StorageNode | null = null;
 
   private readonly artifact = inject(Artifact);
   protected readonly modelService = inject(Model);
@@ -48,26 +48,26 @@ export class Dataset implements OnInit, OnDestroy {
     this.artifact.getBuckets()
       .pipe(takeUntil(this.destroy$))
       .subscribe(res => {
-        const initialData: MinioNode[] = res.datasets.map(name => ({
+        const initialData: StorageNode[] = res.datasets.map(name => ({
           name,
           type: 'bucket' as const,
           bucket: name,
           fullPath: '',
           level: 0,
-          children$: new BehaviorSubject<MinioNode[]>([]) 
+          children$: new BehaviorSubject<StorageNode[]>([]) 
         }));
         this.dataSource.next(initialData);
       });
   }
 
-  childrenAccessor = (node: MinioNode): Observable<MinioNode[]> => {
+  childrenAccessor = (node: StorageNode): Observable<StorageNode[]> => {
     if (!node.children$) {
-      node.children$ = new BehaviorSubject<MinioNode[]>([]);
+      node.children$ = new BehaviorSubject<StorageNode[]>([]);
     }
     return node.children$.asObservable();
   };
 
-  async onNodeClick(node: MinioNode) {
+  async onNodeClick(node: StorageNode) {
     // 1. 학습 가능 레벨(2) 체크 및 Signal 업데이트 (기존 로직)
     if (node.level === 3) {
       const fullPath = `${node.bucket}/${node.fullPath}`;
@@ -86,7 +86,7 @@ export class Dataset implements OnInit, OnDestroy {
     }
   }
 
-  private fetchChildren(node: MinioNode): Promise<void> {
+  private fetchChildren(node: StorageNode): Promise<void> {
     return new Promise((resolve) => {
       // 이미 로딩 중이면 중복 호출 방지
       if (node.isLoading) return resolve();
@@ -102,7 +102,7 @@ export class Dataset implements OnInit, OnDestroy {
             bucket: node.bucket, 
             fullPath: f, 
             level: node.level + 1,
-            children$: new BehaviorSubject<MinioNode[]>([])
+            children$: new BehaviorSubject<StorageNode[]>([])
           }));
           const files = (res.files || []).map((f: any) => ({
             name: f.name, 
@@ -127,6 +127,6 @@ export class Dataset implements OnInit, OnDestroy {
     });
   }
   
-  hasChild = (_: number, node: MinioNode) => node.type !== 'file';
-  trackByFn = (index: number, node: MinioNode) => node.bucket + node.fullPath;
+  hasChild = (_: number, node: StorageNode) => node.type !== 'file';
+  trackByFn = (index: number, node: StorageNode) => node.bucket + node.fullPath;
 }

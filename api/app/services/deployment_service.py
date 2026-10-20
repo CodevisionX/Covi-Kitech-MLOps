@@ -112,8 +112,8 @@ class DeploymentService:
                 "MODEL_TYPE": derived_model_type,
                 "MLFLOW_TRACKING_URI": settings.MLFLOW_TRACKING_URI,
                 "MLFLOW_S3_ENDPOINT_URL": settings.MLFLOW_S3_ENDPOINT_URL,
-                "AWS_ACCESS_KEY_ID": settings.MINIO_ROOT_USER,
-                "AWS_SECRET_ACCESS_KEY": settings.MINIO_ROOT_PASSWORD,
+                "AWS_ACCESS_KEY_ID": settings.S3_ACCESS_KEY,
+                "AWS_SECRET_ACCESS_KEY": settings.S3_SECRET_KEY,
             }
 
             print(f"[DeploymentFlow] Dispatching builder for {dep_obj.model_name} as {derived_model_type}")
