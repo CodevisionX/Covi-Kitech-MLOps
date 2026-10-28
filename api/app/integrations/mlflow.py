@@ -29,17 +29,12 @@ class MlflowProvider:
 
     def register_model(self, run_id: str, model_name: str):
         """Run ID의 모델을 Registry에 등록하고 버전 정보를 반환합니다."""
-        # 1. 먼저 해당 Run의 상세 정보를 가져와서 artifact_uri(기본 경로)를 확인합니다.
-        run = self.client.get_run(run_id)
-        artifact_uri = run.info.artifact_uri  # 예: s3://mlflow-artifacts/1/run_id/artifacts
-        
-        # 2. 실제 best.pt가 있는 'weights' 폴더까지의 절대 경로를 만듭니다.
-        # 사용자님의 경로 구조에 맞게 'weights'를 뒤에 붙입니다.
-        model_uri = f"{artifact_uri}/model" 
-        
+        # MLflow 3 부터 log_model 결과는 run 아티팩트 폴더가 아닌 별도 위치(LoggedModel)에
+        # 저장되므로 S3 경로를 직접 만들지 않고 runs:/ URI 로 등록합니다(2.x 와도 호환).
+        model_uri = f"runs:/{run_id}/model"
+
         print(f"[MlflowProvider] Final Model URI for registration: {model_uri}")
-        
-        # 3. 절대 경로를 이용해 모델 등록
+
         result = mlflow.register_model(model_uri, model_name)
         return result.version
 

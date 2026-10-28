@@ -36,6 +36,8 @@ def build_process():
     except Exception as e:
         print(f">>> [BUILDER] 에러 발생: {str(e)}", flush=True)
         traceback.print_exc()
+        # 백엔드가 실패를 알 수 있도록 0이 아닌 코드로 종료
+        sys.exit(1)
 
 if __name__ == "__main__":
     build_process()

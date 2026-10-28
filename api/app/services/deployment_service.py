@@ -120,10 +120,10 @@ class DeploymentService:
             print(f"[DeploymentFlow] Dispatching builder. Target MLflow: {settings.MLFLOW_TRACKING_URI}")            # 빌더 컨테이너 실행 및 완료 대기
             
             build_success = await loop.run_in_executor(None, lambda: docker_provider.run_builder_container(
-                image="ghcr.io/codevisionx/covi-kitech-mlops-builder:latest", # "mlops-builder:latest",
+                image=settings.BUILDER_IMAGE,
                 name=f"bento-builder-{deployment_id}",
                 environment=builder_env,
-                volumes={"bentoml_model_store": {"bind": "/root/.bentoml", "mode": "rw"}},
+                volumes={settings.BENTOML_STORE_VOLUME: {"bind": "/root/.bentoml", "mode": "rw"}},
                 network="mlops-net"
             ))
 
@@ -146,7 +146,7 @@ class DeploymentService:
                     },
                     port_mapping={3000: port},
                     network="mlops-net",
-                    volumes={"bentoml_model_store": {"bind": "/root/.bentoml", "mode": "rw"}},
+                    volumes={settings.BENTOML_STORE_VOLUME: {"bind": "/root/.bentoml", "mode": "rw"}},
                     gpu_id=gpu_id,
                 )
             )

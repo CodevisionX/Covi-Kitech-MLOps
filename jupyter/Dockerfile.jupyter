@@ -24,7 +24,7 @@ ENV PATH="/opt/venv/bin:${PATH}"
 RUN pip install --no-cache-dir \
     "poetry==$POETRY_VERSION" \
     jupyterlab \
-    mlflow \
+    mlflow==3.17.2 \
     boto3 \
     ultralytics==8.3.0 \
     ipykernel

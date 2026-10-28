@@ -221,8 +221,10 @@ def train_cnn():
     
             logger.info("Logging CNN model to MLflow...")
             mlflow.pytorch.log_model(
-                model, 
-                "model",
+                model,
+                name="model",
+                # MLflow 3.17 기본값(pt2)은 input_example 이 필요하므로 기존 방식 유지
+                serialization_format="pickle",
                 metadata=cnn_metadata
             )
 

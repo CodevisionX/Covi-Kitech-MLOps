@@ -110,6 +110,7 @@ services:
       --default-artifact-root s3://${MLFLOW_BUCKET_NAME}/
       --host 0.0.0.0
       --port 5000
+      --allowed-hosts ${MLFLOW_ALLOWED_HOSTS:-mlflow,mlflow:5000,localhost,localhost:*,127.0.0.1,127.0.0.1:*,10.*,172.*,192.168.*}
     ports:
       - "${MLFLOW_PORT}:5000"
     networks:

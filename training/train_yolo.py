@@ -160,7 +160,9 @@ def train_yolo():
                     
                     mlflow.pytorch.log_model(
                         pytorch_model=final_model.model,
-                        artifact_path="model",
+                        name="model",
+                        # MLflow 3.17 기본값(pt2)은 input_example 이 필요하므로 기존 방식 유지
+                        serialization_format="pickle",
                         registered_model_name=os.getenv("MODEL_NAME", "YOLOv8_Defect"),
                         pip_requirements=["ultralytics", "torch", "torchvision"]
                     )

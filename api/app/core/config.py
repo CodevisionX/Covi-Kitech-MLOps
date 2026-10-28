@@ -30,6 +30,12 @@ class Settings(BaseSettings):
 
     TRAINING_IMAGE: str = "ghcr.io/codevisionx/covi-kitech-mlops-training:latest"
     SERVING_IMAGE: str = "ghcr.io/codevisionx/covi-kitech-mlops-base:latest"
+    BUILDER_IMAGE: str = "ghcr.io/codevisionx/covi-kitech-mlops-builder:latest"
+
+    # 백엔드가 직접 띄우는 학습/빌더/서빙 컨테이너에 붙일 볼륨 이름.
+    # docker-compose 의 volumes.*.name 과 같아야 합니다.
+    TRAINING_RESULTS_VOLUME: str = "mlops_kitech_training_results"
+    BENTOML_STORE_VOLUME: str = "mlops_bentoml_model_store"
 
     BUILDER_CPU_LIMIT: float = 4.0
     BUILDER_MEM_LIMIT: str = "4G"

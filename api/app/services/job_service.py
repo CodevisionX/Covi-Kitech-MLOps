@@ -134,7 +134,7 @@ class JobService:
                     command=command,
                     environment=env_vars,
                     network="mlops-net",
-                    volumes={'mlops_kitech_training_results': {'bind': '/app/runs', 'mode': 'rw'}},
+                    volumes={settings.TRAINING_RESULTS_VOLUME: {'bind': '/app/runs', 'mode': 'rw'}},
                     detach=True
                 ))
 
