@@ -170,6 +170,27 @@ services:
     image: bentoml-generic-server:latest
     profiles: ["tools"]
   
+  # 6-1. 신규 학습 이미지 (백엔드가 작업마다 직접 실행, 여기서는 빌드용)
+  # CUDA 빌드: 고객 배포 GPU(RTX A4000)는 cu126, Blackwell(RTX 50xx) 개발 PC는
+  # YOLO26=cu130 / PP-OCR=cu129 (torchvision cu129 빌드에는 sm_120 NMS 커널이 없음)
+  training-yolo26-image:
+    build:
+      context: ./training
+      dockerfile: yolo26/Dockerfile
+      args:
+        CUDA_FLAVOR: ${TRAINING_CUDA_FLAVOR_YOLO26:-cu126}
+    image: ${TRAINING_IMAGE_YOLO26:-mlops-training-yolo26:latest}
+    profiles: ["tools"]
+
+  training-ppocr-image:
+    build:
+      context: ./training
+      dockerfile: ppocr/Dockerfile
+      args:
+        CUDA_FLAVOR: ${TRAINING_CUDA_FLAVOR_PPOCR:-cu126}
+    image: ${TRAINING_IMAGE_PPOCR:-mlops-training-ppocr:latest}
+    profiles: ["tools"]
+
   # 6. Training Worker
   training:
     build:

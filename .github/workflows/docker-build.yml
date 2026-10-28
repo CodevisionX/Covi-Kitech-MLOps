@@ -39,6 +39,27 @@ jobs:
             filter_pattern: |
               src:
                 - 'training/**'
+                - '!training/yolo26/**'
+                - '!training/ppocr/**'
+          # 신규 학습 이미지 (기본 CUDA 빌드 cu126 = 고객 배포 GPU 기준)
+          - service_name: training-yolo26
+            context: ./training
+            dockerfile: ./training/yolo26/Dockerfile
+            image_suffix: training-yolo26
+            tag_suffix: "latest"
+            filter_pattern: |
+              src:
+                - 'training/yolo26/**'
+                - 'training/utils.py'
+          - service_name: training-ppocr
+            context: ./training
+            dockerfile: ./training/ppocr/Dockerfile
+            image_suffix: training-ppocr
+            tag_suffix: "latest"
+            filter_pattern: |
+              src:
+                - 'training/ppocr/**'
+                - 'training/utils.py'
           - service_name: jupyter
             context: ./jupyter
             dockerfile: ./jupyter/Dockerfile.jupyter

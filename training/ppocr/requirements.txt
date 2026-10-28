@@ -1,0 +1,21 @@
+# PP-OCRv6 인식 학습 의존성 (PaddleOCR 학습 엔진 requirements.txt + 고객 학습 환경 lock 버전)
+# paddlepaddle-gpu 는 Dockerfile 에서 CUDA 빌드별 인덱스로 먼저 설치합니다.
+shapely==2.1.2
+scikit-image==0.25.2
+pyclipper==1.4.0
+lmdb==3.0.0
+tqdm==4.70.1
+numpy==2.2.6
+RapidFuzz==3.14.5
+opencv-python==5.0.0.93
+opencv-contrib-python==5.0.0.93
+Cython==3.3.0
+pillow==12.1.0
+PyYAML==6.0.3
+requests==2.34.2
+albumentations==2.0.8
+albucore==0.0.24
+packaging==26.3
+# MLOps 연동
+mlflow==3.17.2
+boto3

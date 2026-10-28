@@ -156,6 +156,15 @@ services:
     image: ghcr.io/codevisionx/covi-kitech-mlops-base:latest
     profiles: ["tools"]
 
+  # 6-1. 신규 학습 이미지 (백엔드가 작업마다 직접 실행, 여기서는 pull 용)
+  training-yolo26-image:
+    image: ${TRAINING_IMAGE_YOLO26:-ghcr.io/codevisionx/covi-kitech-mlops-training-yolo26:latest}
+    profiles: ["tools"]
+
+  training-ppocr-image:
+    image: ${TRAINING_IMAGE_PPOCR:-ghcr.io/codevisionx/covi-kitech-mlops-training-ppocr:latest}
+    profiles: ["tools"]
+
   # 6. Training Worker (커스텀 이미지)
   training:
     image: ${TRAINING_IMAGE:-ghcr.io/codevisionx/covi-kitech-mlops-training:latest}
