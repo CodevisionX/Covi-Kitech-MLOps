@@ -131,6 +131,8 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
       - MAX_DEPLOYMENTS_PER_PROJECT=${MAX_DEPLOYMENTS_PER_PROJECT}
       - TRAINING_IMAGE=${TRAINING_IMAGE}
+      - TRAINING_IMAGE_YOLO26=${TRAINING_IMAGE_YOLO26:-ghcr.io/codevisionx/covi-kitech-mlops-training-yolo26:latest}
+      - TRAINING_IMAGE_PPOCR=${TRAINING_IMAGE_PPOCR:-ghcr.io/codevisionx/covi-kitech-mlops-training-ppocr:latest}
     ports:
       - "${BACKEND_PORT}:8000"
     volumes:

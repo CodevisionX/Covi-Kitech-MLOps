@@ -137,6 +137,8 @@ services:
       - PYTHONUNBUFFERED=1  # 로그 실시간 확인을 위해 권장
       - MAX_DEPLOYMENTS_PER_PROJECT=${MAX_DEPLOYMENTS_PER_PROJECT}
       - TRAINING_IMAGE=${TRAINING_IMAGE}
+      - TRAINING_IMAGE_YOLO26=${TRAINING_IMAGE_YOLO26:-mlops-training-yolo26:latest}
+      - TRAINING_IMAGE_PPOCR=${TRAINING_IMAGE_PPOCR:-mlops-training-ppocr:latest}
       - SERVING_IMAGE=${SERVING_IMAGE}
     ports:
       - "8000:8000"

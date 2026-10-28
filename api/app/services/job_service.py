@@ -23,6 +23,19 @@ from app.core.config import settings
 # Services
 from app.services.sse_service import sse_manager
 
+def get_training_runtime(model_variant: str):
+    """모델 종류별 (학습 이미지, 학습 스크립트). 모르는 종류는 다른 모델로 학습되지 않도록 거부합니다."""
+    runtimes = {
+        "YOLOv8": (settings.TRAINING_IMAGE, "train_yolo.py"),
+        "1D-CNN": (settings.TRAINING_IMAGE, "train_cnn.py"),
+        "YOLO26": (settings.TRAINING_IMAGE_YOLO26, "train_yolo26.py"),
+        "PP-OCRv6": (settings.TRAINING_IMAGE_PPOCR, "train_ppocr.py"),
+    }
+    if model_variant not in runtimes:
+        raise ValueError(f"지원하지 않는 모델 종류입니다: {model_variant} (가능: {', '.join(runtimes)})")
+    return runtimes[model_variant]
+
+
 class JobService:
     def __init__(self):
         self.log_dir = "/app/runs"
@@ -86,11 +99,18 @@ class JobService:
             job = db.query(Job).get(job_id)
             project = db.query(Project).get(job.project_id)
 
-            script_mapping = {
-                "YOLOv8": "train_yolo.py",
-                "1D-CNN": "train_cnn.py"
-            }
-            train_script = script_mapping.get(job.model_variant, "train_yolo.py")
+            try:
+                image, train_script = get_training_runtime(job.model_variant)
+            except ValueError as e:
+                job.status = JobStatus.FAILED.value
+                job.error_message = str(e)
+                job.finished_at = get_kst_now()
+                db.commit()
+                await sse_manager.broadcast("job_status", {
+                    "job_id": job.id, "status": job.status, "project_id": job.project_id
+                })
+                await self._safe_retry_queue()
+                return
 
             project_name = project.name if project else "Default"
             experiment_name = f"{project_name}_{job.model_variant}"
@@ -130,7 +150,7 @@ class JobService:
                 ]
         
                 container = await loop.run_in_executor(None, lambda: docker_provider.run_container(
-                    image=settings.TRAINING_IMAGE,
+                    image=image,
                     command=command,
                     environment=env_vars,
                     network="mlops-net",

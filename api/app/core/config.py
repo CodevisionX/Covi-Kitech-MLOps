@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     MAX_DEPLOYMENTS_PER_PROJECT: int = 1
 
     TRAINING_IMAGE: str = "ghcr.io/codevisionx/covi-kitech-mlops-training:latest"
+    # 신규 모델 학습 이미지 (검출: YOLO26, 인식: PP-OCRv6)
+    TRAINING_IMAGE_YOLO26: str = "ghcr.io/codevisionx/covi-kitech-mlops-training-yolo26:latest"
+    TRAINING_IMAGE_PPOCR: str = "ghcr.io/codevisionx/covi-kitech-mlops-training-ppocr:latest"
     SERVING_IMAGE: str = "ghcr.io/codevisionx/covi-kitech-mlops-base:latest"
     BUILDER_IMAGE: str = "ghcr.io/codevisionx/covi-kitech-mlops-builder:latest"
 

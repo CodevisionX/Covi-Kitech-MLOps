@@ -38,9 +38,13 @@ jobs:
             tag_suffix: "latest"
             filter_pattern: |
               src:
-                - 'training/**'
-                - '!training/yolo26/**'
-                - '!training/ppocr/**'
+                # paths-filter v2 는 패턴을 OR 로 묶으므로 '!' 제외 대신 기존 이미지 파일을 직접 나열
+                - 'training/Dockerfile'
+                - 'training/pyproject.toml'
+                - 'training/poetry.lock'
+                - 'training/train_yolo.py'
+                - 'training/train_cnn.py'
+                - 'training/utils.py'
           # 신규 학습 이미지 (기본 CUDA 빌드 cu126 = 고객 배포 GPU 기준)
           - service_name: training-yolo26
             context: ./training
@@ -51,6 +55,7 @@ jobs:
               src:
                 - 'training/yolo26/**'
                 - 'training/utils.py'
+                - 'training/mlops_common.py'
           - service_name: training-ppocr
             context: ./training
             dockerfile: ./training/ppocr/Dockerfile
@@ -60,6 +65,7 @@ jobs:
               src:
                 - 'training/ppocr/**'
                 - 'training/utils.py'
+                - 'training/mlops_common.py'
           - service_name: jupyter
             context: ./jupyter
             dockerfile: ./jupyter/Dockerfile.jupyter
