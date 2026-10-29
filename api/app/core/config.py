@@ -24,6 +24,17 @@ class Settings(BaseSettings):
     )
 
     MLFLOW_S3_ENDPOINT_URL: str = "http://rustfs:9000"
+
+    # 데이터셋 업로드: 브라우저가 RustFS 로 직접 올리므로 브라우저에서 닿는 주소가 필요합니다.
+    # 비우면 접속한 주소의 호스트 + S3_PUBLIC_PORT 를 씁니다 (예: http://10.0.0.5:9000).
+    DATASET_BUCKET_NAME: str = "datasets"
+    S3_PUBLIC_ENDPOINT_URL: str = ""
+    S3_PUBLIC_PORT: int = Field(9000, validation_alias=AliasChoices("S3_PUBLIC_PORT", "S3_PORT"))
+    # 데이터셋 버킷 CORS 허용 Origin (쉼표 구분). 업로드 URL 은 서명돼 있어 * 여도 키 없이는 못 씁니다.
+    S3_CORS_ALLOWED_ORIGINS: str = "*"
+    UPLOAD_URL_EXPIRES: int = 6 * 3600
+    UPLOAD_SINGLE_PUT_MAX: int = 64 * 1024 * 1024   # 이보다 큰 파일은 나눠 올리기(multipart)
+    UPLOAD_PART_SIZE: int = 64 * 1024 * 1024
     MLFLOW_TRACKING_URI: str = "http://mlflow:5000"
 
     MAX_DEPLOYMENTS_PER_PROJECT: int = 1

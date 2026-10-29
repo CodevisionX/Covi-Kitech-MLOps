@@ -24,6 +24,8 @@ class Job(Base):
     # 1. 필수 메타데이터 (모든 학습에 공통적으로 필요한 정보)
     model_variant = Column(String, nullable=False) # 예: yolov8n, resnet50
     dataset = Column(String, nullable=False)       # 예: bucket/path/to/data
+    # 등록된 데이터셋 버전으로 학습한 경우 그 버전 (YOLO26, PP-OCRv6 는 필수)
+    dataset_version_id = Column(Integer, ForeignKey("dataset_version.id"), nullable=True, index=True)
     
     # 2. 가변 파라미터 (모델마다 달라질 수 있는 설정들)
     # 예: {"epochs": 100, "batch": 16, "lr": 0.01, "optimizer": "adam"}

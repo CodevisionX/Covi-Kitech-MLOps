@@ -30,3 +30,27 @@ class DeploymentStatus(str, Enum):
 
     def __str__(self):
         return self.value
+
+class DatasetStatus(str, Enum):
+    UPLOADING = "UPLOADING"     # 임시 영역(_staging)에 업로드 중
+    VALIDATING = "VALIDATING"   # 검사 작업 실행 중
+    READY = "READY"             # 검사 통과, 등록 완료(변경 불가)
+    FAILED = "FAILED"           # 검사 실패 (임시 영역은 남아 있어 고쳐서 다시 검사 가능)
+
+    def __str__(self):
+        return self.value
+
+
+class DatasetTask(str, Enum):
+    DETECTION = "detection"
+    RECOGNITION = "recognition"
+
+    def __str__(self):
+        return self.value
+
+
+# 등록된 데이터셋 버전으로만 학습하는 모델과 그 데이터셋 종류
+MODEL_DATASET_TASKS = {
+    "YOLO26": DatasetTask.DETECTION.value,
+    "PP-OCRv6": DatasetTask.RECOGNITION.value,
+}

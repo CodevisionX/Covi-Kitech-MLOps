@@ -8,7 +8,9 @@ class JobBase(BaseModel):
     project_id: int
     experiment_id: Optional[str] = "0"
     model_variant: str
-    dataset: str
+    # 기존 모델(YOLOv8, 1D-CNN)은 버킷 경로를 직접 지정, 신규 모델은 dataset_version_id 로 지정
+    dataset: str = ""
+    dataset_version_id: Optional[int] = None
     # 파라미터는 키-값이 무엇이든 올 수 있게 Dict[str, Any]로 정의
     params: Dict[str, Any] = Field(default_factory=lambda: {"epochs": 10, "batch": 16})
     tags: Dict[str, Any] = Field(default_factory=dict)

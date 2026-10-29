@@ -13,7 +13,9 @@ import aiofiles
 from app.models.job import Job, get_kst_now
 from app.models.project import Project
 from app.schemas.job import JobCreate
-from app.core.constants import JobStatus
+from app.core.constants import JobStatus, DatasetStatus, MODEL_DATASET_TASKS
+from app.models.dataset import DatasetVersion
+from fastapi import HTTPException
 
 # Integrations
 from app.integrations.docker import docker_provider
@@ -42,10 +44,12 @@ class JobService:
     
     async def register_job(self, job_in: JobCreate, db: Session) -> Job:
         """단순 DB 등록 및 SSE 알림만 수행 (Non-blocking)"""
+        dataset_path, dataset_version_id = self._resolve_dataset(job_in, db)
         job = Job(
             project_id=job_in.project_id,
             experiment_id=job_in.experiment_id or "0",
-            dataset=job_in.dataset,
+            dataset=dataset_path,
+            dataset_version_id=dataset_version_id,
             model_variant=job_in.model_variant,
             params=job_in.params,
             tags=job_in.tags,
@@ -62,6 +66,25 @@ class JobService:
         })
         return job
     
+    def _resolve_dataset(self, job_in: JobCreate, db: Session):
+        """신규 모델은 등록(READY)된 같은 프로젝트·같은 종류의 데이터셋 버전만 허용합니다."""
+        required_task = MODEL_DATASET_TASKS.get(job_in.model_variant)
+        if job_in.dataset_version_id is None:
+            if required_task:
+                raise HTTPException(400, f"{job_in.model_variant} 학습에는 등록된 데이터셋 버전(dataset_version_id)이 필요합니다")
+            if not job_in.dataset:
+                raise HTTPException(400, "dataset 경로가 필요합니다")
+            return job_in.dataset, None
+
+        dv = db.query(DatasetVersion).filter(DatasetVersion.id == job_in.dataset_version_id).first()
+        if not dv or dv.status != DatasetStatus.READY.value:
+            raise HTTPException(400, "등록 완료(READY)된 데이터셋 버전이 아닙니다")
+        if dv.project_id != job_in.project_id:
+            raise HTTPException(400, "다른 프로젝트의 데이터셋 버전입니다")
+        if required_task and dv.task != required_task:
+            raise HTTPException(400, f"{job_in.model_variant} 에는 {required_task} 데이터셋이 필요합니다 (선택: {dv.task})")
+        return dv.data_path, dv.id
+
     async def process_queue(self):
         """
         백그라운드 전용 세션을 사용하여 안전하게 큐 처리
@@ -140,6 +163,13 @@ class JobService:
 
                 # Docker 컨테이너 가동 (Blocking I/O -> Executor)
                 env_vars = self._prepare_env_vars(job)
+                if job.dataset_version_id:
+                    dv = db.query(DatasetVersion).get(job.dataset_version_id)
+                    env_vars["DATASET_VERSION_ID"] = str(dv.id)
+                    env_vars["DATASET_MANIFEST_SHA256"] = dv.manifest_sha256 or ""
+                    # MLflow 에서 어떤 데이터셋 버전으로 학습했는지 바로 보이도록 태그
+                    await loop.run_in_executor(None, lambda: mlflow_provider.client.set_tag(
+                        job.run_id, "dataset_version", f"{dv.name}:v{dv.version}"))
                 
                 python_path = "/app/.venv/bin/python"
                 shell_path = "/bin/sh"

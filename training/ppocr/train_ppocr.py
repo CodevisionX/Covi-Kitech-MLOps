@@ -24,10 +24,11 @@ import yaml
 from mlflow.models import ModelSignature
 from mlflow.types import ColSpec, Schema
 
+from dataset_tools import read_rec_list, validate_recognition
 from mlops_common import (
     JOB_ID, WORK_DIR, dataset_manifest, download_dataset, env_float, env_int,
     env_str, environment_info, job_tags, logger, package_versions, report_status,
-    sha256_file,
+    sha256_file, verify_registered_manifest,
 )
 
 ENGINE = Path(os.getenv("PADDLEOCR_ROOT", "/opt/PaddleOCR"))
@@ -42,35 +43,18 @@ KV = re.compile(r"([A-Za-z_]+): (-?[\d.]+(?:e-?\d+)?)")
 
 # ---------------------------------------------------------------- 데이터
 def check_labels(root: Path, lists_dir: Path) -> dict:
-    """목록 파일을 검사하고 BOM 을 지운 사본을 lists_dir 에 씁니다."""
+    """등록 때와 같은 규칙으로 다시 검사하고, BOM 을 지운 목록 사본을 lists_dir 에 씁니다."""
     charset = set(DICT_PATH.read_text(encoding="utf-8").splitlines())
+    stats, rep = validate_recognition(root, charset=charset, check_images=False)
+    if rep.n_errors:
+        raise ValueError("데이터셋 검사 실패:\n" + "\n".join(rep.errors[:20]))
+    for w in rep.warnings[:20]:
+        logger.warning(w)
     lists_dir.mkdir(parents=True, exist_ok=True)
-    counts, unknown = {}, set()
-    root = root.resolve()
-    for split in ("train", "val", "test"):
-        src = root / f"{split}_list.txt"
-        if not src.is_file():
-            if split in ("train", "val"):
-                raise FileNotFoundError(f"필수 목록 파일이 없습니다: {split}_list.txt")
-            continue
-        lines = [l for l in src.read_text(encoding="utf-8-sig").splitlines() if l.strip()]
-        if not lines:
-            raise ValueError(f"목록이 비어 있습니다: {split}_list.txt")
-        for n, line in enumerate(lines, 1):
-            if "\t" not in line:
-                raise ValueError(f"{split}_list.txt:{n}: 탭으로 구분된 '경로\\t정답' 형식이 아닙니다")
-            name, text = line.split("\t", 1)
-            path = (root / name).resolve()
-            if not path.is_relative_to(root) or not path.is_file():
-                raise FileNotFoundError(f"{split}_list.txt:{n}: 이미지가 없습니다: {name}")
-            if not text:
-                raise ValueError(f"{split}_list.txt:{n}: 정답이 비어 있습니다")
-            unknown.update(c for c in text if c not in charset and c != " ")
+    for split in stats["counts"]:
+        lines = read_rec_list(root / f"{split}_list.txt")
         (lists_dir / f"{split}_list.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
-        counts[split] = len(lines)
-    if unknown:
-        raise ValueError(f"문자 사전에 없는 문자가 정답에 있습니다: {''.join(sorted(unknown))}")
-    return counts
+    return stats["counts"]
 
 
 # ---------------------------------------------------------------- 설정
@@ -209,6 +193,7 @@ def main():
             counts = check_labels(data_dir, lists_dir)
             logger.info("데이터 검사 통과: %s", counts)
             manifest = dataset_manifest(data_dir)
+            verify_registered_manifest(manifest)
 
             # 2. 설정 생성 및 실행 정보 기록
             cfg = build_config(data_dir, lists_dir, out_dir)

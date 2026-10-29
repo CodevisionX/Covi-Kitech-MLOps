@@ -22,7 +22,8 @@ class DockerProvider:
         environment: Dict[str, str],
         network: str,        # 순서 주의: JobService에서 넘기는 순서와 맞춤
         volumes: Dict[str, Any],
-        detach: bool = False # 기본값 설정
+        detach: bool = False, # 기본값 설정
+        gpu: bool = True,     # 데이터셋 검사처럼 GPU 가 필요 없는 작업은 False
     ):
         if not self.client:
             raise RuntimeError("Docker client is not initialized")
@@ -33,8 +34,8 @@ class DockerProvider:
             environment=environment,
             network=network, # 혹은 network_mode=network
             volumes=volumes,
-            shm_size="8G",
-            device_requests=[docker.types.DeviceRequest(count=-1, capabilities=[['gpu']])],
+            shm_size="8G" if gpu else None,
+            device_requests=[docker.types.DeviceRequest(count=-1, capabilities=[['gpu']])] if gpu else None,
             detach=detach,
         )
 

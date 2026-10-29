@@ -20,13 +20,13 @@ import yaml
 from mlflow.models import ModelSignature
 from mlflow.types import ColSpec, ParamSchema, ParamSpec, Schema
 
+from dataset_tools import validate_detection
 from mlops_common import (
     JOB_ID, WORK_DIR, dataset_manifest, download_dataset, env_float, env_int,
     env_str, environment_info, job_tags, logger, package_versions, report_status,
-    sanitize_metric_name, sha256_file,
+    sanitize_metric_name, sha256_file, verify_registered_manifest,
 )
 
-IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".bmp"}
 PACKAGES = ["ultralytics", "torch", "torchvision", "numpy", "opencv-python", "mlflow"]
 
 
@@ -57,49 +57,13 @@ def train_options(data_yaml: Path, project: Path) -> dict:
 
 
 def check_dataset(root: Path) -> dict:
-    """이미지마다 라벨이 있고 라벨 형식이 맞는지 검사하고, 분할별 개수를 돌려줍니다."""
-    names = {0: "number_group"}
-    for cand in ("dataset.yaml", "data.yaml"):
-        if (root / cand).is_file():
-            loaded = yaml.safe_load((root / cand).read_text(encoding="utf-8")) or {}
-            if loaded.get("names"):
-                raw = loaded["names"]
-                names = dict(enumerate(raw)) if isinstance(raw, list) else {int(k): v for k, v in raw.items()}
-            break
-    nc = len(names)
-
-    counts = {}
-    for split in ("train", "val", "test"):
-        img_dir = root / "images" / split
-        if not img_dir.is_dir():
-            if split in ("train", "val"):
-                raise FileNotFoundError(f"필수 폴더가 없습니다: images/{split}")
-            continue
-        images = [p for p in img_dir.iterdir() if p.suffix.lower() in IMAGE_EXTS]
-        if not images:
-            raise ValueError(f"이미지가 없습니다: images/{split}")
-        boxes = 0
-        for img in images:
-            label = root / "labels" / split / (img.stem + ".txt")
-            if not label.is_file():
-                raise FileNotFoundError(f"라벨 파일이 없습니다: {label.relative_to(root)}")
-            for n, line in enumerate(label.read_text(encoding="utf-8-sig").splitlines(), 1):
-                if not line.strip():
-                    continue
-                parts = line.split()
-                ok = len(parts) == 5
-                if ok:
-                    try:
-                        cls = int(parts[0])
-                        vals = [float(v) for v in parts[1:]]
-                        ok = 0 <= cls < nc and all(0.0 <= v <= 1.0 for v in vals)
-                    except ValueError:
-                        ok = False
-                if not ok:
-                    raise ValueError(f"라벨 형식 오류: {label.relative_to(root)}:{n}: {line!r}")
-                boxes += 1
-        counts[split] = {"images": len(images), "boxes": boxes}
-    return {"names": names, "counts": counts}
+    """등록 때와 같은 규칙으로 다시 검사합니다(이미지 디코딩 검사는 등록 때 끝났으므로 생략)."""
+    stats, rep = validate_detection(root, check_images=False)
+    if rep.n_errors:
+        raise ValueError("데이터셋 검사 실패:\n" + "\n".join(rep.errors[:20]))
+    for w in rep.warnings[:20]:
+        logger.warning(w)
+    return stats
 
 
 def evaluate(weights: Path, data_yaml: Path, split: str, opts: dict, out: Path) -> dict:
@@ -153,6 +117,7 @@ def main():
             info = check_dataset(data_dir)
             logger.info("데이터 검사 통과: %s", info["counts"])
             manifest = dataset_manifest(data_dir)
+            verify_registered_manifest(manifest)
 
             data_yaml = WORK_DIR / "dataset.yaml"
             spec = {"path": data_dir.as_posix(), "train": "images/train", "val": "images/val",

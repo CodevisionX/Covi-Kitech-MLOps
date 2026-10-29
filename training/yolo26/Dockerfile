@@ -49,7 +49,7 @@ RUN mkdir -p "$YOLO_CONFIG_DIR" \
 
 WORKDIR /app
 ENV CUDA_FLAVOR=${CUDA_FLAVOR}
-COPY utils.py mlops_common.py /app/
+COPY utils.py mlops_common.py dataset_tools.py validate_dataset.py /app/
 COPY yolo26/ /app/
 
 RUN python -c "import torch, ultralytics, mlflow; print('torch', torch.__version__, 'cuda', torch.version.cuda, '| ultralytics', ultralytics.__version__, '| mlflow', mlflow.__version__)"

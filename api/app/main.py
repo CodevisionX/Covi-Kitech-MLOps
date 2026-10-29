@@ -12,6 +12,9 @@ from app.db.session import engine, SessionLocal
 from app.db.base_class import Base
 
 from app.models.project import Project 
+from app.models.dataset import DatasetVersion  # noqa: F401 (create_all 대상 등록)
+from app.integrations.s3 import s3_provider
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 def seed_db(db: Session):
@@ -45,6 +48,19 @@ async def lifespan(app: FastAPI):
     """
     # [Startup] 1. DB 테이블 생성 (Alembic 도입 전까지 사용)
     Base.metadata.create_all(bind=engine)
+    # create_all 은 기존 테이블에 열을 추가하지 않으므로 v2 에서 추가한 열은 직접 보강
+    with engine.begin() as conn:
+        conn.execute(text(
+            "ALTER TABLE job ADD COLUMN IF NOT EXISTS dataset_version_id INTEGER "
+            "REFERENCES dataset_version(id)"))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_job_dataset_version_id ON job (dataset_version_id)"))
+
+    # 브라우저가 데이터셋 버킷에 직접 업로드할 수 있도록 CORS 설정 (멱등)
+    try:
+        s3_provider.ensure_upload_cors(settings.DATASET_BUCKET_NAME)
+    except Exception as e:
+        print(f"[!] 데이터셋 버킷 CORS 설정 실패 (브라우저 업로드 불가, CLI 업로드는 가능): {e}")
     
     # 서버 재시작 시 큐 복구 로직
     # 단순히 process_queue()를 한 번 호출해주면, 대기 중인 작업이 있다면 실행됩니다.

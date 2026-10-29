@@ -120,16 +120,41 @@ def sha256_file(path: Path, chunk=1 << 20) -> str:
     return h.hexdigest()
 
 
-def dataset_manifest(root: Path) -> dict:
-    """폴더 안 모든 파일의 sha256 목록과 전체 해시(파일 목록+해시를 이은 값의 sha256)."""
-    files = {}
-    for p in sorted(root.rglob("*")):
-        if p.is_file():
-            files[p.relative_to(root).as_posix()] = sha256_file(p)
-    digest = hashlib.sha256(
-        "".join(f"{k}\t{v}\n" for k, v in files.items()).encode()
+def manifest_digest(files: dict) -> str:
+    """파일 목록의 대표 해시: '경로<TAB>sha256' 줄을 경로 순으로 이은 값의 sha256."""
+    return hashlib.sha256(
+        "".join(f"{k}\t{files[k]['sha256']}\n" for k in sorted(files)).encode()
     ).hexdigest()
-    return {"sha256": digest, "file_count": len(files), "files": files}
+
+
+def dataset_manifest(root: Path, workers: int = 8) -> dict:
+    """폴더 안 모든 파일의 sha256/크기 목록과 대표 해시."""
+    paths = sorted(p for p in root.rglob("*") if p.is_file())
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        hashes = list(pool.map(sha256_file, paths))
+    files = {
+        p.relative_to(root).as_posix(): {"sha256": h, "size": p.stat().st_size}
+        for p, h in zip(paths, hashes)
+    }
+    return {
+        "format": 1,
+        "sha256": manifest_digest(files),
+        "file_count": len(files),
+        "total_bytes": sum(f["size"] for f in files.values()),
+        "files": files,
+    }
+
+
+def verify_registered_manifest(manifest: dict):
+    """등록된 데이터셋 버전의 대표 해시와 받은 데이터가 같은지 확인합니다."""
+    expected = os.getenv("DATASET_MANIFEST_SHA256")
+    if not expected:
+        return
+    if manifest["sha256"] != expected:
+        raise RuntimeError(
+            f"받은 데이터가 등록된 데이터셋 버전과 다릅니다 (기대 {expected[:12]}, 실제 {manifest['sha256'][:12]})"
+        )
+    logger.info("등록된 데이터셋 버전과 해시 일치: %s", expected[:12])
 
 
 def package_versions(names) -> dict:
