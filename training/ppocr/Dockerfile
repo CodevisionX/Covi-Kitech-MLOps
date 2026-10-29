@@ -52,12 +52,12 @@ RUN mkdir -p "$PRETRAINED_DIR" \
 WORKDIR /app
 ENV CUDA_FLAVOR=${CUDA_FLAVOR} \
     PADDLEOCR_COMMIT=${PADDLEOCR_COMMIT}
-COPY utils.py mlops_common.py dataset_tools.py validate_dataset.py /app/
+COPY utils.py mlops_common.py dataset_tools.py validate_dataset.py evaluate_e2e.py /app/
 COPY ppocr/ /app/
 
 # paddle 은 import 시 GPU 드라이버(libcuda)가 필요하므로 빌드 단계에서는 설치 버전만 확인합니다.
 RUN python -c "import importlib.metadata as m; print({p: m.version(p) for p in ['paddlepaddle-gpu', 'mlflow', 'numpy', 'opencv-python']})"
 
-RUN python -c "import train_ppocr"
+RUN python -c "import train_ppocr, evaluate_e2e"
 
 CMD ["python", "train_ppocr.py"]

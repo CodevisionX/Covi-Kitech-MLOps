@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     UPLOAD_PART_SIZE: int = 64 * 1024 * 1024
     MLFLOW_TRACKING_URI: str = "http://mlflow:5000"
 
-    MAX_DEPLOYMENTS_PER_PROJECT: int = 1
+    MAX_DEPLOYMENTS_PER_PROJECT: int = 2  # 검출 + 인식 모델을 함께 띄워 확인할 수 있도록
 
     TRAINING_IMAGE: str = "ghcr.io/codevisionx/covi-kitech-mlops-training:latest"
     # 신규 모델 학습 이미지 (검출: YOLO26, 인식: PP-OCRv6)

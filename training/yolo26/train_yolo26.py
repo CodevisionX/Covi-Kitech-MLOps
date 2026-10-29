@@ -185,10 +185,12 @@ def main():
                 name="model",
                 python_model=str(here / "yolo26_pyfunc.py"),
                 artifacts={"weights": str(best)},
-                # 서명이 없으면 MLflow 가 예측 시 params(conf, imgsz)를 무시하므로 명시
+                # 서명이 없으면 MLflow 가 예측 시 params 를 무시하므로 명시 (기본값은 고객 운영 코드와 같음)
                 signature=ModelSignature(
                     inputs=Schema([ColSpec("string", "image")]),
                     params=ParamSchema([ParamSpec("conf", "float", 0.25),
+                                        ParamSpec("iou", "float", 0.3),
+                                        ParamSpec("max_det", "long", 20),
                                         ParamSpec("imgsz", "long", opts["imgsz"])]),
                 ),
                 pip_requirements=[

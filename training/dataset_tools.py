@@ -255,3 +255,192 @@ def recognition_split_map(root: Path):
                 if "\t" in line:
                     out[line.split("\t", 1)[0]] = split
     return out
+
+
+# ---------------------------------------------------------------- E2E 평가 (검출 + 인식)
+# 형식
+#   labels.txt        '<이미지 상대경로>\t<패널>\t<슬롯 1~6>\t<정답>'  (UTF-8, BOM 허용)
+#   images/...        패널 이미지. roi_config.json 이 있으면 전체 프레임 이미지
+#   roi_config.json   (선택) {"image_width", "image_height", "panels": {"panel_1": [x1, y1, x2, y2], ...}}
+# 정답이 없는 슬롯(육안 판독 불가 등)은 줄을 빼면 채점에서 제외됩니다.
+E2E_SLOTS = 6
+
+
+def load_roi_config(root: Path):
+    p = root / "roi_config.json"
+    if not p.is_file():
+        return None
+    import json
+
+    cfg = json.loads(p.read_text(encoding="utf-8-sig"))
+    panels = cfg.get("panels")
+    if not isinstance(panels, dict) or not panels:
+        raise ValueError("roi_config.json 에 panels 가 없습니다")
+    out = {}
+    for name, box in panels.items():
+        if not (isinstance(box, list) and len(box) == 4 and all(isinstance(v, int) for v in box)):
+            raise ValueError(f"roi_config.json: {name} 좌표는 정수 [x1, y1, x2, y2] 여야 합니다")
+        x1, y1, x2, y2 = box
+        if x2 <= x1 or y2 <= y1 or x1 < 0 or y1 < 0:
+            raise ValueError(f"roi_config.json: {name} 좌표가 올바르지 않습니다: {box}")
+        out[name] = tuple(box)
+    return {"image_width": cfg.get("image_width"), "image_height": cfg.get("image_height"), "panels": out}
+
+
+def read_e2e_labels(root: Path, rep: Report = None):
+    """labels.txt -> {(이미지, 패널): {슬롯: 정답}}. 형식 오류는 rep 에 모읍니다."""
+    rep = rep or Report()
+    labels = defaultdict(dict)
+    src = root / "labels.txt"
+    if not src.is_file():
+        rep.error("필수 파일이 없습니다: labels.txt")
+        return labels, rep
+    for n, line in enumerate(read_rec_list(src), 1):
+        parts = line.split("\t")
+        if len(parts) != 4:
+            rep.error(f"labels.txt:{n}: '이미지<TAB>패널<TAB>슬롯<TAB>정답' 4개 항목이 아닙니다")
+            continue
+        image, panel, slot, text = (p.strip() for p in parts)
+        if not slot.isdigit() or not 1 <= int(slot) <= E2E_SLOTS:
+            rep.error(f"labels.txt:{n}: 슬롯은 1~{E2E_SLOTS} 사이 숫자여야 합니다: {slot!r}")
+            continue
+        if not image or not panel or not text:
+            rep.error(f"labels.txt:{n}: 빈 항목이 있습니다")
+            continue
+        key = (image, panel)
+        if int(slot) in labels[key]:
+            rep.error(f"labels.txt:{n}: 같은 이미지·패널·슬롯이 중복됩니다: {image} {panel} {slot}")
+            continue
+        labels[key][int(slot)] = text
+    return labels, rep
+
+
+def e2e_panels(root: Path, roi=None):
+    """평가할 패널 목록 [(이미지 상대경로, 패널 이름)].
+
+    패널 모드: images/ 아래 이미지 하나가 패널 하나 (패널 이름은 labels.txt 값, 없으면 파일 이름)
+    프레임 모드: 이미지마다 roi_config.json 의 모든 패널
+    """
+    images = sorted(p.relative_to(root).as_posix() for p in (root / "images").rglob("*")
+                    if p.is_file() and p.suffix.lower() in IMAGE_EXTS)
+    if roi:
+        return [(img, name) for img in images for name in roi["panels"]]
+    return images
+
+
+def validate_e2e(root: Path, charset=None, check_images: bool = True):
+    rep = Report()
+    root = root.resolve()
+    try:
+        roi = load_roi_config(root)
+    except Exception as e:
+        rep.error(str(e))
+        roi = None
+    if not (root / "images").is_dir():
+        rep.error("필수 폴더가 없습니다: images")
+        return {"task": "e2e"}, rep
+    labels, rep = read_e2e_labels(root, rep)
+    images = e2e_panels(root)  # 이미지 목록
+    if not images:
+        rep.error("images 폴더에 이미지가 없습니다")
+    image_set = set(images)
+
+    panel_of_image = {}
+    unknown = set()
+    for (image, panel), slots in labels.items():
+        if image not in image_set:
+            rep.error(f"labels.txt 의 이미지가 없습니다: {image}")
+            continue
+        if roi:
+            if panel not in roi["panels"]:
+                rep.error(f"roi_config.json 에 없는 패널입니다: {image} {panel}")
+        else:
+            prev = panel_of_image.setdefault(image, panel)
+            if prev != panel:
+                rep.error(f"패널 모드에서 이미지 하나는 패널 하나입니다: {image} ({prev}, {panel})")
+        if charset is not None:
+            for text in slots.values():
+                unknown.update(c for c in text if c not in charset and c != " ")
+    if unknown:
+        rep.error(f"문자 사전에 없는 문자가 정답에 있습니다: {''.join(sorted(unknown))}")
+
+    labeled_images = {img for img, _ in labels}
+    unlabeled = [img for img in images if img not in labeled_images]
+    if unlabeled:
+        rep.warn(f"정답이 없는 이미지 {len(unlabeled)}장은 검출 개수만 집계합니다 (예: {unlabeled[0]})")
+
+    if check_images or roi:
+        from PIL import Image
+
+        for img in images:
+            path = root / img
+            if check_images:
+                _check_image(path, rep, img)
+            if roi:
+                try:
+                    with Image.open(path) as im:
+                        w, h = im.size
+                except Exception:
+                    continue
+                outside = [n for n, (x1, y1, x2, y2) in roi["panels"].items() if x2 > w or y2 > h]
+                if outside:
+                    rep.error(f"{img}: ROI 가 이미지({w}x{h}) 밖으로 나갑니다: {', '.join(outside)}")
+                elif roi.get("image_width") and (w, h) != (roi["image_width"], roi["image_height"]):
+                    rep.warn(f"{img}: 이미지 크기 {w}x{h} 가 roi_config.json 의 "
+                             f"{roi['image_width']}x{roi['image_height']} 와 다릅니다")
+
+    n_slots = sum(len(s) for s in labels.values())
+    stats = {
+        "task": "e2e",
+        "mode": "frame" if roi else "panel",
+        "counts": {
+            "images": len(images),
+            "panels": len(images) * len(roi["panels"]) if roi else len(images),
+            "labeled_panels": len(labels),
+            "labeled_slots": n_slots,
+        },
+    }
+    if roi:
+        stats["roi_panels"] = sorted(roi["panels"])
+    return stats, rep
+
+
+# ---------------------------------------------------------------- 운영 파이프라인과 같은 슬롯 규칙
+def sort_boxes_2x3(boxes):
+    """박스 6개를 슬롯 순서로 정렬합니다 (고객 운영 코드 model_detection.sort_boxes_2x3 와 같은 규칙).
+
+    중심 x 로 정렬해 2개씩 한 열로 묶고, 열 안에서는 중심 y 로 정렬합니다.
+        1열  2열  3열
+    1행  1    3    5
+    2행  2    4    6
+    boxes: [x1, y1, x2, y2, conf, cls] 리스트
+    """
+    if len(boxes) != E2E_SLOTS:
+        raise ValueError(f"박스가 정확히 {E2E_SLOTS}개여야 합니다: {len(boxes)}")
+    by_x = sorted(boxes, key=lambda b: (b[0] + b[2]) / 2)
+    out = []
+    for i in range(0, E2E_SLOTS, 2):
+        out.extend(sorted(by_x[i:i + 2], key=lambda b: (b[1] + b[3]) / 2))
+    return out
+
+
+def crop_box(image, box, padding=0):
+    """운영 코드와 같은 방식으로 자릅니다: x1/y1 은 내림, x2/y2 는 반올림, 여백 후 이미지 안으로 제한."""
+    h, w = image.shape[:2]
+    x1 = max(0, int(box[0]) - padding)
+    y1 = max(0, int(box[1]) - padding)
+    x2 = min(w, int(round(box[2])) + padding)
+    y2 = min(h, int(round(box[3])) + padding)
+    if x2 <= x1 or y2 <= y1:
+        return None, (x1, y1, x2, y2)
+    return image[y1:y2, x1:x2].copy(), (x1, y1, x2, y2)
+
+
+def edit_distance(a: str, b: str) -> int:
+    prev = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        cur = [i]
+        for j, cb in enumerate(b, 1):
+            cur.append(min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (ca != cb)))
+        prev = cur
+    return prev[-1]

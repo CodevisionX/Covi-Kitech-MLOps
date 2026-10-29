@@ -1,5 +1,6 @@
 import os
-import socket
+import threading
+import time
 import docker
 import requests
 from sqlalchemy.orm import Session
@@ -22,6 +23,8 @@ class ResourceManager:
             print(f"[ResourceManager] DOCKER CONNECTION FAILED: {e}")
             self.client = None
         self.port_range = range(8001, 8100)
+        self._port_lock = threading.Lock()
+        self._reserved = {}  # 포트 -> 고른 시각. 컨테이너가 생기기 전 동시 요청이 같은 포트를 받지 않도록
         self.max_deployments_per_project = settings.MAX_DEPLOYMENTS_PER_PROJECT  # 사용자당 최대 배포 가능 개수 설정
 
     def check_project_quota(self, project_id: int) -> bool:
@@ -34,21 +37,29 @@ class ResourceManager:
             return active_count < self.max_deployments_per_project
     
     def find_available_port(self) -> int:
-        """가용한 호스트 포트를 찾습니다. (DB Enum 활용 + 실제 소켓 체크)"""
-        with SessionLocal() as db:
-            # DB에서 RUNNING 상태인 모든 배포의 포트를 가져옴
-            used_ports = [
-                d.port for d in db.query(Deployment)
-                .filter(Deployment.status == DeploymentStatus.RUNNING)
-                .all() if d.port
-            ]
-        
-        for port in self.port_range:
-            if port not in used_ports:
-                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                    # 0이면 포트가 사용 중임을 의미함
-                    if s.connect_ex(('0.0.0.0', port)) != 0:
-                        return port
+        """가용한 호스트 포트를 찾습니다.
+
+        백엔드는 컨테이너 안에서 돌기 때문에 소켓 검사로는 호스트 포트 사용 여부를 알 수 없습니다.
+        Docker 에 게시된 포트, 진행 중인 배포의 포트, 방금 고른 포트(동시 요청 대비)를 모두 피합니다.
+        """
+        active = [DeploymentStatus.PENDING, DeploymentStatus.REGISTERING, DeploymentStatus.BUILDING,
+                  DeploymentStatus.CREATING, DeploymentStatus.RUNNING]
+        with self._port_lock:
+            with SessionLocal() as db:
+                used = {d.port for d in db.query(Deployment).filter(Deployment.status.in_(active)).all() if d.port}
+            if self.client:
+                for c in self.client.containers.list(all=True):
+                    for bindings in (c.attrs.get("HostConfig", {}).get("PortBindings") or {}).values():
+                        for b in bindings or []:
+                            if str(b.get("HostPort", "")).isdigit():
+                                used.add(int(b["HostPort"]))
+            now = time.monotonic()
+            self._reserved = {p: t for p, t in self._reserved.items() if now - t < 300}
+            used |= set(self._reserved)
+            for port in self.port_range:
+                if port not in used:
+                    self._reserved[port] = now
+                    return port
         raise Exception("가용 포트가 없습니다 (8001-8100).")
 
     def _check_app_health(self, port: int) -> bool:

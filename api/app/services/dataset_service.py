@@ -52,6 +52,7 @@ def training_image_for(task: str) -> str:
     return {
         DatasetTask.DETECTION.value: settings.TRAINING_IMAGE_YOLO26,
         DatasetTask.RECOGNITION.value: settings.TRAINING_IMAGE_PPOCR,
+        DatasetTask.E2E.value: settings.TRAINING_IMAGE_PPOCR,  # 정답 문자를 인식 사전과 대조
     }[task]
 
 
@@ -259,6 +260,10 @@ class DatasetService:
             used = db.query(Job).filter(Job.dataset_version_id == dv.id).count()
             if used:
                 raise HTTPException(409, f"학습 작업 {used}건이 이 버전을 사용해 삭제할 수 없습니다")
+            from app.models.evaluation import Evaluation
+            used = db.query(Evaluation).filter(Evaluation.dataset_version_id == dv.id).count()
+            if used:
+                raise HTTPException(409, f"E2E 평가 {used}건이 이 버전을 사용해 삭제할 수 없습니다")
             s3_provider.delete_prefix(self.bucket, dv.storage_path.split("/", 1)[1] + "/")
         s3_provider.delete_prefix(self.bucket, dv.staging_prefix)
         db.delete(dv)

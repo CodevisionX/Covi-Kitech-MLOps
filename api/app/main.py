@@ -13,6 +13,7 @@ from app.db.base_class import Base
 
 from app.models.project import Project 
 from app.models.dataset import DatasetVersion  # noqa: F401 (create_all 대상 등록)
+from app.models.evaluation import Evaluation  # noqa: F401
 from app.integrations.s3 import s3_provider
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -55,6 +56,7 @@ async def lifespan(app: FastAPI):
             "REFERENCES dataset_version(id)"))
         conn.execute(text(
             "CREATE INDEX IF NOT EXISTS ix_job_dataset_version_id ON job (dataset_version_id)"))
+        conn.execute(text("ALTER TABLE deployment ADD COLUMN IF NOT EXISTS model_family VARCHAR"))
 
     # 브라우저가 데이터셋 버킷에 직접 업로드할 수 있도록 CORS 설정 (멱등)
     try:

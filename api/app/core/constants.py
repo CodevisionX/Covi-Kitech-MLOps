@@ -44,6 +44,7 @@ class DatasetStatus(str, Enum):
 class DatasetTask(str, Enum):
     DETECTION = "detection"
     RECOGNITION = "recognition"
+    E2E = "e2e"                 # 검출 + 인식을 이어 붙인 평가 전용 (패널/프레임 이미지 + 슬롯 정답)
 
     def __str__(self):
         return self.value
@@ -54,3 +55,18 @@ MODEL_DATASET_TASKS = {
     "YOLO26": DatasetTask.DETECTION.value,
     "PP-OCRv6": DatasetTask.RECOGNITION.value,
 }
+
+
+# MLflow pyfunc 로 기록되어 학습 이미지에서 바로 서빙하는 모델 (BentoML 빌드를 거치지 않음)
+PYFUNC_SERVING_MODELS = {"YOLO26", "PP-OCRv6"}
+
+
+class EvaluationStatus(str, Enum):
+    PENDING = "PENDING"
+    DETECTING = "DETECTING"       # 1단계: 검출 + 슬롯 Crop (YOLO26 이미지)
+    RECOGNIZING = "RECOGNIZING"   # 2단계: 인식 + 채점 (PP-OCR 이미지)
+    FINISHED = "FINISHED"
+    FAILED = "FAILED"
+
+    def __str__(self):
+        return self.value

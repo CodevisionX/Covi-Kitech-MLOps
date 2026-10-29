@@ -2,6 +2,7 @@
 
 입력: 'image' 열(base64 로 인코딩한 PNG/JPEG)을 가진 DataFrame, 또는 base64 문자열 리스트
 출력: 이미지마다 {"boxes": [[x1, y1, x2, y2, conf, cls], ...]} 를 담은 리스트
+추론 설정 기본값은 고객 운영 코드와 같습니다: conf 0.25, iou 0.3, max_det 20, NMS 사용(end2end=False)
 """
 import base64
 
@@ -37,6 +38,9 @@ class Yolo26Detector(mlflow.pyfunc.PythonModel):
             images,
             imgsz=int(params.get("imgsz", 640)),
             conf=float(params.get("conf", 0.25)),
+            iou=float(params.get("iou", 0.3)),
+            max_det=int(params.get("max_det", 20)),
+            end2end=False,
             verbose=False,
         )
         out = []

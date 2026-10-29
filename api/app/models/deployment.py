@@ -24,6 +24,8 @@ class Deployment(Base):
     model_name = Column(String, nullable=False)      # Registry 등록명
     model_version = Column(Integer, nullable=True)   # Registry 버전
     run_id = Column(String, nullable=False)          # MLflow Run ID (Lineage)
+    # 학습 모델 종류. YOLO26 / PP-OCRv6 는 학습 이미지에서 MLflow pyfunc 로 서빙, 그 외(yolo/cnn)는 BentoML
+    model_family = Column(String, nullable=True)
 
     # 배포 인프라 정보
     status = Column(

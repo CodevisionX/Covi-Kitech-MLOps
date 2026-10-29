@@ -1,5 +1,6 @@
 import logging
 import asyncio
+import httpx
 from typing import Optional
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -12,8 +13,21 @@ from app.integrations.mlflow import mlflow_provider
 from app.integrations.docker import docker_provider
 from app.core.config import settings
 from app.models.job import Job
+from app.core.constants import PYFUNC_SERVING_MODELS
+from app.services.job_service import get_training_runtime
 
 logger = logging.getLogger(__name__)
+
+SERVING_PORT = 3000
+SERVING_READY_TIMEOUT = 600  # 모델 다운로드 + 로드 대기 (초)
+
+
+def serving_host(dep: Deployment) -> str:
+    """mlops-net 안에서 서빙 컨테이너에 접속할 호스트 이름."""
+    if dep.model_family in PYFUNC_SERVING_MODELS:
+        return f"model-serve-{dep.id}"
+    return f"bento-serve-{dep.id}"
+
 
 class DeploymentService:
 
@@ -23,9 +37,17 @@ class DeploymentService:
         if not resource_manager.check_project_quota(project_id):
             raise HTTPException(status_code=400, detail="배포 쿼터 초과")
         
-        if job_id is None:
-            existing_job = db.query(Job).filter(Job.run_id == run_id).first()
-            if existing_job: job_id = existing_job.id
+        job = db.query(Job).get(job_id) if job_id is not None else None
+        if job is None:
+            job = db.query(Job).filter(Job.run_id == run_id).first()
+            if job: job_id = job.id
+        if job and job.run_id != run_id:
+            raise HTTPException(status_code=400, detail="학습 작업과 run_id 가 맞지 않습니다")
+        # 모델 종류: 학습 작업에서 확인. 기존 모델은 이전처럼 이름으로 yolo/cnn 구분
+        if job and job.model_variant in PYFUNC_SERVING_MODELS:
+            model_family = job.model_variant
+        else:
+            model_family = "yolo" if "yolo" in model_name.lower() else "cnn"
 
         # 2. PENDING 상태로 레코드 생성
         deployment = Deployment(
@@ -34,6 +56,7 @@ class DeploymentService:
             model_name=model_name,
             model_version=model_version,
             run_id=run_id,
+            model_family=model_family,
             status=DeploymentStatus.PENDING,
             status_message="배포 예약됨"
         )
@@ -98,11 +121,15 @@ class DeploymentService:
                 model_version=int(new_version)
             )
 
+            if dep_obj.model_family in PYFUNC_SERVING_MODELS:
+                await self._serve_pyfunc(deployment_id, dep_obj, new_version, update_status)
+                return
+
             # 2. BUILDING: 별도의 컨테이너에게 일을 시킵니다.
             await update_status(DeploymentStatus.BUILDING, "빌드 전용 컨테이너를 가동합니다...")
 
-            model_name_lower = dep_obj.model_name.lower()
-            derived_model_type = "yolo" if "yolo" in model_name_lower else "cnn"
+            derived_model_type = dep_obj.model_family or (
+                "yolo" if "yolo" in dep_obj.model_name.lower() else "cnn")
 
             # 빌더 컨테이너가 사용할 환경 변수 설정
             builder_env = {
@@ -158,6 +185,67 @@ class DeploymentService:
         except Exception as e:
             print(f"[DeploymentFlow] CRITICAL ERROR: {str(e)}")
             await update_status(DeploymentStatus.FAILED, "배포 실패", error_msg=str(e))
+
+    async def _serve_pyfunc(self, deployment_id: int, dep_obj: Deployment, version, update_status):
+        """YOLO26 / PP-OCRv6: 학습 이미지에서 등록된 모델을 MLflow 서빙으로 띄웁니다.
+
+        학습 때와 같은 이미지(라이브러리 버전)로 추론하므로 별도 빌드가 필요 없습니다.
+        API: POST /invocations (MLflow 표준), GET /ping
+        """
+        loop = asyncio.get_running_loop()
+        image, _ = get_training_runtime(dep_obj.model_family)
+        port = resource_manager.find_available_port()
+        gpu_id = resource_manager.get_gpu_assignment()
+        await update_status(DeploymentStatus.CREATING,
+                            f"서빙 컨테이너를 시작합니다 ({'CPU' if gpu_id == 'cpu' else 'GPU'})", port=port)
+        command = ["/app/.venv/bin/python", "-m", "mlflow", "models", "serve",
+                   "-m", f"models:/{dep_obj.model_name}/{version}", "--env-manager", "local",
+                   "-h", "0.0.0.0", "-p", str(SERVING_PORT), "-w", "1"]
+        env = {
+            "MLFLOW_TRACKING_URI": settings.MLFLOW_TRACKING_URI,
+            "MLFLOW_S3_ENDPOINT_URL": settings.MLFLOW_S3_ENDPOINT_URL,
+            "AWS_ACCESS_KEY_ID": settings.S3_ACCESS_KEY,
+            "AWS_SECRET_ACCESS_KEY": settings.S3_SECRET_KEY,
+            "AWS_DEFAULT_REGION": "us-east-1",
+            "MLFLOW_PYTHON_IGNORE_GIT_ERROR": "true",
+            "PYTHONUNBUFFERED": "1",
+        }
+        if gpu_id == "cpu":
+            env["CUDA_VISIBLE_DEVICES"] = ""
+        name = f"model-serve-{deployment_id}"
+        try:
+            container = await loop.run_in_executor(None, lambda: docker_provider.run_serving_container(
+                image=image, name=name, environment=env,
+                port_mapping={SERVING_PORT: port}, network="mlops-net", volumes={},
+                gpu_id=gpu_id, command=command))
+        except Exception:
+            # 생성은 됐지만 시작에 실패한 컨테이너가 남지 않도록 정리
+            try:
+                docker_provider.get_container(name).remove(force=True)
+            except Exception:
+                pass
+            raise
+        await update_status(DeploymentStatus.CREATING, "모델을 내려받아 불러오는 중입니다...",
+                            container_id=container.id)
+
+        url = f"http://model-serve-{deployment_id}:{SERVING_PORT}/ping"
+        async with httpx.AsyncClient() as client:
+            for _ in range(SERVING_READY_TIMEOUT // 3):
+                await asyncio.sleep(3)
+                try:
+                    if (await client.get(url, timeout=3)).status_code == 200:
+                        break
+                except httpx.HTTPError:
+                    pass
+                container.reload()
+                if container.status in ("exited", "dead") or container.attrs["RestartCount"] > 0:
+                    tail = container.logs(tail=30).decode("utf-8", "replace")
+                    container.remove(force=True)
+                    raise RuntimeError(f"서빙 컨테이너가 시작되지 않았습니다:\n{tail}")
+            else:
+                raise RuntimeError(f"{SERVING_READY_TIMEOUT}초 안에 모델 서빙이 준비되지 않았습니다")
+        await update_status(DeploymentStatus.RUNNING, "서비스 가동 성공",
+                            endpoint_url=f"http://localhost:{port}/invocations")
 
     async def stop_deployment(self, deployment_id: int):
         """배포 중단 로직 (PENDING, RUNNING 모두 대응)"""

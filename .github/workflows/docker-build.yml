@@ -58,6 +58,7 @@ jobs:
                 - 'training/mlops_common.py'
                 - 'training/dataset_tools.py'
                 - 'training/validate_dataset.py'
+                - 'training/evaluate_e2e.py'
           - service_name: training-ppocr
             context: ./training
             dockerfile: ./training/ppocr/Dockerfile
@@ -70,6 +71,7 @@ jobs:
                 - 'training/mlops_common.py'
                 - 'training/dataset_tools.py'
                 - 'training/validate_dataset.py'
+                - 'training/evaluate_e2e.py'
           - service_name: jupyter
             context: ./jupyter
             dockerfile: ./jupyter/Dockerfile.jupyter

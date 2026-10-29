@@ -9,7 +9,11 @@ from app.db.dependencies import get_db
 from app.models.job import Job
 from app.models.deployment import Deployment
 from app.schemas.deployment import DeploymentCreate, DeploymentResponse
-from app.services.deployment_service import deployment_service
+import base64
+import json
+
+from app.core.constants import PYFUNC_SERVING_MODELS
+from app.services.deployment_service import SERVING_PORT, deployment_service, serving_host
 from app.services.sse_service import sse_manager
 
 router = APIRouter()
@@ -54,7 +58,7 @@ def read_active_deployments(project_id: Optional[int] = None, db: Session = Depe
     for d in deployments:
         exp_id = d.job.experiment_id 
         run_id = d.run_id
-        if "yolo" in d.model_name.lower():
+        if d.model_family == "yolo":
             d.artifact_uri = f"s3://mlflow-artifacts/{exp_id}/{run_id}/artifacts/plots/weights/best.pt"
     
     return deployments
@@ -109,14 +113,50 @@ def stream_deployment_logs(deployment_id: int, db: Session = Depends(get_db)):
         media_type="text/event-stream"
     )
 
+async def _invoke_pyfunc(dep: Deployment, images: List[str], params: Optional[dict]):
+    """MLflow 서빙(/invocations)에 base64 이미지 목록을 보냅니다."""
+    body = {"dataframe_split": {"columns": ["image"], "data": [[img] for img in images]}}
+    if params:
+        body["params"] = params
+    url = f"http://{serving_host(dep)}:{SERVING_PORT}/invocations"
+    async with httpx.AsyncClient() as client:
+        try:
+            r = await client.post(url, json=body, timeout=120.0)
+        except httpx.RequestError as e:
+            raise HTTPException(status_code=503, detail=f"서빙 컨테이너 연결 실패: {e}")
+    if r.status_code != 200:
+        raise HTTPException(status_code=r.status_code, detail=f"모델 추론 오류: {r.text[:2000]}")
+    return r.json().get("predictions")
+
+
+def _running(db: Session, deployment_id: int) -> Deployment:
+    dep = db.query(Deployment).get(deployment_id)
+    if not dep or not dep.container_id:
+        raise HTTPException(status_code=404, detail="배포 정보를 찾을 수 없거나 컨테이너가 실행 중이지 않습니다.")
+    return dep
+
+
 @router.post("/{deployment_id}/predict")
 async def predict_data(
     deployment_id: int, 
     payload: dict, # JSON 데이터 수신
     db: Session = Depends(get_db)    
 ):
-    dep = db.query(Deployment).get(deployment_id)
-    target_url = f"http://bento-serve-{deployment_id}:3000/predict"
+    """
+    YOLO26 / PP-OCRv6: {"images": [base64 PNG/JPEG, ...], "params": {"conf": 0.25, ...}}
+      -> {"status": "success", "prediction": [이미지별 결과]}
+      검출 결과: {"boxes": [[x1, y1, x2, y2, conf, cls], ...]}, 인식 결과: {"text": "1948", "score": 0.99}
+    기존 모델(1D-CNN 등): BentoML /predict 규격 그대로 전달
+    """
+    dep = _running(db, deployment_id)
+    if dep.model_family in PYFUNC_SERVING_MODELS:
+        images = payload.get("images")
+        if not isinstance(images, list) or not images or not all(isinstance(i, str) for i in images):
+            raise HTTPException(status_code=422, detail="images 에 base64 이미지 문자열 목록이 필요합니다")
+        preds = await _invoke_pyfunc(dep, images, payload.get("params"))
+        return {"status": "success", "model": dep.model_family, "prediction": preds}
+
+    target_url = f"http://{serving_host(dep)}:3000/predict"
 
     async with httpx.AsyncClient() as client:
         try:
@@ -124,6 +164,26 @@ async def predict_data(
             return response.json()
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{deployment_id}/predict/image")
+async def predict_image(
+    deployment_id: int,
+    upload_file: UploadFile = File(...),
+    params: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    """[YOLO26 / PP-OCRv6] 이미지 파일 하나를 올려 결과를 JSON 으로 받습니다. params 는 JSON 문자열(선택)."""
+    dep = _running(db, deployment_id)
+    if dep.model_family not in PYFUNC_SERVING_MODELS:
+        raise HTTPException(status_code=400, detail="YOLO26 / PP-OCRv6 배포에서만 사용할 수 있습니다")
+    try:
+        extra = json.loads(params) if params else None
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=422, detail="params 는 JSON 문자열이어야 합니다")
+    image = base64.b64encode(await upload_file.read()).decode()
+    preds = await _invoke_pyfunc(dep, [image], extra)
+    return {"status": "success", "model": dep.model_family, "prediction": preds[0] if preds else None}
 
 
 @router.post("/{deployment_id}/predict/visual")
@@ -145,7 +205,7 @@ async def predict_visual(
             detail="배포 정보를 찾을 수 없거나 컨테이너가 실행 중이지 않습니다."
         )
 
-    target_url = f"http://bento-serve-{deployment_id}:3000/predict"
+    target_url = f"http://{serving_host(dep)}:3000/predict"
     
     try:
         async with httpx.AsyncClient() as client:

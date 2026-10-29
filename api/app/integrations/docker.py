@@ -50,7 +50,8 @@ class DockerProvider:
         port_mapping: Dict[int, int],
         network: str,
         volumes: Dict[str, Any], # 볼륨 매개변수 추가
-        gpu_id: str = "0"
+        gpu_id: str = "0",
+        command=None,             # 이미지 기본 명령 대신 실행할 명령 (MLflow pyfunc 서빙)
     ):
         """
         최종 서빙 컨테이너를 실행합니다. (공유 볼륨 연결 필수)
@@ -58,6 +59,7 @@ class DockerProvider:
         return self.client.containers.run(
             image=image,
             name=name,
+            command=command,
             environment=environment,
             # 컨테이너 3000 포트를 호스트의 port_mapping[3000]으로 연결
             ports={'3000/tcp': port_mapping[3000]}, 
