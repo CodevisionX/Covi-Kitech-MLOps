@@ -85,10 +85,11 @@ services:
           check "$$(s3 -X PUT "$$S3/$$b")"
         done
 
-        # 데이터셋 버킷은 익명 다운로드 허용 (기존 'mc anonymous set download' 와 동일)
-        echo "익명 다운로드 정책 적용: $$DATASET_BUCKET_NAME"
-        check "$$(s3 -X PUT "$$S3/$$DATASET_BUCKET_NAME?policy" -H 'Content-Type: application/json' \
-          --data "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"AWS\":[\"*\"]},\"Action\":[\"s3:GetObject\"],\"Resource\":[\"arn:aws:s3:::$$DATASET_BUCKET_NAME/*\"]}]}")"
+        # 데이터셋 버킷 익명 접근 해제. 예전 버전이 걸어 둔 공개 다운로드 정책이 있으면 지웁니다.
+        # 학습/검사 작업은 모두 접속 키로 받으므로 공개 정책이 필요 없습니다. (정책이 없으면 404)
+        echo "익명 접근 정책 제거: $$DATASET_BUCKET_NAME"
+        code="$$(s3 -X DELETE "$$S3/$$DATASET_BUCKET_NAME?policy")"
+        case "$$code" in 404) echo "  OK (정책 없음)";; *) check "$$code";; esac
 
         echo 'RustFS 초기화 완료'
 
