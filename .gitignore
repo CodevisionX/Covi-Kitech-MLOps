@@ -4,6 +4,7 @@ minio_data/
 rustfs_data/
 training_results/
 datasets/
+!ui/modules/mlops/pages/datasets/
 mlops_images/
 images_compressed/
 

@@ -8,6 +8,51 @@
   </header>
 
   <section class="info-section">
+    @if (requiredTask) {
+    <div class="path-card" [class.ready]="selectedVersion">
+      <div class="path-header">
+        <div class="title-group">
+          <mat-icon [style.color]="selectedVersion ? 'var(--success-color)' : 'var(--error-color)'">
+            {{ selectedVersion ? 'check_circle' : 'error_outline' }}
+          </mat-icon>
+          <span>학습 데이터셋 버전</span>
+        </div>
+        <span class="status-badge" [class.active]="selectedVersion">
+          {{ selectedVersion ? '준비됨' : '선택 필요' }}
+        </span>
+      </div>
+
+      <div class="path-body">
+        @if (datasetVersions.length > 0) {
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>등록된 {{ requiredTask === 'detection' ? '검출' : '인식' }} 데이터셋</mat-label>
+          <mat-select [(ngModel)]="selectedVersionId">
+            @for (v of datasetVersions; track v.id) {
+            <mat-option [value]="v.id">
+              {{ v.name }}:v{{ v.version }} · 파일 {{ v.file_count }}개 · {{ v.manifest_sha256?.slice(0, 12) }}
+            </mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        @if (selectedVersion?.stats?.['counts']; as counts) {
+        <div class="version-counts">
+          @for (c of counts | keyvalue; track c.key) {
+          <span class="count-chip">{{ c.key }}: {{ $any(c.value)?.images ?? c.value }}</span>
+          }
+        </div>
+        }
+        } @else {
+        <code class="path-text error-text">
+          <mat-icon class="inline-icon">info</mat-icon>
+          등록된 {{ requiredTask === 'detection' ? '검출' : '인식' }} 데이터셋이 없습니다.
+          <a routerLink="/dashboard/datasets">데이터셋 페이지</a>에서 먼저 올려 주세요.
+        </code>
+        }
+        <p class="version-hint">등록된 버전은 바뀌지 않으므로 같은 버전으로 학습하면 같은 데이터로 재현됩니다.
+          왼쪽 브라우저는 기존 모델(YOLOv8, 1D-CNN)용입니다.</p>
+      </div>
+    </div>
+    } @else {
     <div class="path-card" [class.ready]="modelService.selectedDatasetPath()">
       <div class="path-header">
         <div class="title-group">
@@ -38,14 +83,25 @@
           </div>
         </div>
         }
-
-
       </div>
     </div>
+    }
   </section>
 
   <section class="config-section">
     <div class="config-card">
+      @if (projects.length > 1) {
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>프로젝트</mat-label>
+          <mat-select [ngModel]="selectedProjectId" (selectionChange)="onProjectChange($event.value)">
+            @for (p of projects; track p.id) {
+            <mat-option [value]="p.id">{{ p.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      </div>
+      }
       <div class="form-row">
         <mat-form-field appearance="outline" class="full-width">
           <mat-label>학습 알고리즘 선택</mat-label>
@@ -110,7 +166,7 @@
       }
 
       <div class="action-row">
-        @if (modelService.selectedDatasetPath() && selectedModelName && !isCompatible) {
+        @if (!requiredTask && modelService.selectedDatasetPath() && selectedModelName && !isCompatible) {
         <div class="incompatible-warning" @fadeInScale>
           <!-- <mat-icon>warning</mat-icon> -->
           <p class="analysis-desc">
@@ -119,7 +175,7 @@
         </div>
         }
 
-        @if (modelService.selectedDatasetPath() && selectedModelName && isCompatible) {
+        @if (isReady) {
         <div class="launch-summary">
           <mat-icon>info</mat-icon>
           <span>선택된 데이터셋으로 <strong>{{ selectedModelName }}</strong> 모델 학습을 시작할 준비가 되었습니다.</span>
@@ -127,7 +183,7 @@
         }
 
         <button mat-flat-button class="start-btn"
-          [disabled]="!modelService.selectedDatasetPath() || !selectedModelName || isSubmitting || !isCompatible"
+          [disabled]="!isReady || isSubmitting"
           (click)="submitTraining()">
           @if (isSubmitting) {
           <mat-spinner diameter="24"></mat-spinner>

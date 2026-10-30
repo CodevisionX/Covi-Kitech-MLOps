@@ -855,3 +855,28 @@ button[mat-icon-button] {
     background-color: transparent !important;
   }
 }
+/* 신규 모델 행 보조 정보 */
+.job-id {
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.job-sub {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--text-muted);
+
+  mat-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+  }
+
+  &.imported {
+    color: var(--warning-color);
+  }
+}

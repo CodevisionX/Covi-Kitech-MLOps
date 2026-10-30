@@ -13,6 +13,12 @@ import { SharedModule } from '../shared/shared-module';
 import { ModelValidation } from './components/model-validation/model-validation';
 import { ModelDetailCnn } from './components/model-detail-cnn/model-detail-cnn';
 import { ModelValidationCnn } from './components/model-validation-cnn/model-validation-cnn';
+import { DatasetsPage } from './pages/datasets/datasets';
+import { EvaluationList } from './pages/evaluations/evaluations';
+import { EvaluationDetail } from './pages/evaluation-detail/evaluation-detail';
+import { ModelValidationPyfunc } from './components/model-validation-pyfunc/model-validation-pyfunc';
+import { ModelDetailV2 } from './components/model-detail-v2/model-detail-v2';
+import { ImportModelDialog } from './components/dialogs/import-model/import-model';
 
 @NgModule({
   declarations: [
@@ -26,6 +32,12 @@ import { ModelValidationCnn } from './components/model-validation-cnn/model-vali
     ModelValidation,
     ModelDetailCnn,
     ModelValidationCnn,
+    DatasetsPage,
+    EvaluationList,
+    EvaluationDetail,
+    ModelValidationPyfunc,
+    ModelDetailV2,
+    ImportModelDialog,
   ],
   imports: [
     CommonModule,

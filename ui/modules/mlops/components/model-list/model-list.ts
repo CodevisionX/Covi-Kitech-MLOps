@@ -11,6 +11,9 @@ import { ko } from 'date-fns/locale';
 import { TerminalLog } from '../dialogs/terminal-log/terminal-log';
 import { IProject } from '../../services/apis/models/project.model';
 import { Project } from '../../services/apis/project';
+import { MODEL_CONFIGS } from '../../configs/model-config';
+import { DatasetApi } from '../../services/apis/dataset';
+import { ImportModelDialog } from '../dialogs/import-model/import-model';
 
 @Component({
   selector: 'app-model-list',
@@ -27,6 +30,10 @@ export class ModelList implements OnInit, OnDestroy {
   private router = inject(Router);
   private dialog = inject(MatDialog);
   private ngZone = inject(NgZone);
+  private datasetApi = inject(DatasetApi);
+
+  /** 데이터셋 버전 id -> 'name:vN' */
+  datasetNames = signal<Record<number, string>>({});
 
   projects = signal<IProject[]>([]);
   allActiveJobs = signal<IJob[]>([]);
@@ -67,6 +74,17 @@ export class ModelList implements OnInit, OnDestroy {
 
   bestJob = computed(() => {
     const history = this.filteredHistoryJobs().filter(j => j.status === 'FINISHED' && j.metrics);
+    const variant = this.selectedVariant();
+    const metric = variant ? MODEL_CONFIGS[variant]?.bestMetric : undefined;
+    if (metric) {
+      // 신규 모델: 설정된 지표가 있는 학습만 비교 (가져온 현장 모델은 학습 지표가 없어 제외)
+      const scored = history.filter(j => j.metrics?.[metric.key] !== undefined);
+      if (scored.length === 0) return null;
+      return scored.reduce((prev, cur) => {
+        const a = prev.metrics![metric.key], b = cur.metrics![metric.key];
+        return (metric.higher ? b > a : b < a) ? cur : prev;
+      });
+    }
     if (history.length === 0) return null;
 
     return history.reduce((prev, current) => {
@@ -89,19 +107,44 @@ export class ModelList implements OnInit, OnDestroy {
       }
     });
   });
+
+  /** 최고 모델 카드에 보일 지표 */
+  bestMetricView = computed(() => {
+    const best = this.bestJob();
+    if (!best) return null;
+    const metric = MODEL_CONFIGS[best.model_variant]?.bestMetric;
+    if (metric) return { label: metric.label, value: best.metrics?.[metric.key] ?? 0 };
+    if (best.model_variant === '1D-CNN') return { label: 'Train Loss', value: best.metrics?.['train_loss'] ?? 0 };
+    return { label: 'mAP@0.5', value: best.metrics?.['metrics/mAP50_B'] || 0 };
+  });
+
   bestJobId = computed(() => this.bestJob()?.id || null);
 
   activeDisplayedColumns = ['modelInfo', 'status', 'startTime', 'dashboard', 'actions', 'cancel'];
   historyDisplayedColumns = computed(() => {
     const variant = this.selectedVariant();
     
-    if (variant === '1D-CNN' || variant === 'YOLOv8') {
+    if (variant && this.hasDetail(variant)) {
       return ['modelInfo', 'status', 'startTime', 'dashboard', 'management', 'actions'];
     }
     
     // 그 외의 모델(XGBoost 등)일 경우 'management'(분석 및 배포) 제외
     return ['modelInfo', 'status', 'startTime', 'dashboard', 'actions'];
   });
+
+  hasDetail(variant: string): boolean {
+    return variant === '1D-CNN' || variant === 'YOLOv8' || !!MODEL_CONFIGS[variant]?.pyfunc;
+  }
+
+  bestMetricOf(job: IJob): { label: string; value: number } | null {
+    const metric = MODEL_CONFIGS[job.model_variant]?.bestMetric;
+    const value = metric ? job.metrics?.[metric.key] : undefined;
+    return metric && value !== undefined ? { label: metric.label, value } : null;
+  }
+
+  isPyfunc(variant: string | null): boolean {
+    return !!variant && !!MODEL_CONFIGS[variant]?.pyfunc;
+  }
 
   private sseSubscription: Subscription | null = null;
   private currentLogDialogRef: MatDialogRef<TerminalLog> | null = null;
@@ -174,6 +217,7 @@ export class ModelList implements OnInit, OnDestroy {
       next: (res) => {
         this.allActiveJobs.set(res.active);
         this.allHistoryJobs.set(res.history);
+        this.loadDatasetNames(projectId);
 
         if (!this.selectedVariant() && this.availableVariants().length > 0) {
           this.onVariantChange(this.availableVariants()[0]);
@@ -184,6 +228,29 @@ export class ModelList implements OnInit, OnDestroy {
         this.notificationService.showError(err);
         this.isLoading.set(false);
       }
+    });
+  }
+
+  private loadDatasetNames(projectId: number) {
+    this.datasetApi.listVersions({ project_id: projectId }).subscribe({
+      next: list => this.datasetNames.set(
+        Object.fromEntries(list.map(v => [v.id, `${v.name}:v${v.version ?? '-'}`]))),
+      error: () => { },
+    });
+  }
+
+  /** 현장 모델 파일(.pt / inference.*)을 가져와 학습 결과처럼 쓸 수 있게 합니다. */
+  openImportDialog() {
+    const projectId = this.selectedProjectId();
+    if (!projectId) return;
+    const variant = this.selectedVariant();
+    this.dialog.open(ImportModelDialog, {
+      width: '560px',
+      data: { projectId, variant: this.isPyfunc(variant) ? variant : 'YOLO26' },
+    }).afterClosed().subscribe(job => {
+      if (!job) return;
+      this.refreshJobs();
+      if (job.model_variant !== this.selectedVariant()) this.onVariantChange(job.model_variant);
     });
   }
 
@@ -295,7 +362,7 @@ export class ModelList implements OnInit, OnDestroy {
       '1D-CNN': 'cnn'
     };
 
-    const segment = pathMap[job.model_variant] || 'yolo';
+    const segment = this.isPyfunc(job.model_variant) ? 'v2' : (pathMap[job.model_variant] || 'yolo');
 
     this.router.navigate(['/dashboard/models/run', segment, job.run_id], {
       queryParams: {

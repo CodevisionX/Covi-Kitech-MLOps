@@ -13,6 +13,7 @@ export interface IJobCreate {
   project_id: number;
   // experiment_id: string;
   dataset: string;
+  dataset_version_id?: number | null;
   model_variant: string;
   params: Record<string, any>; 
   tags: Record<string, any>;
@@ -26,6 +27,7 @@ export interface IJob {
   // JobBase 상속 필드
   model_variant: string;
   dataset: string;
+  dataset_version_id?: number | null;
   params: Record<string, any>;
   tags: Record<string, any>;
 

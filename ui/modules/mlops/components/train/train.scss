@@ -308,3 +308,25 @@ $transition-base: all var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
     transform: translateY(0);
   }
 }
+/* 등록된 데이터셋 버전 선택 */
+.version-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+
+  .count-chip {
+    font-size: 12px;
+    padding: 2px 10px;
+    border-radius: 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+  }
+}
+
+.version-hint {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}

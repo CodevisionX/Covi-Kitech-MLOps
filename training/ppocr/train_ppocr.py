@@ -171,6 +171,18 @@ def evaluate(cfg: dict, ckpt: str, split: str, lists_dir: Path, out_dir: Path) -
     return {f"{prefix}/{k}": v for k, v in metrics.items() if k != "fps"}
 
 
+def log_recognition_model(inference_dir: Path):
+    """인식 모델(inference.json/.pdiparams/.yml)을 서빙/평가용 pyfunc 로 기록합니다."""
+    paddle_ver = package_versions(["paddlepaddle-gpu"])["paddlepaddle-gpu"]
+    mlflow.pyfunc.log_model(
+        name="model",
+        python_model=str(Path(__file__).resolve().parent / "ppocr_pyfunc.py"),
+        artifacts={"inference_dir": str(inference_dir)},
+        signature=ModelSignature(inputs=Schema([ColSpec("string", "image")])),
+        pip_requirements=[f"paddlepaddle-gpu=={paddle_ver}", "opencv-python", "numpy", "PyYAML"],
+    )
+
+
 # ---------------------------------------------------------------- 메인
 def main():
     run_id = os.getenv("MLFLOW_RUN_ID")
@@ -270,16 +282,7 @@ def main():
             for f in ("train.log", "config.yml"):
                 if (fit / f).is_file():
                     mlflow.log_artifact(str(fit / f), artifact_path="training")
-            here = Path(__file__).resolve().parent
-            paddle_ver = package_versions(["paddlepaddle-gpu"])["paddlepaddle-gpu"]
-            mlflow.pyfunc.log_model(
-                name="model",
-                python_model=str(here / "ppocr_pyfunc.py"),
-                artifacts={"inference_dir": str(inference_dir)},
-                signature=ModelSignature(inputs=Schema([ColSpec("string", "image")])),
-                pip_requirements=[f"paddlepaddle-gpu=={paddle_ver}", "opencv-python",
-                                  "numpy", "PyYAML"],
-            )
+            log_recognition_model(inference_dir)
 
             report_status("FINISHED", "Training completed successfully.")
             logger.info("--- [DONE] ---")

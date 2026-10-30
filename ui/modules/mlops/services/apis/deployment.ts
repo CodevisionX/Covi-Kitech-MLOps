@@ -113,4 +113,23 @@ export class Deployment extends BaseApi {
     }).pipe(catchError(this.handleError));
   }
   
+
+  /**
+   * YOLO26 / PP-OCRv6 서빙에 이미지 파일 1장을 보냅니다.
+   * 검출: {boxes: [[x1,y1,x2,y2,conf,cls],...]}, 인식: {text, score}
+   */
+  predictImageFile(deploymentId: number, file: File, params?: Record<string, number>): Observable<any> {
+    const form = new FormData();
+    form.append('upload_file', file);
+    let httpParams = new HttpParams();
+    if (params && Object.keys(params).length) httpParams = httpParams.set('params', JSON.stringify(params));
+    return this.http.post<any>(`/deployments/${deploymentId}/predict/image`, form, { params: httpParams })
+      .pipe(catchError(this.handleError));
+  }
+
+  /** YOLO26 / PP-OCRv6 서빙에 base64 이미지 여러 장을 한 번에 보냅니다. */
+  predictImages(deploymentId: number, images: string[], params?: Record<string, number>): Observable<any> {
+    return this.http.post<any>(`/deployments/${deploymentId}/predict`, { images, params })
+      .pipe(catchError(this.handleError));
+  }
 }

@@ -15,9 +15,17 @@
         <mat-icon matListItemIcon>model_training</mat-icon>
         <span matListItemTitle>학습 실행</span>
       </a>
+      <a mat-list-item routerLink="/dashboard/datasets" routerLinkActive="active-link">
+        <mat-icon matListItemIcon>dataset</mat-icon>
+        <span matListItemTitle>데이터셋</span>
+      </a>
       <a mat-list-item routerLink="/dashboard/models" routerLinkActive="active-link">
         <mat-icon matListItemIcon>inventory_2</mat-icon>
         <span matListItemTitle>학습 이력</span>
+      </a>
+      <a mat-list-item routerLink="/dashboard/evaluations" routerLinkActive="active-link">
+        <mat-icon matListItemIcon>fact_check</mat-icon>
+        <span matListItemTitle>E2E 평가</span>
       </a>
       <a mat-list-item routerLink="/dashboard/deployments" routerLinkActive="active-link">
         <mat-icon matListItemIcon>rocket_launch</mat-icon>

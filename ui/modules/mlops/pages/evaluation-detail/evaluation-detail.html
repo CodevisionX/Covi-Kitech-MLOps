@@ -1,0 +1,174 @@
+<div class="detail-container">
+  <nav class="breadcrumb">
+    <span class="link" (click)="goBack()"><mat-icon>fact_check</mat-icon>E2E 평가</span>
+    <mat-icon class="sep">chevron_right</mat-icon>
+    <span>평가 #{{ id }}</span>
+  </nav>
+
+  @if (evaluation(); as ev) {
+  <header class="page-header">
+    <div class="title">
+      <button mat-icon-button (click)="goBack()"><mat-icon>arrow_back</mat-icon></button>
+      <h1>{{ ev.name || '평가 #' + ev.id }}</h1>
+      <span class="status-badge" [attr.data-status]="ev.status">{{ ev.status }}</span>
+      @if (ev.status !== 'FINISHED' && ev.status !== 'FAILED') { <mat-spinner diameter="20"></mat-spinner> }
+    </div>
+    <div class="actions">
+      <button mat-stroked-button [disabled]="!isFinished()" (click)="downloadCsv()">
+        <mat-icon>table_view</mat-icon>결과 CSV 받기
+      </button>
+      <a mat-flat-button color="primary" [href]="api.packageUrl(ev.id)" [class.disabled]="!isFinished()"
+        [attr.aria-disabled]="!isFinished()" download
+        matTooltip="현장 폴더 구조의 zip: models/detection/best.pt, models/recognition/inference.json·.pdiparams·.yml, 출처와 평가 점수를 담은 package_info.json">
+        <mat-icon>inventory_2</mat-icon>배포 패키지 받기
+      </a>
+      <button mat-stroked-button (click)="toggleLogs()"><mat-icon>terminal</mat-icon>로그 {{ showLogs() ? '닫기' : '보기' }}</button>
+      <button mat-icon-button matTooltip="삭제" (click)="remove()"><mat-icon>delete</mat-icon></button>
+    </div>
+  </header>
+
+  @if (ev.error_message) {
+  <div class="msg error"><mat-icon>error_outline</mat-icon><span>{{ ev.error_message }}</span></div>
+  } @else if (ev.status_message) {
+  <div class="msg" [class.warn]="ev.status_message.includes('주의') || ev.status_message.includes('같은')">
+    <mat-icon>info</mat-icon><span>{{ ev.status_message }}</span>
+  </div>
+  }
+
+  @if (showLogs()) {
+  <pre class="logs">{{ logs() ?? '불러오는 중...' }}</pre>
+  }
+
+  <section class="info-grid">
+    <mat-card class="info-card">
+      <label>검출 모델 (YOLO26)</label>
+      <div class="value link" (click)="goModels(detJob())">작업 #{{ ev.detection_job_id }}</div>
+      <div class="sub">{{ jobOrigin(detJob()) }}</div>
+    </mat-card>
+    <mat-card class="info-card">
+      <label>인식 모델 (PP-OCRv6)</label>
+      <div class="value link" (click)="goModels(recJob())">작업 #{{ ev.recognition_job_id }}</div>
+      <div class="sub">{{ jobOrigin(recJob()) }}</div>
+    </mat-card>
+    <mat-card class="info-card">
+      <label>평가 데이터셋</label>
+      <div class="value">{{ dataset() ? dataset()!.name + ':v' + dataset()!.version : '#' + ev.dataset_version_id }}</div>
+      <div class="sub">
+        @if (dataset()?.stats?.['mode']) { {{ dataset()!.stats!['mode'] === 'frame' ? '프레임 + ROI' : '패널 이미지' }} }
+      </div>
+    </mat-card>
+    <mat-card class="info-card">
+      <label>검출 설정</label>
+      <div class="params">
+        @for (p of ev.params | keyvalue; track p.key) { <span class="chip">{{ p.key }} {{ p.value }}</span> }
+      </div>
+      <div class="sub">시작 {{ relTime(ev.created_at) }}@if (ev.finished_at) { · 종료 {{ relTime(ev.finished_at) }} }</div>
+    </mat-card>
+  </section>
+
+  @if (ev.metrics) {
+  <section class="tiles">
+    @for (t of tiles(); track t.label) {
+    <div class="tile" [class.main]="t.main" [matTooltip]="t.help">
+      <span class="label">{{ t.label }}</span>
+      <span class="value">{{ t.value }}</span>
+    </div>
+    }
+  </section>
+
+  <section class="acc-grid">
+    <mat-card class="acc-card">
+      <div class="card-title">슬롯 위치별 정확도</div>
+      @for (r of perSlot(); track r.key) {
+      <div class="bar-row">
+        <span class="key">{{ r.key }}</span>
+        <div class="bar"><div class="fill" [style.width.%]="r.accuracy * 100" [class.low]="r.accuracy < 0.9"></div></div>
+        <span class="val">{{ pct(r.accuracy) }}@if (r.total !== undefined) { <small>({{ r.correct }}/{{ r.total }})</small> }</span>
+      </div>
+      }
+    </mat-card>
+    <mat-card class="acc-card">
+      <div class="card-title">패널별 정확도</div>
+      @for (r of perPanel(); track r.key) {
+      <div class="bar-row">
+        <span class="key">{{ r.key }}</span>
+        <div class="bar"><div class="fill" [style.width.%]="r.accuracy * 100" [class.low]="r.accuracy < 0.9"></div></div>
+        <span class="val">{{ pct(r.accuracy) }}@if (r.total !== undefined) { <small>({{ r.correct }}/{{ r.total }})</small> }</span>
+      </div>
+      }
+    </mat-card>
+  </section>
+  }
+
+  @if (isFinished()) {
+  <mat-card class="pred-card">
+    <div class="pred-header">
+      <div class="card-title">슬롯별 결과</div>
+      <div class="filters">
+        @for (f of filters; track f.key) {
+        <button class="filter-chip" [class.active]="filter() === f.key" [attr.data-key]="f.key" (click)="setFilter(f.key)">
+          {{ f.label }} <b>{{ counts()[f.key] || 0 }}</b>
+        </button>
+        }
+        @if (counts()['unlabeled']) { <span class="muted">정답 없음 {{ counts()['unlabeled'] }}</span> }
+      </div>
+    </div>
+
+    @if (csvLoading()) {
+    <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+    } @else {
+    <div class="table-wrap">
+      <table mat-table [dataSource]="pageRows()" class="pred-table">
+        <ng-container matColumnDef="image">
+          <th mat-header-cell *matHeaderCellDef>이미지</th>
+          <td mat-cell *matCellDef="let r" class="mono">{{ r.image }}</td>
+        </ng-container>
+        <ng-container matColumnDef="panel">
+          <th mat-header-cell *matHeaderCellDef>패널</th>
+          <td mat-cell *matCellDef="let r">{{ r.panel }}</td>
+        </ng-container>
+        <ng-container matColumnDef="slot">
+          <th mat-header-cell *matHeaderCellDef>슬롯</th>
+          <td mat-cell *matCellDef="let r">{{ r.slot || '-' }}</td>
+        </ng-container>
+        <ng-container matColumnDef="gt">
+          <th mat-header-cell *matHeaderCellDef>정답</th>
+          <td mat-cell *matCellDef="let r" class="mono strong">{{ r.gt || '-' }}</td>
+        </ng-container>
+        <ng-container matColumnDef="pred">
+          <th mat-header-cell *matHeaderCellDef>인식</th>
+          <td mat-cell *matCellDef="let r" class="mono strong" [class.bad]="r.result === 'wrong'">{{ r.pred || '-' }}</td>
+        </ng-container>
+        <ng-container matColumnDef="result">
+          <th mat-header-cell *matHeaderCellDef>결과</th>
+          <td mat-cell *matCellDef="let r">
+            <span class="result-badge" [attr.data-result]="r.result">{{ resultLabel(r.result) }}</span>
+            @if (r.result === 'panel_not_6') { <small class="muted">박스 {{ r.panel_boxes }}개</small> }
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="rec_score">
+          <th mat-header-cell *matHeaderCellDef>인식 점수</th>
+          <td mat-cell *matCellDef="let r" class="num">{{ r.rec_score || '-' }}</td>
+        </ng-container>
+        <ng-container matColumnDef="det_conf">
+          <th mat-header-cell *matHeaderCellDef>검출 conf</th>
+          <td mat-cell *matCellDef="let r" class="num">{{ r.det_conf || '-' }}</td>
+        </ng-container>
+        <tr mat-header-row *matHeaderRowDef="columns; sticky: true"></tr>
+        <tr mat-row *matRowDef="let row; columns: columns" [attr.data-result]="row.result"></tr>
+      </table>
+      @if (!filtered().length) { <div class="empty">해당하는 슬롯이 없습니다.</div> }
+    </div>
+    <div class="pager">
+      <span>{{ filtered().length }}개 중 {{ filtered().length ? page() * 100 + 1 : 0 }}–{{ page() * 100 + pageRows().length }}</span>
+      <button mat-icon-button [disabled]="page() === 0" (click)="prevPage()"><mat-icon>chevron_left</mat-icon></button>
+      <span>{{ page() + 1 }} / {{ pageCount() }}</span>
+      <button mat-icon-button [disabled]="page() >= pageCount() - 1" (click)="nextPage()"><mat-icon>chevron_right</mat-icon></button>
+    </div>
+    }
+  </mat-card>
+  }
+  } @else {
+  <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+  }
+</div>

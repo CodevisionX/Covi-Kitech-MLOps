@@ -54,8 +54,8 @@
           <div mat-card-avatar class="model-avatar">
             <mat-icon>memory</mat-icon>
           </div>
-          <mat-card-title>{{ dep.model_name }}</mat-card-title>
-          <mat-card-subtitle>Project ID: {{ dep.project_id }} | Run ID: {{ dep.run_id.slice(0,8) }}</mat-card-subtitle>
+          <mat-card-title>{{ dep.model_name }}@if (dep.model_version) { <span class="model-version">v{{ dep.model_version }}</span> }</mat-card-title>
+          <mat-card-subtitle>Project ID: {{ dep.project_id }} | Job #{{ dep.job_id ?? '-' }} | Run ID: {{ dep.run_id.slice(0,8) }}</mat-card-subtitle>
           <span class="status-badge" [attr.data-status]="dep.status">
             {{ dep.status }}
           </span>
@@ -64,7 +64,7 @@
         <mat-card-content>
           <div class="deployment-steps">
             <div class="step-line"></div>
-            @for (step of ['REGISTERING', 'BUILDING', 'CREATING', 'RUNNING']; track step) {
+            @for (step of stepsFor(dep); track step) {
             <div class="step-item" [class.active]="dep.status === step"
               [class.completed]="isStepCompleted(dep.status, step)">
               <div class="step-dot">

@@ -1,0 +1,61 @@
+<h2 mat-dialog-title>현장 모델 가져오기</h2>
+
+<mat-dialog-content class="import-content">
+  <p class="desc">
+    현장에서 쓰던 모델 파일을 학습 결과와 같은 형식으로 등록합니다.
+    등록하면 새로 학습한 모델처럼 배포해 확인하거나, E2E 평가에서 같은 데이터로 비교할 수 있습니다.
+  </p>
+
+  <mat-radio-group [(ngModel)]="variant" (change)="onVariantChange()" class="variant-group">
+    <mat-radio-button value="YOLO26">검출 (YOLO26)</mat-radio-button>
+    <mat-radio-button value="PP-OCRv6">인식 (PP-OCRv6)</mat-radio-button>
+  </mat-radio-group>
+
+  <div class="fields">
+    <mat-form-field appearance="outline">
+      <mat-label>이름</mat-label>
+      <input matInput [(ngModel)]="name" maxlength="64" placeholder="예: site-2026-10">
+    </mat-form-field>
+    @if (variant === 'YOLO26') {
+    <mat-form-field appearance="outline">
+      <mat-label>입력 크기 (imgsz)</mat-label>
+      <input matInput type="number" [(ngModel)]="imgsz" min="32" max="4096">
+    </mat-form-field>
+    }
+  </div>
+
+  <div class="file-box">
+    @if (variant === 'YOLO26') {
+    <p>현장 폴더의 <code>models/detection/best.pt</code> 를 고르세요.</p>
+    } @else {
+    <p>현장 폴더 <code>models/recognition/</code> 의 {{ recFiles.join(', ') }} 3개를 함께 고르세요.</p>
+    }
+    <input #fileInput type="file" hidden (change)="onFiles($event)"
+      [accept]="variant === 'YOLO26' ? '.pt' : '.json,.pdiparams,.yml'" [multiple]="variant !== 'YOLO26'">
+    <button mat-stroked-button type="button" (click)="fileInput.click()" [disabled]="submitting()">
+      <mat-icon>attach_file</mat-icon> 파일 선택
+    </button>
+
+    @if (files().length > 0) {
+    <ul class="file-list">
+      @for (f of files(); track f.name) {
+      <li><mat-icon>description</mat-icon>{{ f.name }}</li>
+      }
+    </ul>
+    <span class="size">합계 {{ totalSize() }}</span>
+    }
+  </div>
+
+  @if (error()) {
+  <div class="error-box"><mat-icon>error_outline</mat-icon>{{ error() }}</div>
+  }
+  @if (submitting()) {
+  <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+  <p class="hint">파일을 올리는 중입니다. 올린 뒤 모델을 불러와 한 번 예측해 보고 등록합니다(학습 이력에서 상태 확인).</p>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="close()" [disabled]="submitting()">취소</button>
+  <button mat-flat-button color="primary" (click)="submit()" [disabled]="!canSubmit">가져오기</button>
+</mat-dialog-actions>

@@ -167,16 +167,24 @@ export class Deploy implements OnInit, OnDestroy {
     this.notificationService.showInfo('엔드포인트 URL이 클립보드에 복사되었습니다.');
   }
 
+  isPyfunc(dep: IDeployment): boolean {
+    return dep.model_family === 'YOLO26' || dep.model_family === 'PP-OCRv6';
+  }
+
+  /** MLflow 서빙(YOLO26, PP-OCRv6)은 빌드 단계가 없습니다 */
+  stepsFor(dep: IDeployment): string[] {
+    return this.isPyfunc(dep) ? ['REGISTERING', 'CREATING', 'RUNNING'] : ['REGISTERING', 'BUILDING', 'CREATING', 'RUNNING'];
+  }
+
   onNavigateToValidation(dep: IDeployment) {
     if (!dep || !dep.id || !dep.model_name) return;
 
-    const isYolo = dep.model_name.toLowerCase().includes('yolo');
-
-    console.log('isYolo', isYolo);
-
-    const modelType = isYolo ? 'yolo' : 'cnn';
-
-    this.router.navigate(['/dashboard', 'deployments', modelType, dep.id]);
+    if (this.isPyfunc(dep)) {
+      this.router.navigate(['/dashboard', 'deployments', 'pyfunc', dep.id]);
+      return;
+    }
+    const family = dep.model_family || (dep.model_name.toLowerCase().includes('yolo') ? 'yolo' : 'cnn');
+    this.router.navigate(['/dashboard', 'deployments', family === 'yolo' ? 'yolo' : 'cnn', dep.id]);
   }
 
   ngOnDestroy() {

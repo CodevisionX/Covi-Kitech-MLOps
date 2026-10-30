@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException, status
+from fastapi import APIRouter, Depends, BackgroundTasks, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -31,6 +31,18 @@ async def create_job(
     background_tasks.add_task(service.process_queue)
     
     return job
+
+@router.post("/import", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
+async def import_model(
+    project_id: int = Form(...),
+    model_variant: str = Form(..., description="YOLO26 | PP-OCRv6"),
+    name: str = Form("site-model", max_length=64),
+    imgsz: int = Form(640, ge=32, le=4096),
+    files: List[UploadFile] = File(..., description="YOLO26: .pt 1개 / PP-OCRv6: inference.json, .pdiparams, .yml"),
+    db: Session = Depends(get_db),
+):
+    """현장에서 쓰던 모델 파일을 가져와 학습 결과처럼 서빙, E2E 평가, 배포 패키지에 쓸 수 있게 합니다."""
+    return await JobService().import_model(db, project_id, model_variant, name, files, imgsz)
 
 @router.get("/active", response_model=List[JobResponse])
 def read_active_jobs(project_id: Optional[int] = None, db: Session = Depends(get_db)):

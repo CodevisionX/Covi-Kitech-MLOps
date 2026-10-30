@@ -29,6 +29,8 @@ export interface IDeployment extends IDeploymentBase {
   port?: number;
   endpoint_url?: string;
   artifact_uri?: string;
+  /** YOLO26 / PP-OCRv6 는 MLflow 서빙, 그 외(yolo, cnn)는 BentoML */
+  model_family?: string | null;
   created_at: string;
   updated_at?: string;
 }

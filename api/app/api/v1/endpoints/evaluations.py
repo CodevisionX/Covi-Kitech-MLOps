@@ -2,7 +2,7 @@
 import shutil
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Response, status
 from fastapi.responses import FileResponse, PlainTextResponse
 from sqlalchemy.orm import Session
 from starlette.background import BackgroundTask
@@ -35,10 +35,12 @@ def get_logs(evaluation_id: int, db: Session = Depends(get_db)):
     return evaluation_service.read_log(evaluation_service.get(db, evaluation_id))
 
 
-@router.get("/{evaluation_id}/predictions", response_class=PlainTextResponse)
+@router.get("/{evaluation_id}/predictions")
 def get_predictions(evaluation_id: int, db: Session = Depends(get_db)):
     """슬롯별 정답·예측 CSV (image, panel, slot, gt, pred, rec_score, det_conf, bbox, result)."""
-    return evaluation_service.predictions_csv(evaluation_service.get(db, evaluation_id))
+    ev = evaluation_service.get(db, evaluation_id)
+    return Response(evaluation_service.predictions_csv(ev), media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": f'attachment; filename="e2e_eval{ev.id}_predictions.csv"'})
 
 
 @router.get("/{evaluation_id}/package")

@@ -1,0 +1,154 @@
+<div class="validation-container">
+  <header class="page-header">
+    <div class="title-row">
+      <button mat-icon-button class="back-btn" (click)="goBack()"><mat-icon>arrow_back</mat-icon></button>
+      <h1>
+        <mat-icon>{{ isDetection() ? 'center_focus_strong' : 'pin' }}</mat-icon>
+        {{ isDetection() ? '검출 모델 확인 (YOLO26)' : '인식 모델 확인 (PP-OCRv6)' }}
+      </h1>
+    </div>
+    <p>
+      @if (isDetection()) {
+      패널 이미지를 올려 숫자 영역 검출 결과를 확인합니다. 현장 운영 코드는 패널에서 박스가 정확히 6개일 때만 인식으로 넘깁니다.
+      } @else {
+      잘라낸 숫자 이미지를 여러 장 올려 인식 결과를 확인합니다. 정답 목록 파일을 함께 올리면 정확도를 계산합니다.
+      }
+    </p>
+  </header>
+
+  @if (deployment(); as dep) {
+  <mat-card class="info-card">
+    <div class="info-grid">
+      <div class="info-item"><span class="label">모델</span><span class="value">{{ dep.model_name }} v{{ dep.model_version ?? '-' }}</span></div>
+      <div class="info-item"><span class="label">상태</span><span class="value status" [attr.data-status]="dep.status">{{ dep.status }}</span></div>
+      <div class="info-item"><span class="label">학습 Job</span><span class="value">{{ dep.job_id ?? '-' }}{{ job()?.tags?.['source'] === 'imported' ? ' (현장 모델)' : '' }}</span></div>
+      <div class="info-item wide"><span class="label">엔드포인트</span><span class="value mono">{{ dep.endpoint_url || '-' }}</span></div>
+    </div>
+  </mat-card>
+  }
+
+  <mat-card class="control-card">
+    <div class="drop-zone" (click)="fileInput.click()" (drop)="onDrop($event)" (dragover)="$event.preventDefault()">
+      <mat-icon>cloud_upload</mat-icon>
+      @if (files().length) {
+      <p><b>{{ files().length }}장</b> 선택됨 (다시 클릭하면 바꿉니다)</p>
+      } @else {
+      <p>이미지를 여기로 끌어다 놓거나 클릭해 선택하세요 (여러 장 가능)</p>
+      }
+    </div>
+    <input type="file" #fileInput hidden multiple accept="image/*" (change)="onFilesSelected($event)">
+
+    <div class="controls">
+      @if (isDetection()) {
+      <mat-form-field appearance="outline" class="param">
+        <mat-label>conf</mat-label>
+        <input matInput type="number" step="0.05" min="0.01" max="0.99" [(ngModel)]="detParams.conf">
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="param">
+        <mat-label>iou</mat-label>
+        <input matInput type="number" step="0.05" min="0.05" max="1" [(ngModel)]="detParams.iou">
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="param">
+        <mat-label>max_det</mat-label>
+        <input matInput type="number" min="1" [(ngModel)]="detParams.max_det">
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="param">
+        <mat-label>imgsz</mat-label>
+        <input matInput type="number" step="32" min="32" [(ngModel)]="detParams.imgsz">
+      </mat-form-field>
+      } @else {
+      <button mat-stroked-button (click)="labelInput.click()">
+        <mat-icon>list_alt</mat-icon> 정답 목록 (선택)
+      </button>
+      <input type="file" #labelInput hidden accept=".txt,.tsv" (change)="onLabelsSelected($event)">
+      @if (labelsFileName()) { <span class="muted">{{ labelsFileName() }}</span> }
+      }
+      <span class="spacer"></span>
+      <button mat-button (click)="clear()" [disabled]="isRunning() || !files().length">지우기</button>
+      <button mat-flat-button color="primary" (click)="run()"
+        [disabled]="!files().length || isRunning() || deployment()?.status !== 'RUNNING'">
+        @if (isRunning()) { <mat-spinner diameter="20"></mat-spinner> } @else { <span>추론 실행</span> }
+      </button>
+    </div>
+    @if (isRunning()) {
+    <mat-progress-bar mode="determinate" [value]="progress()"></mat-progress-bar>
+    }
+  </mat-card>
+
+  <!-- 검출 결과 -->
+  @if (isDetection() && detResults().length) {
+  <div class="summary-bar">
+    <span>결과 {{ detSummary().total }}장</span>
+    <span class="chip" [class.ok]="detSummary().six === detSummary().total">
+      박스 6개: {{ detSummary().six }} / {{ detSummary().total }}
+    </span>
+  </div>
+  <div class="det-grid">
+    @for (r of detResults(); track $index; let i = $index) {
+    <mat-card class="det-card">
+      <div class="det-head">
+        <span class="file-name" [matTooltip]="r.file.name">{{ r.file.name }}</span>
+        @if (r.error) {
+        <span class="chip bad">오류</span>
+        } @else {
+        <span class="chip" [class.ok]="r.boxes.length === PANEL_SLOTS" [class.bad]="r.boxes.length !== PANEL_SLOTS">
+          박스 {{ r.boxes.length }}개
+        </span>
+        }
+      </div>
+      @if (r.error) {
+      <div class="error-box">{{ r.error }}</div>
+      } @else {
+      <img [src]="r.rendered" class="det-img" [alt]="r.file.name">
+      <div class="det-meta">
+        <span>{{ r.width }}×{{ r.height }}</span>
+        <span>{{ r.latencyMs | number:'1.0-0' }} ms</span>
+        @if (r.boxes.length !== PANEL_SLOTS) { <span class="warn">6개가 아니면 현장에서는 이 패널을 읽지 않습니다</span> }
+        <span class="spacer"></span>
+        <button mat-button (click)="toggleRaw(i)">{{ showRaw() === i ? 'JSON 닫기' : 'JSON' }}</button>
+      </div>
+      @if (r.slots) {
+      <table class="slot-table">
+        <tr><th>슬롯</th><th>x1</th><th>y1</th><th>x2</th><th>y2</th><th>conf</th></tr>
+        @for (b of r.slots; track $index) {
+        <tr><td>#{{ $index + 1 }}</td><td>{{ b[0] | number:'1.0-1' }}</td><td>{{ b[1] | number:'1.0-1' }}</td>
+          <td>{{ b[2] | number:'1.0-1' }}</td><td>{{ b[3] | number:'1.0-1' }}</td><td>{{ b[4] | number:'1.3-3' }}</td></tr>
+        }
+      </table>
+      }
+      @if (showRaw() === i) { <pre class="raw">{{ r.raw | json }}</pre> }
+      }
+    </mat-card>
+    }
+  </div>
+  }
+
+  <!-- 인식 결과 -->
+  @if (!isDetection() && recResults().length) {
+  <div class="summary-bar">
+    <span>결과 {{ recResults().length }}장 · {{ recLatencyMs() | number:'1.0-0' }} ms</span>
+    @if (recSummary().acc !== null) {
+    <span class="chip" [class.ok]="recSummary().acc === 1" [class.bad]="recSummary().acc! < 1">
+      정확도 {{ (recSummary().acc! * 100) | number:'1.1-1' }}% ({{ recSummary().correct }}/{{ recSummary().labeled }})
+    </span>
+    <label class="toggle"><input type="checkbox" [checked]="showOnlyWrong()"
+        (change)="showOnlyWrong.set(!showOnlyWrong())"> 틀린 것만</label>
+    } @else if (labels().size) {
+    <span class="muted">정답 목록과 이름이 맞는 이미지가 없습니다</span>
+    }
+  </div>
+  <div class="rec-grid">
+    @for (r of visibleRecResults(); track r.file.name + $index) {
+    <div class="rec-card" [ngClass]="resultClass(r)">
+      <img [src]="r.thumb" [alt]="r.file.name">
+      <div class="rec-text">{{ r.error ? '오류' : (r.text || '(빈 결과)') }}</div>
+      <div class="rec-meta">
+        @if (!r.error) { <span>score {{ r.score | number:'1.3-3' }}</span> }
+        @if (r.gt !== undefined) { <span>정답 {{ r.gt }}</span> }
+      </div>
+      <div class="rec-name" [matTooltip]="r.error || r.file.name">{{ r.file.name }}</div>
+    </div>
+    }
+  </div>
+  }
+</div>

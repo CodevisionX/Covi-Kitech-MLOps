@@ -98,6 +98,27 @@ def on_fit_epoch_end(trainer):
         logger.warning("에폭 지표 기록 실패(학습은 계속): %s", e)
 
 
+def log_detection_model(weights: Path, imgsz: int = 640):
+    """검출 모델을 서빙/평가용 pyfunc 로 기록합니다. 학습 결과와 가져온 현장 모델이 같은 형식을 씁니다."""
+    mlflow.pyfunc.log_model(
+        name="model",
+        python_model=str(Path(__file__).resolve().parent / "yolo26_pyfunc.py"),
+        artifacts={"weights": str(weights)},
+        # 서명이 없으면 MLflow 가 예측 시 params 를 무시하므로 명시 (기본값은 고객 운영 코드와 같음)
+        signature=ModelSignature(
+            inputs=Schema([ColSpec("string", "image")]),
+            params=ParamSchema([ParamSpec("conf", "float", 0.25),
+                                ParamSpec("iou", "float", 0.3),
+                                ParamSpec("max_det", "long", 20),
+                                ParamSpec("imgsz", "long", imgsz)]),
+        ),
+        pip_requirements=[
+            f"ultralytics=={package_versions(['ultralytics'])['ultralytics']}",
+            "torch", "torchvision", "opencv-python", "numpy",
+        ],
+    )
+
+
 def main():
     run_id = os.getenv("MLFLOW_RUN_ID")
     if not run_id:
@@ -180,24 +201,7 @@ def main():
             # 6. 아티팩트와 모델 기록
             mlflow.log_artifacts(str(out_dir), artifact_path="training")
             mlflow.log_param("model_sha256", sha256_file(best))
-            here = Path(__file__).resolve().parent
-            mlflow.pyfunc.log_model(
-                name="model",
-                python_model=str(here / "yolo26_pyfunc.py"),
-                artifacts={"weights": str(best)},
-                # 서명이 없으면 MLflow 가 예측 시 params 를 무시하므로 명시 (기본값은 고객 운영 코드와 같음)
-                signature=ModelSignature(
-                    inputs=Schema([ColSpec("string", "image")]),
-                    params=ParamSchema([ParamSpec("conf", "float", 0.25),
-                                        ParamSpec("iou", "float", 0.3),
-                                        ParamSpec("max_det", "long", 20),
-                                        ParamSpec("imgsz", "long", opts["imgsz"])]),
-                ),
-                pip_requirements=[
-                    f"ultralytics=={package_versions(['ultralytics'])['ultralytics']}",
-                    "torch", "torchvision", "opencv-python", "numpy",
-                ],
-            )
+            log_detection_model(best, opts["imgsz"])
 
             report_status("FINISHED", "Training completed successfully.")
             logger.info("--- [DONE] ---")

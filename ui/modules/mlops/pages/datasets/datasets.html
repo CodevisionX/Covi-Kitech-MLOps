@@ -1,0 +1,259 @@
+<div class="datasets-container">
+  <header class="page-header">
+    <div class="header-left">
+      <h1><mat-icon>dataset</mat-icon>데이터셋</h1>
+      <p>데이터를 올리면 검사를 거쳐 바꿀 수 없는 버전으로 등록됩니다. 학습과 평가는 등록된 버전만 씁니다.</p>
+    </div>
+    <div class="header-actions">
+      <mat-form-field appearance="outline" class="project-select" subscriptSizing="dynamic">
+        <mat-label>프로젝트</mat-label>
+        <mat-select [ngModel]="projectId()" (selectionChange)="onProjectChange($event.value)">
+          @for (p of projects(); track p.id) {
+          <mat-option [value]="p.id">{{ p.name }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <button mat-flat-button color="primary" (click)="openNewUpload()" [disabled]="!projectId() || uploading()">
+        <mat-icon>upload</mat-icon> 새 데이터셋 올리기
+      </button>
+    </div>
+  </header>
+
+  @if (showUpload()) {
+  <section class="card upload-card">
+    <div class="card-title">
+      <mat-icon>cloud_upload</mat-icon>
+      <span>{{ session() ? (session()!.name + ' 이어서 올리기 (세션 #' + session()!.id + ')') : '새 데이터셋 올리기' }}</span>
+      <span class="spacer"></span>
+      <button mat-icon-button (click)="closeUpload()" [disabled]="uploading()" matTooltip="닫기">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+
+    <div class="form-grid">
+      <mat-form-field appearance="outline">
+        <mat-label>이름</mat-label>
+        <input matInput [(ngModel)]="form.name" [disabled]="!!session() || uploading()" placeholder="panel-det">
+        <mat-hint>영문/숫자/._- 만, 64자 이내. 같은 이름으로 올리면 다음 버전이 됩니다.</mat-hint>
+        @if (form.name && !nameValid) {
+        <mat-error>이름 형식이 올바르지 않습니다</mat-error>
+        }
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>종류</mat-label>
+        <mat-select [(ngModel)]="form.task" [disabled]="!!session() || uploading()">
+          @for (t of tasks; track t) {
+          <mat-option [value]="t">{{ taskLabels[t] }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="wide">
+        <mat-label>설명 (선택)</mat-label>
+        <input matInput [(ngModel)]="form.description" [disabled]="!!session() || uploading()">
+      </mat-form-field>
+    </div>
+
+    <div class="layout-hint">
+      <mat-icon>info</mat-icon>
+      <div>
+        <strong>폴더 구조 ({{ taskLabels[form.task] }})</strong>
+        <ul>
+          @for (h of layoutHints[form.task]; track h) {
+          <li>{{ h }}</li>
+          }
+        </ul>
+      </div>
+    </div>
+
+    <div class="picker-row">
+      <input #folder type="file" webkitdirectory multiple hidden (change)="onFolderPicked($event)">
+      <button mat-stroked-button color="primary" (click)="folder.click()" [disabled]="uploading()">
+        <mat-icon>folder_open</mat-icon> 폴더 선택
+      </button>
+      @if (picked().length) {
+      <span class="picked-info">{{ picked().length }}개 파일 · {{ formatSize(pickedBytes()) }}</span>
+      } @else {
+      <span class="picked-info muted">데이터셋 루트 폴더를 고르세요 (폴더 이름은 경로에서 빠집니다)</span>
+      }
+    </div>
+
+    @if (uploading() || doneFiles() > 0) {
+    <div class="progress-box">
+      <mat-progress-bar mode="determinate" [value]="progress()"></mat-progress-bar>
+      <div class="progress-text">
+        {{ doneFiles() }} / {{ picked().length }}개 · {{ formatSize(doneBytes()) }} / {{ formatSize(pickedBytes()) }}
+        ({{ progress().toFixed(1) }}%)
+      </div>
+    </div>
+    }
+
+    <div class="actions">
+      @if (uploading()) {
+      <button mat-stroked-button color="warn" (click)="cancelUpload()">
+        <mat-icon>stop</mat-icon> 취소
+      </button>
+      } @else {
+      @if (!session()) {
+      <button mat-stroked-button (click)="createSessionOnly()" [disabled]="!nameValid"
+        matTooltip="파일은 CLI 로 올릴 때 세션만 먼저 만듭니다">
+        세션만 만들기 (CLI 업로드)
+      </button>
+      } @else {
+      <button mat-stroked-button color="primary" (click)="validateSession()">
+        <mat-icon>fact_check</mat-icon> 검사 시작
+      </button>
+      }
+      <button mat-flat-button color="primary" (click)="startUpload()"
+        [disabled]="!picked().length || (!session() && !nameValid)">
+        <mat-icon>upload</mat-icon> 업로드 시작
+      </button>
+      }
+    </div>
+
+    @if (session(); as s) {
+    <div class="cli-box">
+      <div class="cli-note">
+        <mat-icon>terminal</mat-icon>
+        수십 GB 데이터는 CLI(aws s3 sync)로 아래 임시 위치에 올린 뒤 <strong>검사 시작</strong>을 누르세요.
+      </div>
+      <div class="cli-line">
+        <code>{{ s.cli_example }}</code>
+        <button mat-icon-button (click)="copy(s.cli_example)" matTooltip="복사"><mat-icon>content_copy</mat-icon></button>
+      </div>
+      <div class="cli-meta">임시 위치: {{ s.staging_uri }} · S3 주소: {{ s.s3_endpoint }}</div>
+    </div>
+    }
+  </section>
+  }
+
+  <section class="card list-card">
+    <div class="card-title">
+      <mat-icon>list</mat-icon>
+      <span>등록된 버전과 업로드 세션</span>
+      <span class="spacer"></span>
+      <mat-form-field appearance="outline" class="task-filter" subscriptSizing="dynamic">
+        <mat-label>종류</mat-label>
+        <mat-select [ngModel]="taskFilter()" (selectionChange)="taskFilter.set($event.value)">
+          <mat-option value="">전체</mat-option>
+          @for (t of tasks; track t) {
+          <mat-option [value]="t">{{ taskLabels[t] }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <button mat-icon-button (click)="refresh()" matTooltip="새로고침"><mat-icon>refresh</mat-icon></button>
+    </div>
+
+    @if (loading()) {
+    <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+    }
+
+    <table class="version-table">
+      <thead>
+        <tr>
+          <th>이름</th>
+          <th>버전</th>
+          <th>종류</th>
+          <th>상태</th>
+          <th class="num">파일</th>
+          <th class="num">크기</th>
+          <th>만든 때</th>
+          <th>검사</th>
+          <th>매니페스트</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (v of filtered(); track v.id) {
+        <tr class="row" [class.open]="selectedId() === v.id" (click)="toggleRow(v)">
+          <td class="name">
+            <mat-icon class="chev">{{ selectedId() === v.id ? 'expand_more' : 'chevron_right' }}</mat-icon>
+            {{ v.name }}
+          </td>
+          <td>{{ v.version ? 'v' + v.version : '-' }}</td>
+          <td>{{ taskLabels[v.task] || v.task }}</td>
+          <td><span class="status-badge" [attr.data-status]="v.status">{{ v.status }}</span></td>
+          <td class="num">{{ v.file_count ?? '-' }}</td>
+          <td class="num">{{ formatSize(v.total_bytes) }}</td>
+          <td>{{ relTime(v.created_at) }}</td>
+          <td>{{ relTime(v.validated_at) }}</td>
+          <td><code>{{ v.manifest_sha256 ? v.manifest_sha256.slice(0, 12) : '-' }}</code></td>
+        </tr>
+        @if (selectedId() === v.id) {
+        <tr class="detail-row">
+          <td colspan="9">
+            <div class="detail">
+              <div class="detail-grid">
+                <div><label>ID</label><span>{{ v.id }}</span></div>
+                <div><label>설명</label><span>{{ v.description || '-' }}</span></div>
+                <div class="wide"><label>데이터 위치</label><code>{{ v.data_path || v.staging_prefix }}</code></div>
+                @if (v.manifest_sha256) {
+                <div class="wide"><label>매니페스트 SHA-256</label><code>{{ v.manifest_sha256 }}</code></div>
+                }
+              </div>
+
+              @if (v.error_message) {
+              <div class="msg error"><mat-icon>error_outline</mat-icon>{{ v.error_message }}</div>
+              }
+
+              @if (v.report?.errors?.length) {
+              <div class="msg-list error">
+                <strong>오류 {{ v.report?.['error_count'] ?? v.report?.errors?.length }}건</strong>
+                <ul>
+                  @for (e of first50(v.report?.errors); track $index) { <li>{{ e }}</li> }
+                </ul>
+              </div>
+              }
+              @if (v.report?.warnings?.length) {
+              <div class="msg-list warn">
+                <strong>경고 {{ v.report?.warnings?.length }}건</strong>
+                <ul>
+                  @for (w of first50(v.report?.warnings); track $index) { <li>{{ w }}</li> }
+                </ul>
+              </div>
+              }
+
+              @if (v.stats) {
+              <details class="stats">
+                <summary>통계</summary>
+                <pre>{{ pretty(v.stats) }}</pre>
+              </details>
+              }
+
+              <div class="log-box">
+                <button mat-stroked-button (click)="loadLogs(v)" [disabled]="logLoading() === v.id">
+                  <mat-icon>article</mat-icon> 검사 로그 {{ logs()[v.id] ? '새로고침' : '보기' }}
+                </button>
+                @if (logs()[v.id]) {
+                <pre class="log">{{ logs()[v.id] }}</pre>
+                }
+              </div>
+
+              <div class="actions">
+                @if (v.status === 'UPLOADING' || v.status === 'FAILED') {
+                <button mat-stroked-button color="primary" (click)="resumeUpload(v)" [disabled]="uploading()">
+                  <mat-icon>upload</mat-icon> 이어서 올리기
+                </button>
+                }
+                @if (v.status === 'FAILED') {
+                <button mat-stroked-button color="primary" (click)="onRevalidate(v)">
+                  <mat-icon>replay</mat-icon> 다시 검사
+                </button>
+                }
+                @if (v.status !== 'VALIDATING') {
+                <button mat-flat-button color="warn" (click)="onDelete(v)">
+                  <mat-icon>delete</mat-icon> 삭제
+                </button>
+                }
+              </div>
+            </div>
+          </td>
+        </tr>
+        }
+        } @empty {
+        <tr>
+          <td colspan="9" class="empty">{{ loading() ? '불러오는 중...' : '데이터셋이 없습니다. 새 데이터셋을 올려 보세요.' }}</td>
+        </tr>
+        }
+      </tbody>
+    </table>
+  </section>
+</div>

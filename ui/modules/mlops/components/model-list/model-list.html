@@ -8,6 +8,13 @@
       <p>실험별 학습 내역 및 MLflow 모델 상태를 실시간으로 모니터링합니다.</p>
     </div>
 
+    <div class="header-actions">
+      <button mat-stroked-button color="primary" (click)="openImportDialog()" [disabled]="!selectedProjectId()"
+        matTooltip="현장에서 쓰던 검출(.pt)·인식(inference.*) 모델을 가져와 새로 학습한 모델과 같은 평가 데이터로 비교합니다">
+        <mat-icon>upload_file</mat-icon> 현장 모델 가져오기
+      </button>
+    </div>
+
     <!-- <div class="project-controls">
       <div class="selector-wrapper">
         @if (isLoading() && projects().length === 0) {
@@ -179,19 +186,13 @@
             <h2 class="best-run-name">{{ best.model_variant }}</h2>
             <div class="best-metrics">
               <div class="metric-box">
-                <span class="m-label">
-                  {{ best.model_variant === '1D-CNN' ? 'Train Loss' : 'mAP@0.5' }}
-                </span>
-                <span class="m-value">
-                  {{ (best.model_variant === '1D-CNN' 
-                      ? best.metrics?.['train_loss'] 
-                      : (best.metrics?.['metrics/mAP50_B'] || 0)) | number:'1.2-4' }}
-                </span>
+                <span class="m-label">{{ bestMetricView()?.label }}</span>
+                <span class="m-value">{{ bestMetricView()?.value | number:'1.2-4' }}</span>
               </div>
             </div>
           </div>
           <div class="best-actions">
-            @if (best.model_variant === '1D-CNN' || best.model_variant === 'YOLOv8') {
+            @if (hasDetail(best.model_variant)) {
               <button mat-flat-button class="best-deploy-btn" (click)="navigateToRunDetail(best)">
                 <mat-icon>insights</mat-icon> 분석 및 배포
               </button>
@@ -211,8 +212,16 @@
               <div class="model-info-cell">
                 <div class="run-name-wrapper">
                   @if (job.id === bestJobId()) { <mat-icon class="best-badge">emoji_events</mat-icon> }
-                  <div class="run-name">{{ job.model_variant }}</div>
+                  <div class="run-name">{{ job.model_variant }} <span class="job-id">#{{ job.id }}</span></div>
                 </div>
+                @if (job.tags?.source === 'imported') {
+                <div class="job-sub imported"><mat-icon>place</mat-icon> 현장 모델 · {{ job.tags?.import_name }}</div>
+                } @else if (job.dataset_version_id) {
+                <div class="job-sub"><mat-icon>dataset</mat-icon> {{ datasetNames()[job.dataset_version_id] || ('데이터셋 #' + job.dataset_version_id) }}</div>
+                }
+                @if (isPyfunc(job.model_variant) && bestMetricOf(job); as m) {
+                <div class="job-sub">{{ m.label }} {{ m.value | number:'1.3-3' }}</div>
+                }
 
                 @if (job.deployment?.status === 'RUNNING') {
                 <div class="deployment-endpoint">

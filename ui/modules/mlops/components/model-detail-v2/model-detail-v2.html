@@ -1,0 +1,128 @@
+<div class="detail-container">
+  <header class="page-header">
+    <div class="header-left">
+      <nav class="breadcrumb">
+        <div class="link" (click)="goBack()"><mat-icon>inventory_2</mat-icon><span>학습 이력</span></div>
+        <mat-icon class="separator">chevron_right</mat-icon>
+        <span class="current">Run 상세</span>
+      </nav>
+      <div class="title-group">
+        <button mat-icon-button (click)="goBack()" class="back-btn"><mat-icon>arrow_back</mat-icon></button>
+        <h1>{{ variant() || 'Run' }} · {{ runId().substring(0, 8) }}</h1>
+        <span class="status-badge" [attr.data-status]="runInfo()?.status">{{ runInfo()?.status }}</span>
+        @if (isImported()) {
+        <span class="imported-badge" matTooltip="현장에서 쓰던 모델 파일을 가져와 기록한 run 입니다.">현장 모델</span>
+        }
+      </div>
+    </div>
+    <div class="header-actions">
+      <button mat-stroked-button color="primary" (click)="goEvaluation()"
+        [disabled]="runInfo()?.status !== 'FINISHED'">
+        <mat-icon>fact_check</mat-icon> E2E 평가하기
+      </button>
+      <button mat-flat-button color="primary" class="deploy-btn"
+        [disabled]="isDeploying() || runInfo()?.status !== 'FINISHED'" (click)="onDeployModel()">
+        <mat-icon>{{ isDeploying() ? 'sync' : 'rocket_launch' }}</mat-icon>
+        {{ isDeploying() ? '배포 요청 중...' : '모델 배포' }}
+      </button>
+    </div>
+  </header>
+
+  <mat-card class="card summary-card">
+    <div class="info-grid">
+      <div class="info-item"><label>모델</label><div class="value">{{ variant() || '-' }}</div></div>
+      <div class="info-item"><label>Job ID</label><div class="value">{{ jobId() ?? '-' }}</div></div>
+      <div class="info-item">
+        <label>데이터셋 버전</label>
+        <div class="value">{{ tags()['dataset_version'] || (isImported() ? '(현장 모델)' : '-') }}</div>
+      </div>
+      <div class="info-item">
+        <label>체크포인트 선택</label>
+        <div class="value">{{ tags()['checkpoint_selection'] || '-' }}</div>
+      </div>
+      <div class="info-item">
+        <label>모델 SHA-256</label>
+        <div class="value mono" [matTooltip]="runInfo()?.params?.['model_sha256'] || ''">{{ modelSha() || '-' }}</div>
+      </div>
+      <div class="info-item"><label>시작</label><div class="value">{{ getRelativeTime(runInfo()?.start_time) }}</div></div>
+      @if (isImported() && tags()['import_name']) {
+      <div class="info-item"><label>가져온 이름</label><div class="value">{{ tags()['import_name'] }}</div></div>
+      }
+    </div>
+  </mat-card>
+
+  <section class="section">
+    <h3 class="section-title"><mat-icon>leaderboard</mat-icon> 최종 평가 (선택된 체크포인트)</h3>
+    @if (isImported()) {
+    <p class="muted">가져온 현장 모델은 학습 지표가 없습니다. E2E 평가로 새 모델과 비교하세요.</p>
+    } @else {
+    <div class="tiles-row">
+      <div class="tile-group">
+        <div class="group-label">Validation</div>
+        <div class="tiles">
+          @for (t of valTiles(); track t.key) {
+          <div class="tile"><span class="tile-label">{{ t.label }}</span><span class="tile-value">{{ formatMetric(t.value) }}</span></div>
+          } @empty { <span class="muted">기록 없음</span> }
+        </div>
+      </div>
+      <div class="tile-group">
+        <div class="group-label">Test</div>
+        <div class="tiles">
+          @for (t of testTiles(); track t.key) {
+          <div class="tile test"><span class="tile-label">{{ t.label }}</span><span class="tile-value">{{ formatMetric(t.value) }}</span></div>
+          } @empty {
+          <span class="muted">{{ testMissing() ? 'Test 분할 없음 (데이터셋에 test 가 없어 평가하지 않음)' : '기록 없음' }}</span>
+          }
+        </div>
+      </div>
+    </div>
+    }
+  </section>
+
+  @if (chartGroups().length) {
+  <section class="section">
+    <h3 class="section-title"><mat-icon>analytics</mat-icon> 학습 추이</h3>
+    <div class="charts-grid">
+      @for (g of chartGroups(); track g.title) {
+      <mat-card class="card chart-card">
+        <div class="chart-title">{{ g.title }}</div>
+        <div class="canvas-wrapper">
+          <canvas baseChart [data]="g.data" [options]="chartOptions" [type]="'line'"></canvas>
+        </div>
+      </mat-card>
+      }
+    </div>
+  </section>
+  }
+
+  @if (plotImages().length) {
+  <section class="section">
+    <h3 class="section-title"><mat-icon>image_search</mat-icon> 학습 결과 그림</h3>
+    <div class="image-grid">
+      @for (p of plotImages(); track p.path) {
+      <mat-card class="card image-card">
+        <span class="img-tag">{{ p.label }}</span>
+        <a [href]="previewUrl(p.path)" target="_blank">
+          <img [src]="previewUrl(p.path)" (error)="onImgError(p.path)" [alt]="p.label">
+        </a>
+      </mat-card>
+      }
+    </div>
+  </section>
+  }
+
+  <section class="section">
+    <h3 class="section-title clickable" (click)="showParams.set(!showParams())">
+      <mat-icon>{{ showParams() ? 'expand_more' : 'chevron_right' }}</mat-icon> 실행 파라미터 ({{ paramsList().length }})
+    </h3>
+    @if (showParams()) {
+    <mat-card class="card">
+      <table class="params-table">
+        @for (p of paramsList(); track p[0]) {
+        <tr><th>{{ p[0] }}</th><td class="mono">{{ p[1] }}</td></tr>
+        }
+      </table>
+    </mat-card>
+    }
+  </section>
+</div>

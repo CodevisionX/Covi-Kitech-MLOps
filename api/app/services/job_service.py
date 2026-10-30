@@ -5,7 +5,7 @@ from typing import List, Any, Optional, Dict
 import docker
 from app.db.session import SessionLocal
 from sqlalchemy.orm import Session, joinedload
-from fastapi import BackgroundTasks
+from fastapi import BackgroundTasks, UploadFile
 from datetime import datetime
 import aiofiles
 
@@ -13,13 +13,14 @@ import aiofiles
 from app.models.job import Job, get_kst_now
 from app.models.project import Project
 from app.schemas.job import JobCreate
-from app.core.constants import JobStatus, DatasetStatus, MODEL_DATASET_TASKS
+from app.core.constants import JobStatus, DatasetStatus, MODEL_DATASET_TASKS, PYFUNC_SERVING_MODELS
 from app.models.dataset import DatasetVersion
 from fastapi import HTTPException
 
 # Integrations
 from app.integrations.docker import docker_provider
 from app.integrations.mlflow import mlflow_provider
+from app.integrations.s3 import s3_provider
 from app.core.config import settings
 
 # Services
@@ -521,4 +522,78 @@ class JobService:
             "project_id": job.project_id 
         })
 
+        return job
+    # ------------------------------------------------------------ 현장 모델 가져오기
+    IMPORT_REC_FILES = {"inference.json", "inference.pdiparams", "inference.yml"}
+
+    async def import_model(self, db: Session, project_id: int, model_variant: str, name: str,
+                           files: List[UploadFile], imgsz: int = 640) -> Job:
+        """현장에서 쓰던 모델 파일을 학습 결과와 같은 형식의 run 으로 기록합니다.
+
+        파일 확인과 기록만 하므로 학습 큐를 거치지 않고 바로 실행합니다.
+        Paddle GPU 빌드는 GPU 라이브러리 없이는 import 되지 않으므로 GPU 를 붙여 실행합니다.
+        """
+        if model_variant not in PYFUNC_SERVING_MODELS:
+            raise HTTPException(400, f"가져올 수 있는 모델 종류: {', '.join(sorted(PYFUNC_SERVING_MODELS))}")
+        project = db.query(Project).get(project_id)
+        if not project:
+            raise HTTPException(404, "프로젝트를 찾을 수 없습니다")
+        names = [os.path.basename(f.filename or "") for f in files]
+        if model_variant == "YOLO26":
+            if len(names) != 1 or not names[0].lower().endswith(".pt"):
+                raise HTTPException(400, "검출 모델은 .pt 파일 1개를 올려 주세요")
+        elif sorted(names) != sorted(self.IMPORT_REC_FILES):
+            raise HTTPException(400, "인식 모델은 inference.json, inference.pdiparams, inference.yml 3개를 올려 주세요")
+
+        job = Job(
+            project_id=project_id, experiment_id="0", dataset="", model_variant=model_variant,
+            params={"imgsz": imgsz} if model_variant == "YOLO26" else {},
+            tags={"source": "imported", "import_name": name},
+            status=JobStatus.RUNNING.value,
+        )
+        db.add(job)
+        db.commit()
+        db.refresh(job)
+
+        loop = asyncio.get_running_loop()
+        bucket = settings.DATASET_BUCKET_NAME
+        prefix = f"_imports/job{job.id}/"
+        container = None
+        try:
+            for f, n in zip(files, names):
+                await loop.run_in_executor(None, lambda f=f, n=n: s3_provider.client.upload_fileobj(
+                    f.file, bucket, prefix + n))
+
+            run = await loop.run_in_executor(None, lambda: mlflow_provider.create_run(
+                experiment_name=f"{project.name}_{model_variant}"))
+            job.run_id = run.info.run_id
+            job.experiment_id = run.info.experiment_id
+            await loop.run_in_executor(None, lambda: mlflow_provider.client.set_tag(
+                job.run_id, "project_name", project.name))
+
+            image, _ = get_training_runtime(model_variant)
+            env = self._prepare_env_vars(job)
+            env.update({"MODEL_VARIANT": model_variant, "IMPORT_PATH": f"{bucket}/{prefix.rstrip('/')}"})
+            command = ["/bin/sh", "-c",
+                       f"/app/.venv/bin/python -u import_model.py 2>&1 | tee /app/runs/{job.id}.log"]
+            container = await loop.run_in_executor(None, lambda: docker_provider.run_container(
+                image=image, command=command, environment=env, network="mlops-net",
+                volumes={settings.TRAINING_RESULTS_VOLUME: {'bind': '/app/runs', 'mode': 'rw'}},
+                detach=True))
+            job.container_id = container.id
+            db.commit()
+        except Exception as e:
+            job.status = JobStatus.FAILED.value
+            job.error_message = f"가져오기 시작 실패: {e}"[:500]
+            job.finished_at = get_kst_now()
+            db.commit()
+            try:
+                s3_provider.delete_prefix(bucket, prefix)
+            except Exception:
+                pass
+            raise HTTPException(500, job.error_message)
+
+        await sse_manager.broadcast("new_job", {"job_id": job.id, "status": job.status,
+                                                "project_id": job.project_id})
+        asyncio.create_task(self._monitor_container_completion(job.id, container))
         return job

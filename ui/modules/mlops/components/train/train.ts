@@ -7,6 +7,8 @@ import { IJobCreate } from '../../services/apis/models/job.model';
 import { Notification } from '../../services/notification';
 import { Project } from '../../services/apis/project';
 import { IProject } from '../../services/apis/models/project.model';
+import { DatasetApi } from '../../services/apis/dataset';
+import { IDatasetVersion } from '../../services/apis/models/dataset.model';
 
 @Component({
   selector: 'app-train',
@@ -21,6 +23,7 @@ export class Train implements OnInit {
   private readonly projectService = inject(Project);
   private readonly notificationService = inject(Notification);
   private readonly router = inject(Router);
+  private readonly datasetApi = inject(DatasetApi);
 
   // 학습 설정 관련 상태
   isSubmitting = false;
@@ -30,6 +33,10 @@ export class Train implements OnInit {
   selectedProjectId: number | null = null;
   dynamicParams: any = {};
   projects: IProject[] = [];
+
+  // 신규 모델(YOLO26, PP-OCRv6)은 등록된 데이터셋 버전에서 고릅니다
+  datasetVersions: IDatasetVersion[] = [];
+  selectedVersionId: number | null = null;
 
   constructor() {
     effect(() => {
@@ -53,7 +60,35 @@ export class Train implements OnInit {
       // 테스트 편의를 위해 첫 번째 프로젝트 자동 선택
       if (projs.length > 0) {
         this.selectedProjectId = projs[0].id;
+        this.loadDatasetVersions();
       }
+    });
+  }
+
+  get requiredTask(): string | undefined {
+    return this.configs[this.selectedModelName]?.datasetTask;
+  }
+
+  get selectedVersion(): IDatasetVersion | undefined {
+    return this.datasetVersions.find(v => v.id === this.selectedVersionId);
+  }
+
+  onProjectChange(projectId: number) {
+    this.selectedProjectId = projectId;
+    this.loadDatasetVersions();
+  }
+
+  loadDatasetVersions() {
+    this.selectedVersionId = null;
+    this.datasetVersions = [];
+    const task = this.requiredTask;
+    if (!task || !this.selectedProjectId) return;
+    this.datasetApi.listVersions({ project_id: this.selectedProjectId, task, status: 'READY' }).subscribe({
+      next: list => {
+        this.datasetVersions = list;
+        if (list.length > 0) this.selectedVersionId = list[0].id;
+      },
+      error: err => this.notificationService.showError(err.message),
     });
   }
 
@@ -67,9 +102,16 @@ export class Train implements OnInit {
         this.dynamicParams[p.name] = p.default;
       });
     }
+    this.loadDatasetVersions();
+  }
+
+  get isReady(): boolean {
+    if (!this.selectedModelName || !this.selectedProjectId) return false;
+    return this.requiredTask ? this.selectedVersionId !== null : !!this.modelService.selectedDatasetPath() && this.isCompatible;
   }
 
   get isCompatible(): boolean {
+    if (this.requiredTask) return this.selectedVersionId !== null;
     const currentPath = this.modelService.selectedDatasetPath();
     if (!currentPath || !this.selectedModelName) return false;
 
@@ -84,20 +126,24 @@ export class Train implements OnInit {
   }
 
   submitTraining() {
-    if (!this.isCompatible) {
-      this.notificationService.showError('선택한 모델과 데이터셋이 호환되지 않습니다.');
-      return;
-    }
-
-    const currentPath = this.modelService.selectedDatasetPath();
-    if (!currentPath || !this.selectedModelName || !this.selectedProjectId) {
-      this.notificationService.showError('필수 설정이 누락되었습니다.');
+    if (!this.isReady || !this.selectedProjectId) {
+      this.notificationService.showError('모델과 데이터셋을 확인해 주세요.');
       return;
     }
 
     this.isSubmitting = true;
 
-    const payload: IJobCreate = {
+    const version = this.selectedVersion;
+    const currentPath = this.modelService.selectedDatasetPath();
+    const payload: IJobCreate = version ? {
+      project_id: this.selectedProjectId,
+      dataset: '',
+      dataset_version_id: version.id,
+      model_variant: this.selectedModelName,
+      params: { ...this.dynamicParams },
+      // dataset_version 태그는 백엔드가 등록 버전 이름으로 기록합니다
+      tags: { author: 'KITECH', stage: 'Experimental' },
+    } : {
       project_id: this.selectedProjectId,
       dataset: currentPath,
       model_variant: this.selectedModelName,

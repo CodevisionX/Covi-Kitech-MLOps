@@ -464,3 +464,9 @@ button[mat-flat-button][color="warn"] {
   height: 380px; // 실제 카드의 높이와 비슷하게 설정
   width: 100%;
 }
+.model-version {
+  margin-left: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+}

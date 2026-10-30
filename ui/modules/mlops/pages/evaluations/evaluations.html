@@ -1,0 +1,164 @@
+<div class="eval-container">
+  <header class="page-header">
+    <div class="header-left">
+      <h1><mat-icon>fact_check</mat-icon>E2E 평가</h1>
+      <p>검출 모델과 인식 모델을 골라 현장과 같은 순서(검출 → 슬롯 정렬 → 자르기 → 인식)로 돌리고 슬롯별로 채점합니다.</p>
+    </div>
+    <mat-form-field appearance="outline" class="project-select" subscriptSizing="dynamic">
+      <mat-label>프로젝트</mat-label>
+      <mat-select [ngModel]="projectId()" (selectionChange)="onProjectChange($event.value)">
+        @for (p of projects(); track p.id) {
+        <mat-option [value]="p.id">{{ p.name }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  </header>
+
+  <mat-card class="create-card">
+    <div class="card-title"><mat-icon>add_task</mat-icon>새 평가</div>
+    <div class="form-grid">
+      <mat-form-field appearance="outline">
+        <mat-label>검출 모델 (YOLO26)</mat-label>
+        <mat-select [(ngModel)]="detJobId">
+          @for (j of detJobs(); track j.id) {
+          <mat-option [value]="j.id">{{ jobLabel(j) }}</mat-option>
+          } @empty {
+          <mat-option disabled>학습을 마친 YOLO26 모델이 없습니다</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>인식 모델 (PP-OCRv6)</mat-label>
+        <mat-select [(ngModel)]="recJobId">
+          @for (j of recJobs(); track j.id) {
+          <mat-option [value]="j.id">{{ jobLabel(j) }}</mat-option>
+          } @empty {
+          <mat-option disabled>학습을 마친 PP-OCRv6 모델이 없습니다</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>평가 데이터셋 (E2E)</mat-label>
+        <mat-select [(ngModel)]="datasetId">
+          @for (v of e2eVersions(); track v.id) {
+          <mat-option [value]="v.id">
+            {{ v.name }}:v{{ v.version }}
+            @if (v.stats?.['mode']) { · {{ v.stats?.['mode'] === 'frame' ? '프레임' : '패널' }} }
+            @if (v.stats?.['counts']?.['labeled_slots']) { · 슬롯 {{ v.stats?.['counts']?.['labeled_slots'] }}개 }
+          </mat-option>
+          } @empty {
+          <mat-option disabled>등록된 E2E 데이터셋이 없습니다</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>이름 (선택)</mat-label>
+        <input matInput [(ngModel)]="name" maxlength="128" placeholder="예: 현장 모델 기준">
+      </mat-form-field>
+    </div>
+
+    <button mat-button type="button" class="toggle-params" (click)="showParams.set(!showParams())">
+      <mat-icon>{{ showParams() ? 'expand_less' : 'expand_more' }}</mat-icon>
+      검출 설정
+    </button>
+    @if (showParams()) {
+    <div class="params-box">
+      <p class="hint">기본값은 현장 운영 코드와 같습니다.</p>
+      <div class="params-grid">
+        <mat-form-field appearance="outline">
+          <mat-label>conf</mat-label>
+          <input matInput type="number" step="0.05" min="0.01" max="0.99" [(ngModel)]="params.conf">
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>iou</mat-label>
+          <input matInput type="number" step="0.05" min="0.01" max="1" [(ngModel)]="params.iou">
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>imgsz</mat-label>
+          <input matInput type="number" step="32" min="32" max="4096" [(ngModel)]="params.imgsz">
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>max_det</mat-label>
+          <input matInput type="number" min="6" max="1000" [(ngModel)]="params.max_det">
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>padding (px)</mat-label>
+          <input matInput type="number" min="0" max="100" [(ngModel)]="params.padding">
+        </mat-form-field>
+        <button mat-stroked-button type="button" (click)="resetParams()">기본값</button>
+      </div>
+    </div>
+    }
+
+    <div class="action-row">
+      <button mat-flat-button color="primary" [disabled]="!canSubmit" (click)="submit()">
+        @if (isSubmitting()) { <mat-spinner diameter="20"></mat-spinner> } @else { 평가 시작 }
+      </button>
+    </div>
+  </mat-card>
+
+  <mat-card class="list-card">
+    <div class="card-title"><mat-icon>history</mat-icon>평가 이력</div>
+    @if (evaluations().length) {
+    <table mat-table [dataSource]="evaluations()" class="eval-table">
+      <ng-container matColumnDef="id">
+        <th mat-header-cell *matHeaderCellDef>ID</th>
+        <td mat-cell *matCellDef="let e">#{{ e.id }}</td>
+      </ng-container>
+      <ng-container matColumnDef="name">
+        <th mat-header-cell *matHeaderCellDef>이름</th>
+        <td mat-cell *matCellDef="let e">{{ e.name || '-' }}</td>
+      </ng-container>
+      <ng-container matColumnDef="models">
+        <th mat-header-cell *matHeaderCellDef>검출 / 인식</th>
+        <td mat-cell *matCellDef="let e">#{{ e.detection_job_id }} / #{{ e.recognition_job_id }}</td>
+      </ng-container>
+      <ng-container matColumnDef="dataset">
+        <th mat-header-cell *matHeaderCellDef>데이터셋</th>
+        <td mat-cell *matCellDef="let e">{{ versionLabel(e.dataset_version_id) }}</td>
+      </ng-container>
+      <ng-container matColumnDef="status">
+        <th mat-header-cell *matHeaderCellDef>상태</th>
+        <td mat-cell *matCellDef="let e">
+          <span class="status-badge" [attr.data-status]="e.status">{{ e.status }}</span>
+          @if (e.status !== 'FINISHED' && (e.error_message || e.status_message)) {
+          <div class="status-msg" [matTooltip]="e.error_message || e.status_message">
+            {{ e.error_message || e.status_message }}
+          </div>
+          }
+        </td>
+      </ng-container>
+      <ng-container matColumnDef="slotAcc">
+        <th mat-header-cell *matHeaderCellDef>슬롯 정확도</th>
+        <td mat-cell *matCellDef="let e" class="num strong">{{ pct(e.metrics?.['e2e/slot_accuracy']) }}</td>
+      </ng-container>
+      <ng-container matColumnDef="detect6">
+        <th mat-header-cell *matHeaderCellDef>6개 검출 패널</th>
+        <td mat-cell *matCellDef="let e" class="num">{{ pct(e.metrics?.['e2e/panel_detect6_rate']) }}</td>
+      </ng-container>
+      <ng-container matColumnDef="created">
+        <th mat-header-cell *matHeaderCellDef>생성</th>
+        <td mat-cell *matCellDef="let e">{{ relTime(e.created_at) }}</td>
+      </ng-container>
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef></th>
+        <td mat-cell *matCellDef="let e" class="actions">
+          <button mat-icon-button matTooltip="결과 보기" (click)="open(e)"><mat-icon>open_in_new</mat-icon></button>
+          <button mat-icon-button matTooltip="삭제" (click)="remove(e, $event)"><mat-icon>delete</mat-icon></button>
+        </td>
+      </ng-container>
+      <tr mat-header-row *matHeaderRowDef="columns"></tr>
+      <tr mat-row *matRowDef="let row; columns: columns" class="clickable" (click)="open(row)"></tr>
+    </table>
+    } @else if (!isLoading()) {
+    <div class="empty">
+      <mat-icon>fact_check</mat-icon>
+      <p>아직 평가가 없습니다. E2E 평가는 두 모델을 이어 붙여 슬롯마다 정답과 비교하는 최종 점검입니다.</p>
+      <p class="muted">평가용 데이터(이미지 + labels.txt)는 <a routerLink="/dashboard/datasets">데이터셋</a> 페이지에서 'E2E 평가용'으로 올립니다.</p>
+    </div>
+    }
+  </mat-card>
+</div>
