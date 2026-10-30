@@ -1,5 +1,6 @@
-# 1. NVIDIA NGC PyTorch 이미지 사용 (Blackwell 등 최신 아키텍처 완벽 지원)
-FROM nvcr.io/nvidia/pytorch:23.10-py3
+# 1. NVIDIA NGC PyTorch 이미지 (PyTorch 2.8, CUDA 12.9: Ampere~Blackwell 지원, 드라이버 570 이상)
+#    서빙 이미지(api/Dockerfile.base)의 torch 버전과 맞춰야 저장된 모델을 불러올 수 있습니다.
+FROM nvcr.io/nvidia/pytorch:25.06-py3
 
 ENV PYTHONUNBUFFERED=1 \
     POETRY_VERSION=1.7.1 \

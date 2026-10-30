@@ -1,5 +1,6 @@
 # Dockerfile.builder
-FROM python:3.11-slim
+# 학습 이미지(NGC, Python 3.12)와 같은 Python 버전이어야 학습 때 저장한 모델(1D-CNN)을 불러올 수 있습니다
+FROM python:3.12-slim
 
 # 1. 시스템 라이브러리 설치
 # MLflow 및 BentoML 내부 파일 처리를 위한 최소한의 라이브러리만 유지합니다.
