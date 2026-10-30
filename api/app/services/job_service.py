@@ -256,6 +256,17 @@ class JobService:
             with SessionLocal() as db:
                 await self._handle_job_completion(job_id, JobStatus.FAILED.value, str(e), db)
     
+    @staticmethod
+    def _close_mlflow_run(run_id: Optional[str], status: str):
+        """학습 컨테이너가 run 을 닫기 전에 지워져도 MLflow 에 RUNNING 으로 남지 않게 닫습니다."""
+        if not run_id:
+            return
+        try:
+            if mlflow_provider.client.get_run(run_id).info.status == "RUNNING":
+                mlflow_provider.update_run_status(run_id, "FINISHED" if status == JobStatus.FINISHED.value else "FAILED")
+        except Exception as e:
+            print(f"[MLflow Close Error] {e}")
+
     async def _handle_job_completion(self, job_id: int, status_str: str, exit_info: any, db: Session):
         job = db.query(Job).filter(Job.id == job_id).first()
         if job and job.status == JobStatus.RUNNING.value:
@@ -270,6 +281,7 @@ class JobService:
                     job.metrics = run.data.metrics  # MLflow 지표를 DB에 복사
                 except Exception as e:
                     print(f"[MLflow Sync Error] {e}")
+            self._close_mlflow_run(job.run_id, status_str)
             
             if job.container_id:
                 try:
@@ -365,6 +377,7 @@ class JobService:
                     job.metrics = run.data.metrics
                 except Exception as e:
                     print(f"[MLflow Webhook Sync Error] {e}")
+            self._close_mlflow_run(job.run_id, final_status)
             
             if job.container_id:
                 try:

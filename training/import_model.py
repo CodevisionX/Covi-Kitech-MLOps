@@ -115,6 +115,8 @@ def main():
                                                     ensure_ascii=False, default=str)[:300])
 
             safe_cleanup(import_path)
+            # 완료를 보고하면 백엔드가 컨테이너를 바로 지우므로 run 을 먼저 닫습니다
+            mlflow.end_run()
             report_status("FINISHED", "Imported")
             logger.info("--- [DONE] ---")
         except Exception as e:

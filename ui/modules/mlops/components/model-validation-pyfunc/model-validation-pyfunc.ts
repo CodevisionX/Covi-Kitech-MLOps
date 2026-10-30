@@ -184,31 +184,35 @@ export class ModelValidationPyfunc implements OnInit {
 
   private async drawBoxes(file: File, boxes: Box[], slots: Box[] | null) {
     const img = await this.loadImage(file);
+    // 작은 패널 이미지는 화면에서 크게 늘어나므로 캔버스를 키워 그려 라벨이 숫자를 가리지 않게 합니다
+    const k = Math.max(1, 1200 / Math.max(img.naturalWidth, img.naturalHeight));
     const canvas = document.createElement('canvas');
-    canvas.width = img.naturalWidth;
-    canvas.height = img.naturalHeight;
+    canvas.width = Math.round(img.naturalWidth * k);
+    canvas.height = Math.round(img.naturalHeight * k);
     const ctx = canvas.getContext('2d')!;
-    ctx.drawImage(img, 0, 0);
-    const scale = Math.max(1, Math.max(canvas.width, canvas.height) / 640);
+    ctx.imageSmoothingEnabled = k < 2;
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const scale = Math.max(1, Math.max(canvas.width, canvas.height) / 1200);
     const color = slots ? '#16a34a' : '#ea580c';
-    ctx.lineWidth = 2 * scale;
-    ctx.font = `bold ${Math.round(12 * scale)}px sans-serif`;
+    ctx.lineWidth = 3 * scale;
+    ctx.font = `bold ${Math.round(24 * scale)}px sans-serif`;
     for (const b of boxes) {
-      const [x1, y1, x2, y2, conf] = b;
+      const [x1, y1, x2, y2] = [b[0] * k, b[1] * k, b[2] * k, b[3] * k];
       ctx.strokeStyle = color;
       ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+      // 신뢰도는 아래 표에 있으므로 그림에는 슬롯 번호만 (6개가 아니면 신뢰도)
       const slot = slots ? slots.indexOf(b) + 1 : 0;
-      const label = slot ? `#${slot} ${conf.toFixed(2)}` : conf.toFixed(2);
+      const label = slot ? `${slot}` : b[4].toFixed(2);
       const tw = ctx.measureText(label).width + 6 * scale;
-      const th = 16 * scale;
+      const th = 30 * scale;
       const ty = y1 - th >= 0 ? y1 - th : y2;
       ctx.fillStyle = color;
       ctx.fillRect(x1, ty, tw, th);
       ctx.fillStyle = '#fff';
-      ctx.fillText(label, x1 + 3 * scale, ty + th - 4 * scale);
+      ctx.fillText(label, x1 + 3 * scale, ty + th - 7 * scale);
     }
     URL.revokeObjectURL(img.src);
-    return { rendered: canvas.toDataURL('image/png'), width: canvas.width, height: canvas.height };
+    return { rendered: canvas.toDataURL('image/png'), width: img.naturalWidth, height: img.naturalHeight };
   }
 
   private loadImage(file: File): Promise<HTMLImageElement> {
