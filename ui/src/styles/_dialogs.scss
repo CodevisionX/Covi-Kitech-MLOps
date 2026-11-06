@@ -1,0 +1,13 @@
+.custom-terminal-dialog {
+  max-width: none !important;
+
+  .mat-mdc-dialog-container {
+    padding: 0 !important;
+  }
+
+  .mdc-dialog__surface {
+    background-color: transparent !important;
+    box-shadow: none !important;
+    overflow: hidden !important;
+  }
+}

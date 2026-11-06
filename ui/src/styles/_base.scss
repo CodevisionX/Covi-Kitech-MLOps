@@ -1,0 +1,56 @@
+body {
+  color-scheme: light;
+  background-color: var(--bg-body);
+  color: var(--text-main);
+  font: var(--mat-sys-body-medium);
+  font-family: var(--font-family);
+  font-size: var(--text-body);
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+code,
+pre,
+kbd,
+samp {
+  font-family: var(--font-mono);
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+table {
+  font-variant-numeric: tabular-nums;
+}
+
+::selection {
+  background: var(--main-primary-color);
+  color: var(--text-on-primary);
+}
+
+:focus-visible {
+  outline: 2px solid var(--main-primary-color);
+  outline-offset: 2px;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+.mat-mdc-card {
+  border: 1px solid var(--border-color);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

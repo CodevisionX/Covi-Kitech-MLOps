@@ -1,0 +1,102 @@
+@use '@angular/material' as mat;
+
+html {
+  @include mat.theme((
+    color: (
+      primary: mat.$azure-palette,
+      tertiary: mat.$blue-palette,
+    ),
+    typography: (
+      plain-family: var(--font-family),
+      brand-family: var(--font-family),
+    ),
+    density: 0,
+  ));
+
+  @include mat.theme-overrides((
+    primary: var(--main-primary-color),
+    on-primary: var(--text-on-primary),
+    surface: var(--bg-card),
+    on-surface: var(--text-main),
+    on-surface-variant: var(--text-muted),
+    outline: var(--border-strong),
+    outline-variant: var(--border-color),
+  ));
+
+  @include mat.button-overrides((
+    filled-container-shape: var(--radius-md),
+    outlined-container-shape: var(--radius-md),
+    protected-container-shape: var(--radius-md),
+    text-container-shape: var(--radius-md),
+    tonal-container-shape: var(--radius-md),
+  ));
+
+  @include mat.card-overrides((
+    elevated-container-color: var(--bg-card),
+    elevated-container-elevation: none,
+    elevated-container-shape: var(--radius-lg),
+    outlined-container-shape: var(--radius-lg),
+  ));
+
+  @include mat.dialog-overrides((
+    container-shape: var(--radius-lg),
+  ));
+
+  @include mat.form-field-overrides((
+    outlined-container-shape: var(--radius-md),
+    subscript-text-size: var(--text-meta),
+  ));
+
+  @include mat.select-overrides((
+    trigger-text-size: var(--text-body),
+  ));
+
+  @include mat.table-overrides((
+    background-color: transparent,
+    header-headline-size: var(--text-label),
+    header-headline-weight: 600,
+    row-item-label-text-size: var(--text-body),
+  ));
+
+  @include mat.list-overrides((
+    active-indicator-shape: var(--radius-md),
+  ));
+
+  @include mat.sidenav-overrides((
+    container-shape: 0,
+    container-background-color: var(--bg-card),
+    content-background-color: var(--bg-body),
+  ));
+
+  @include mat.toolbar-overrides((
+    container-background-color: var(--bg-card),
+  ));
+
+  @include mat.tooltip-overrides((
+    supporting-text-size: var(--text-meta),
+  ));
+}
+
+.success-snackbar {
+  @include mat.snack-bar-overrides((
+    container-color: var(--success-color),
+    supporting-text-color: var(--text-on-primary),
+    button-color: var(--text-on-primary),
+  ));
+}
+
+.warning-snackbar {
+  @include mat.snack-bar-overrides((
+    container-color: var(--warning-color),
+    supporting-text-color: var(--text-on-primary),
+    button-color: var(--text-on-primary),
+  ));
+}
+
+.error-snackbar {
+  @include mat.snack-bar-overrides((
+    container-color: var(--error-color),
+    supporting-text-color: var(--text-on-primary),
+    button-color: var(--text-on-primary),
+  ));
+}

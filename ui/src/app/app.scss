@@ -1,42 +1,44 @@
-.active-link {
-//   // 배경색에 살짝 투명도를 주어 하이라이트 효과 (선택사항)
-//   background-color: rgba(0, 35, 135, 0.08) !important; 
-  
-  // 텍스트와 아이콘 색상 변경
-  color: var(--main-primary-color) !important;
-
-  // Angular Material 내부 아이콘 색상 강제 적용
-  mat-icon {
-    color: var(--main-primary-color) !important;
-  }
-
-  // 글자 굵게 처리 (강조 효과)
-  .mdc-list-item__primary-text {
-    font-weight: bold !important;
-    color: var(--main-primary-color) !important;
-  }
+mat-toolbar {
+  border-bottom: 1px solid var(--border-color);
 }
 
 .side-nav {
   width: 250px;
-  border-right: 1px solid #e0e0e0;
+  border-right: 1px solid var(--border-color);
+}
+
+mat-nav-list {
+  padding: 8px;
+}
+
+.active-link {
+  background-color: var(--main-primary-light);
+  border-radius: var(--radius-md);
+
+  mat-icon,
+  .mdc-list-item__primary-text {
+    color: var(--main-primary-color) !important;
+  }
+
+  .mdc-list-item__primary-text {
+    font-weight: 600;
+  }
 }
 
 .branding {
   display: flex;
-  align-items: center; /* 수직 중앙 정렬 */
-  gap: 10px; /* 로고와 텍스트 사이 간격 */
-  margin-left: 8px; /* 햄버거 메뉴와의 간격 */
+  align-items: center;
+  gap: 12px;
+  margin-left: 8px;
 }
 
 .logo-img {
-  height: 40px; /* 툴바 높이에 맞춰 적절히 조절 (보통 30~40px 추천) */
-  width: auto;  /* 비율 유지 */
-  object-fit: contain; /* 이미지 찌그러짐 방지 */
+  height: 40px;
+  width: auto;
+  object-fit: contain;
 }
 
 .logo-text {
-  font-weight: 500; /* 텍스트 굵기 조절 (선택사항) */
-  /* 필요하다면 폰트 사이즈 조절 */
-  /* font-size: 1.2rem; */
+  font-size: var(--text-section);
+  font-weight: 600;
 }
