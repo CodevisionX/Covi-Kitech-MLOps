@@ -1,59 +1,22 @@
-/* 공통 트랜지션 및 효과 활용 */
-$transition-base: all var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
-
 .train-container {
   padding: var(--base-padding);
   background: var(--bg-card);
-  border-radius: var(--card-radius);
+  border-radius: var(--radius-lg);
   display: flex;
   flex-direction: column;
   gap: 24px;
-  box-shadow: var(--shadow-md);
   border: 1px solid var(--border-color);
-
-  .train-header {
-    border-bottom: 2px solid var(--border-color);
-    padding-bottom: 20px;
-
-    .title-group {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 4px;
-
-      h1 {
-        margin: 0;
-        font-size: 24px;
-        font-weight: 700;
-        color: var(--text-main);
-      }
-
-      mat-icon {
-        font-size: 32px;
-        width: 32px;
-        height: 32px;
-      }
-    }
-
-    .subtitle {
-      margin: 0;
-      color: var(--text-muted);
-      font-size: 14px;
-    }
-  }
 }
 
-/* 데이터셋 경로 카드 */
 .path-card {
   background: var(--bg-body);
   border: 1px solid var(--border-color);
-  border-radius: var(--card-radius);
+  border-radius: var(--radius-lg);
   padding: 20px;
-  transition: $transition-base;
 
   &.ready {
     border-color: var(--success-color);
-    background: rgba(46, 125, 50, 0.05);
+    background: var(--success-bg);
 
     .status-badge.active {
       background: var(--success-color);
@@ -76,16 +39,6 @@ $transition-base: all var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
     }
   }
 
-  .status-badge {
-    font-size: 11px;
-    padding: 4px 12px;
-    border-radius: 20px;
-    background: var(--border-color);
-    color: var(--text-muted);
-    font-weight: 700;
-    text-transform: uppercase;
-  }
-
   .path-text {
     display: flex;
     align-items: center;
@@ -93,9 +46,8 @@ $transition-base: all var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
     background: var(--bg-card);
     border: 1px solid var(--border-color);
     padding: 12px 16px;
-    border-radius: 8px;
-    font-size: 13px;
-    font-family: 'Roboto Mono', monospace;
+    border-radius: var(--radius-md);
+    font-size: var(--text-label);
     color: var(--text-main);
 
     &.error-text {
@@ -104,9 +56,9 @@ $transition-base: all var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     .inline-icon {
-      font-size: 18px;
-      width: 18px;
-      height: 18px;
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
       color: var(--text-muted);
     }
   }
@@ -114,42 +66,7 @@ $transition-base: all var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
   .path-body {
     display: flex;
     flex-direction: column;
-    gap: 12px; // 경로 라인과 분석 결과 사이 간격
-  }
-
-  /* ✨ 추가: 분석 결과 영역 스타일 */
-  .analysis-result-area {
-    margin-top: 4px;
-    padding-left: 4px;
-
-    .analysis-tag {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 6px 14px;
-      background: var(--success-color);
-      color: white;
-      border-radius: 6px;
-      font-size: 13px;
-      font-weight: 600;
-      box-shadow: 0 4px 10px rgba(var(--main-primary-rgb), 0.2);
-
-      mat-icon {
-        font-size: 18px;
-        width: 18px;
-        height: 18px;
-      }
-
-      .label {
-        opacity: 0.8;
-        font-weight: 400;
-      }
-
-      .value {
-        // text-decoration: underline;
-        text-underline-offset: 4px;
-      }
-    }
+    gap: 12px;
   }
 }
 
@@ -158,10 +75,8 @@ $transition-base: all var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
   align-items: center;
   justify-content: space-between;
   width: 100%;
-
 }
 
-/* 설정 카드 영역 */
 .config-card {
   .full-width {
     width: 100%;
@@ -172,27 +87,21 @@ $transition-base: all var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
     padding: 24px;
     background: var(--bg-body);
     border: 1px solid var(--border-color);
-    border-radius: var(--card-radius);
+    border-radius: var(--radius-lg);
 
     .params-header {
       display: flex;
       align-items: center;
       gap: 8px;
-      font-size: 15px;
-      font-weight: 700;
+      font-size: var(--text-section);
+      font-weight: 600;
       color: var(--main-primary-color);
       margin-bottom: 20px;
-
-      mat-icon {
-        font-size: 20px;
-        width: 20px;
-        height: 20px;
-      }
     }
   }
 
-  .back-to-list { color: #64748b; }
-  .custom-error { color: var(--error-color, #c62828); }
+  .back-to-list { color: var(--text-muted); }
+  .custom-error { color: var(--error-color); }
 
   .params-grid {
     display: grid;
@@ -223,7 +132,6 @@ $transition-base: all var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
   }
 }
 
-/* 하단 액션 영역 */
 .action-row {
   margin-top: 40px;
   display: flex;
@@ -234,18 +142,17 @@ $transition-base: all var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
   .launch-summary {
     display: flex;
     align-items: center;
-    gap: 10px;
-    font-size: 14px;
+    gap: 8px;
     color: var(--text-main);
     background: var(--main-primary-light);
     padding: 12px 24px;
-    border-radius: 30px;
-    border: 1px dashed var(--main-primary-color);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--main-primary-color);
 
     mat-icon {
-      font-size: 18px;
-      width: 18px;
-      height: 18px;
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
       color: var(--main-primary-color);
     }
 
@@ -256,70 +163,29 @@ $transition-base: all var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
 
   .start-btn {
     min-width: 280px;
-    height: 54px;
-    border-radius: 27px;
-    font-size: 18px;
-    font-weight: 700;
-    background: linear-gradient(135deg, var(--main-primary-color) 0%, var(--main-primary-dark) 100%);
+    height: 48px;
+    border-radius: var(--radius-md);
+    font-size: var(--text-section);
+    font-weight: 600;
+    background: var(--main-primary-color);
     color: var(--text-on-primary);
-    box-shadow: var(--shadow-md);
-    transition: $transition-base;
-
-    &:hover:not(:disabled) {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(0, 35, 135, 0.25);
-      filter: brightness(1.1);
-    }
 
     &:disabled {
       background: var(--border-color);
       color: var(--text-muted);
-      box-shadow: none;
-    }
-
-    mat-icon {
-      margin-right: 8px;
     }
   }
 }
 
-.analysis-desc {
-  margin: 8px 0 0 0;
-  font-size: 14px;
-  color: var(--main-primary-color);
-  font-style: italic;
-}
-
-@keyframes fadeInScale {
-  from {
-    opacity: 0;
-    transform: translateY(5px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-/* 등록된 데이터셋 버전 선택 */
 .version-counts {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
   margin-bottom: 8px;
-
-  .count-chip {
-    font-size: 12px;
-    padding: 2px 10px;
-    border-radius: 12px;
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
-    color: var(--text-muted);
-  }
 }
 
 .version-hint {
   margin: 4px 0 0;
-  font-size: 12px;
+  font-size: var(--text-meta);
   color: var(--text-muted);
 }

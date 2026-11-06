@@ -18,8 +18,7 @@
     <div class="tab-group">
       <span class="tab-group-label">{{ g.label }}</span>
       @for (variant of g.variants; track variant) {
-      <button class="tab-item" [class.active]="selectedVariant() === variant" (click)="onVariantChange(variant)">
-        <mat-icon class="tab-icon">science</mat-icon>
+      <button class="filter-tab" [class.active]="selectedVariant() === variant" (click)="onVariantChange(variant)">
         <span class="exp-name">{{ variant }}</span>
       </button>
       }
@@ -36,9 +35,8 @@
   <div class="content-area">
     <section class="job-section">
       <h3 class="section-title">
-        <mat-icon class="icon-pending">run_circle</mat-icon>
         실행 중인 모델
-        <span class="count-badge primary">{{ isLoading() ? '...' : filteredActiveJobs().length }}</span>
+        <span class="count-badge">{{ isLoading() ? '...' : filteredActiveJobs().length }}</span>
       </h3>
       <div class="table-scroll-wrapper">
         <table mat-table [dataSource]="displayActiveJobs()" class="custom-table active-table">
@@ -52,7 +50,7 @@
                 <div class="run-name">{{ job.model_variant }}</div>
                 <div class="tag-row">
                   @for (tag of job.tags | keyvalue; track tag.key) {
-                  <span class="tag-mini">{{ tag.value }}</span>
+                  <span class="inline-tag">{{ tag.value }}</span>
                   }
                 </div>
               </div>
@@ -162,9 +160,8 @@
     <section class="job-section">
       <div class="section-header-row">
         <h3 class="section-title">
-          <mat-icon class="icon-history">history</mat-icon>
           학습 이력
-          <span class="count-badge grey">{{ isLoading() ? '...' : filteredHistoryJobs().length }}</span>
+          <span class="count-badge">{{ isLoading() ? '...' : filteredHistoryJobs().length }}</span>
         </h3>
       </div>
 

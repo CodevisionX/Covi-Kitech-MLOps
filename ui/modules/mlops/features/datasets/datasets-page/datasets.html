@@ -19,11 +19,9 @@
     }
   </app-page-header>
 
-  <!-- 데이터셋 등록 모달 (상태와 업로드 로직은 이 화면의 것을 그대로 씀) -->
   <ng-template #uploadTpl>
   <div class="upload-dialog">
     <div class="dialog-head">
-      <mat-icon>cloud_upload</mat-icon>
       <span>{{ session() ? (session()!.name + ' 이어서 올리기 (세션 #' + session()!.id + ')') : '데이터셋 등록' }}</span>
       <button mat-icon-button class="help-btn" (click)="openGuide(form.task)" matTooltip="업로드 가이드"><mat-icon>help_outline</mat-icon></button>
       <span class="spacer"></span>
@@ -146,7 +144,6 @@
 
       <aside class="guide">
         <div class="guide-head">
-          <mat-icon>account_tree</mat-icon>
           <div>
             <b>폴더 구조 · {{ taskLabels[form.task] }}</b>
           </div>
@@ -170,19 +167,18 @@
 
   <section class="card list-card">
     <div class="card-title">
-      <mat-icon>list</mat-icon>
       <span>등록된 버전과 업로드 세션</span>
       <span class="spacer"></span>
       <button mat-icon-button (click)="refresh()" matTooltip="새로고침"><mat-icon>refresh</mat-icon></button>
     </div>
 
     <nav class="task-tabs">
-      <button class="task-tab" [class.active]="taskFilter() === ''" (click)="taskFilter.set('')">
-        전체 <span class="count">{{ versions().length }}</span>
+      <button class="filter-tab" [class.active]="taskFilter() === ''" (click)="taskFilter.set('')">
+        전체 <span class="count-badge">{{ versions().length }}</span>
       </button>
       @for (t of tabOrder; track t) {
-      <button class="task-tab" [class.active]="taskFilter() === t" (click)="taskFilter.set(t)" [matTooltip]="guides[t].usedBy">
-        {{ tabLabels[t] }} <span class="count">{{ taskCounts()[t] || 0 }}</span>
+      <button class="filter-tab" [class.active]="taskFilter() === t" (click)="taskFilter.set(t)" [matTooltip]="guides[t].usedBy">
+        {{ tabLabels[t] }} <span class="count-badge">{{ taskCounts()[t] || 0 }}</span>
       </button>
       }
     </nav>

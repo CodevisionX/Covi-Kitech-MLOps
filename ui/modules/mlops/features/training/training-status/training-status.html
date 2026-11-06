@@ -2,7 +2,7 @@
   <div class="title">
     <h2>{{ job().model_variant }} <span class="job-id">#{{ job().id }}</span></h2>
     <span class="status-chip" [attr.data-status]="job().status">{{ job().status }}</span>
-    @for (tag of job().tags | keyvalue; track tag.key) { <span class="tag-mini">{{ tag.value }}</span> }
+    @for (tag of job().tags | keyvalue; track tag.key) { <span class="inline-tag">{{ tag.value }}</span> }
   </div>
   <div class="actions">
     <button mat-button (click)="openMlflow()" [disabled]="!job().run_id" matTooltip="MLflow 에서 전체 파라미터·파일 보기">

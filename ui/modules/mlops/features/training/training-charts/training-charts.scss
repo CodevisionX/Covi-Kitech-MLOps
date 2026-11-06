@@ -1,11 +1,34 @@
-:host { display: block; }
+:host {
+  display: block;
+}
+
 .charts-grid {
   display: grid;
   gap: 20px;
-  @media (max-width: 960px) { grid-template-columns: minmax(0, 1fr) !important; }
+
+  @media (max-width: 960px) {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
 }
-.chart-card { padding: 16px !important; border-radius: 12px !important; }
-.chart-title { font-weight: 600; margin-bottom: 8px; color: var(--text-main); }
-.canvas-wrapper { position: relative; }
-.overfit-note { margin: -4px 0 12px; font-size: 13px; color: var(--text-muted, #64748b); }
-.muted { color: #94a3b8; font-size: 13px; }
+
+.chart-card {
+  padding: 16px;
+  border-radius: var(--radius-lg);
+  box-shadow: none;
+}
+
+.chart-title {
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--text-main);
+}
+
+.canvas-wrapper {
+  position: relative;
+}
+
+.overfit-note {
+  margin: -4px 0 12px;
+  font-size: var(--text-meta);
+  color: var(--text-muted);
+}

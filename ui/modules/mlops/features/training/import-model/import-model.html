@@ -25,7 +25,7 @@
     }
   </div>
 
-  <div class="drop-zone" [class.over]="dragOver()" [class.has-files]="files().length > 0" [class.disabled]="submitting()"
+  <div class="drop-zone" [class.drag-over]="dragOver()" [class.has-files]="files().length > 0" [class.disabled]="submitting()"
     role="button" tabindex="0" (click)="!submitting() && fileInput.click()" (keydown.enter)="fileInput.click()"
     (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)" (drop)="onDrop($event)">
     <input #fileInput type="file" hidden (change)="onFiles($event)"

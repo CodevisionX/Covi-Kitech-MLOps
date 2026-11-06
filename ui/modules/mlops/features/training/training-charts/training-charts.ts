@@ -1,6 +1,7 @@
 import { Component, computed, effect, inject, input, OnDestroy, output, signal } from '@angular/core';
 import { ChartConfiguration, ChartOptions } from 'chart.js';
 import { Experiment } from '../../../services/apis/experiment';
+import { CHART_COLORS, CHART_REFERENCE_COLOR } from '../../../../shared/utils/chart-theme';
 
 interface ChartGroup { title: string; data: ChartConfiguration<'line'>['data']; }
 
@@ -12,7 +13,6 @@ const METRIC_LABELS: Record<string, string> = {
   'acc': '정확도',
   'norm_edit_dis': '정규화 편집 유사도',
 };
-const COLORS = ['#002387', '#E91E63', '#4CAF50', '#FF9800', '#00ACC1', '#8E24AA'];
 const LIVE_POLL_MS = 3000;
 
 /**
@@ -167,14 +167,14 @@ export class TrainingCharts implements OnDestroy {
       const datasets: any[] = p.keys.map((k, i) => ({
         data: s[k].map(([x, y]) => ({ x, y })),
         label: p.pair ? (k.startsWith('train/') ? 'train' : 'val') : this.shortName(k),
-        borderColor: COLORS[i % COLORS.length], backgroundColor: COLORS[i % COLORS.length],
-        borderWidth: 2, tension: 0.2, fill: false, pointRadius: s[k].length > 60 ? 0 : 2,
+        borderColor: CHART_COLORS[i % CHART_COLORS.length], backgroundColor: CHART_COLORS[i % CHART_COLORS.length],
+        borderWidth: 2, tension: 0, fill: false, pointRadius: s[k].length > 60 ? 0 : 2,
       }));
       if (best) {  // 최고 지점 세로선
         const ys = p.keys.flatMap(k => s[k].map(v => v[1]));
         datasets.push({
           data: [{ x: best.step, y: Math.min(...ys) }, { x: best.step, y: Math.max(...ys) }],
-          label: `최고 (${best.step})`, borderColor: '#94a3b8', backgroundColor: '#94a3b8',
+          label: `최고 (${best.step})`, borderColor: CHART_REFERENCE_COLOR, backgroundColor: CHART_REFERENCE_COLOR,
           borderDash: [5, 4], borderWidth: 1.5, pointRadius: 0, fill: false,
         });
       }
@@ -190,7 +190,7 @@ export class TrainingCharts implements OnDestroy {
     plugins: { legend: { position: 'top' }, tooltip: { mode: 'nearest', intersect: false } },
     scales: {
       x: {
-        type: 'linear', grid: { display: false },
+        type: 'linear', grid: { display: false }, ticks: { maxRotation: 0 },
         title: {
           display: true,
           text: this.stepAxis()
