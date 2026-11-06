@@ -1,17 +1,17 @@
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
-import { ModelList } from './components/model-list/model-list';
-import { Dashboard } from '../../modules/mlops/pages/dashboard/dashboard';
-import { Deploy } from './components/deploy/deploy';
-import { ModelDetail } from './components/model-detail/model-detail';
-import { ModelValidation } from './components/model-validation/model-validation';
-import { ModelDetailCnn } from './components/model-detail-cnn/model-detail-cnn';
-import { ModelValidationCnn } from './components/model-validation-cnn/model-validation-cnn';
-import { DatasetsPage } from './pages/datasets/datasets';
-import { EvaluationList } from './pages/evaluations/evaluations';
-import { EvaluationDetail } from './pages/evaluation-detail/evaluation-detail';
-import { ModelValidationPyfunc } from './components/model-validation-pyfunc/model-validation-pyfunc';
-import { ModelDetailV2 } from './components/model-detail-v2/model-detail-v2';
+import { ModelList } from './features/training/model-list/model-list';
+import { Dashboard } from './features/training/dashboard/dashboard';
+import { Deploy } from './features/inference/deploy/deploy';
+import { ModelDetail } from './features/training/model-detail/model-detail';
+import { ModelValidation } from './features/inference/model-validation/model-validation';
+import { ModelDetailCnn } from './features/training/model-detail-cnn/model-detail-cnn';
+import { ModelValidationCnn } from './features/inference/model-validation-cnn/model-validation-cnn';
+import { DatasetsPage } from './features/datasets/datasets-page/datasets';
+import { EvaluationList } from './features/evaluation/evaluations/evaluations';
+import { EvaluationDetail } from './features/evaluation/evaluation-detail/evaluation-detail';
+import { ModelValidationPyfunc } from './features/inference/model-validation-pyfunc/model-validation-pyfunc';
+import { ModelDetailV2 } from './features/training/model-detail-v2/model-detail-v2';
 
 const routes: Routes = [
   { path: '', redirectTo: 'datasets', pathMatch: 'full' }, // 작업 첫 단계인 데이터셋으로
