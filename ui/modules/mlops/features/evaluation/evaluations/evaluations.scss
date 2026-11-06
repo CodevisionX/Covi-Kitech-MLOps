@@ -59,8 +59,14 @@
 .eval-table {
   width: 100%;
 
-  th.mat-mdc-header-cell, td.mat-mdc-cell { padding: 0 8px; }
-  th.mat-mdc-header-cell, td.mat-column-created { white-space: nowrap; }
+  tr.mat-mdc-row { height: 64px; }
+  th.mat-mdc-header-cell { padding: 0 8px; }
+  td.mat-mdc-cell { padding: 12px 8px; }
+  th.mat-mdc-header-cell,
+  td.mat-column-models,
+  td.mat-column-dataset,
+  td.mat-column-created { white-space: nowrap; }
+  .mat-column-status { width: 304px; }
   .num { font-variant-numeric: tabular-nums; }
   .strong { font-weight: 600; color: var(--main-primary-color); }
   .actions { text-align: right; white-space: nowrap; > * { vertical-align: middle; } }
@@ -96,7 +102,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  margin-top: 4px;
+  margin-top: 8px;
 }
 
 .empty {
