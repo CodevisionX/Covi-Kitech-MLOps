@@ -6,8 +6,7 @@ import { IJob } from '../../services/apis/models/job.model';
 import { Subject, Subscription, forkJoin } from 'rxjs';
 import { debounceTime } from 'rxjs/operators';
 import { Notification } from '../../services/notification';
-import { formatDistanceToNow } from 'date-fns';
-import { ko } from 'date-fns/locale';
+import { relativeTime } from '../../../shared/utils/format';
 import { TerminalLog } from '../dialogs/terminal-log/terminal-log';
 import { IProject } from '../../services/apis/models/project.model';
 import { Project } from '../../services/apis/project';
@@ -495,8 +494,7 @@ export class ModelList implements OnInit, OnDestroy {
   }
 
   getRelativeTime(dateStr?: string | null): string {
-    if (!dateStr) return '-';
-    return formatDistanceToNow(new Date(dateStr), { addSuffix: true, locale: ko });
+    return relativeTime(dateStr);
   }
 
 

@@ -1,45 +1,12 @@
 <div class="model-list-container">
-  <header class="page-header">
-    <div class="title-group">
-      <div class="title-with-icon">
-        <mat-icon class="main-icon">layers</mat-icon>
-        <h1>프로젝트 학습 관리</h1>
-      </div>
-      <p>실험별 학습 내역 및 MLflow 모델 상태를 실시간으로 모니터링합니다.</p>
-    </div>
-
-    <div class="header-actions">
-      <button mat-flat-button color="primary" class="upload-btn" [class.drop-over]="uploadDragOver()"
-        (click)="openImportDialog()" [disabled]="!selectedProjectId()"
-        (dragover)="onUploadDragOver($event)" (dragleave)="uploadDragOver.set(false)" (drop)="onUploadDrop($event)"
-        matTooltip="검출(.pt)·인식(inference.*) 모델 파일을 올려 학습한 모델과 같은 평가 데이터로 비교합니다. 파일을 이 버튼에 끌어다 놓아도 됩니다.">
-        <mat-icon>upload_file</mat-icon> 모델 파일 업로드
-      </button>
-    </div>
-
-    <!-- <div class="project-controls">
-      <div class="selector-wrapper">
-        @if (isLoading() && projects().length === 0) {
-        <div class="skeleton-loader selector-skeleton"></div>
-        } @else {
-        <mat-icon class="select-icon">folder_special</mat-icon>
-        <mat-form-field appearance="fill" class="compact-select">
-          <mat-select [value]="selectedProjectId()" (selectionChange)="onProjectChange($event.value)"
-            [disabled]="isLoading()">
-            @for (proj of projects(); track proj.id) {
-            <mat-option [value]="proj.id">{{ proj.name }}</mat-option>
-            }
-          </mat-select>
-        </mat-form-field>
-        }
-      </div>
-
-      <button mat-flat-button class="refresh-btn" (click)="refreshJobs()" [disabled]="isLoading()">
-        <mat-icon [class.spinning]="isLoading()">refresh</mat-icon>
-        <span>{{ isLoading() ? '동기화 중...' : '새로고침' }}</span>
-      </button>
-    </div> -->
-  </header>
+  <app-page-header title="프로젝트 학습 관리" subtitle="실험별 학습 내역 및 MLflow 모델 상태를 실시간으로 모니터링합니다.">
+    <button mat-flat-button color="primary" class="upload-btn" [class.drop-over]="uploadDragOver()"
+      (click)="openImportDialog()" [disabled]="!selectedProjectId()"
+      (dragover)="onUploadDragOver($event)" (dragleave)="uploadDragOver.set(false)" (drop)="onUploadDrop($event)"
+      matTooltip="검출(.pt)·인식(inference.*) 모델 파일을 올려 학습한 모델과 같은 평가 데이터로 비교합니다. 파일을 이 버튼에 끌어다 놓아도 됩니다.">
+      <mat-icon>upload_file</mat-icon> 모델 파일 업로드
+    </button>
+  </app-page-header>
 
   <nav class="experiment-tabs">
     @if (isLoading() && availableVariants().length === 0) {

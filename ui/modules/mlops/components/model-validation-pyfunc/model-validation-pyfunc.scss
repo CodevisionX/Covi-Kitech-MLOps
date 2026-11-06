@@ -4,18 +4,6 @@
   min-height: calc(100vh - var(--header-height));
 }
 
-.page-header {
-  margin-bottom: 20px;
-  .title-row { display: flex; align-items: center; gap: 8px; }
-  h1 {
-    display: flex; align-items: center; gap: 12px; margin: 0;
-    font-size: 24px; font-weight: 600; color: var(--text-main);
-    mat-icon { color: var(--main-primary-color); font-size: 28px; width: 28px; height: 28px; }
-  }
-  p { color: var(--text-muted); margin: 8px 0 0; }
-  .back-btn { background: var(--bg-card); border: 1px solid var(--border-color); }
-}
-
 .info-card, .control-card, .det-card {
   border-radius: var(--card-radius) !important;
   box-shadow: var(--shadow-md) !important;

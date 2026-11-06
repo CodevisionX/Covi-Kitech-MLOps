@@ -1,0 +1,84 @@
+<div class="model-detail-container">
+  <app-page-header [title]="'Run Detail: ' + runId().substring(0, 8)" [showBack]="true" (back)="back.emit()">
+    <app-breadcrumb parent="실험 목록" current="Run 상세 분석" (parentClick)="back.emit()"></app-breadcrumb>
+    <span pageTitleExtra class="status-badge" [attr.data-status]="runInfo()?.status">{{ runInfo()?.status }}</span>
+    <button mat-flat-button color="primary" class="deploy-btn"
+      [disabled]="isDeploying() || runInfo()?.status !== 'FINISHED'" (click)="deploy.emit()">
+      @if (isDeploying()) {
+      <mat-icon>sync</mat-icon>
+      }
+      {{ isDeploying() ? '요청 중...' : '추론 서버 실행' }}
+    </button>
+  </app-page-header>
+
+  <div class="content-layout">
+    <section class="summary-section">
+      <mat-card class="summary-card">
+        <mat-card-content>
+          <div class="info-grid">
+            <div class="info-item">
+              <label>프로젝트 ID</label>
+              <div class="value">{{ projectId() || '-' }}</div>
+            </div>
+            <div class="info-item">
+              <label>모델 변형 (Variant)</label>
+              <div class="value">{{ runInfo()?.tags?.['model_variant'] || variantFallback() }}</div>
+            </div>
+            <div class="info-item">
+              <label>학습 시작</label>
+              <div class="value">{{ startedAt() }}</div>
+            </div>
+            <div class="info-item tags-item">
+              <label>사용자 태그</label>
+              <div class="tag-cloud">
+                @for (tag of runInfo()?.tags | keyvalue; track tag.key) {
+                @if (!tag.key.startsWith('mlflow.')) {
+                <span class="custom-tag"><strong>{{ tag.key }}:</strong> {{ tag.value }}</span>
+                }
+                }
+              </div>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </section>
+
+    <section class="metrics-section">
+      <h3 class="section-title">학습 성능 추이</h3>
+      <div class="charts-grid">
+        @if (performanceChart(); as chart) {
+        <mat-card class="chart-card">
+          <mat-card-header><mat-card-title>{{ performanceTitle() }}</mat-card-title></mat-card-header>
+          <mat-card-content>
+            <div class="canvas-wrapper">
+              <canvas baseChart [data]="chart" [options]="chartOptions()" [type]="'line'"></canvas>
+            </div>
+          </mat-card-content>
+        </mat-card>
+        }
+        <mat-card class="chart-card">
+          <mat-card-header><mat-card-title>{{ lossTitle() }}</mat-card-title></mat-card-header>
+          <mat-card-content>
+            <div class="canvas-wrapper">
+              <canvas baseChart [data]="lossChart()" [options]="chartOptions()" [type]="'line'"></canvas>
+            </div>
+          </mat-card-content>
+        </mat-card>
+      </div>
+    </section>
+
+    <section class="artifacts-section">
+      <h3 class="section-title">{{ imagesTitle() }}</h3>
+      <div class="image-grid">
+        @for (image of images(); track image.tag) {
+        <mat-card class="image-card">
+          <div class="img-container">
+            <span class="img-tag" [class]="image.tagClass">{{ image.tag }}</span>
+            <img [src]="image.url" (error)="imageError.emit($event)" [alt]="image.alt">
+          </div>
+        </mat-card>
+        }
+      </div>
+    </section>
+  </div>
+</div>

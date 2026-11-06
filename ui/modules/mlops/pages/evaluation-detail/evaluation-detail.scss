@@ -8,44 +8,6 @@ $border-radius: 12px;
   box-sizing: border-box;
 }
 
-.breadcrumb {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 13px;
-  color: #6b7280;
-  margin-bottom: 8px;
-
-  .link { display: flex; align-items: center; gap: 4px; cursor: pointer; color: $primary-color; }
-  mat-icon { font-size: 18px; width: 18px; height: 18px; }
-}
-
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 16px;
-  margin-bottom: 16px;
-
-  .title {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-
-    h1 { font-size: 26px; font-weight: 800; color: #1a1a1a; margin: 0; }
-  }
-
-  .actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-
-    a.disabled { pointer-events: none; opacity: 0.4; }
-  }
-}
-
 .steps-card {
   border-radius: 12px !important;
   border: 1px solid #eef0f5;
@@ -225,21 +187,8 @@ mat-card {
 
 .empty { text-align: center; padding: 24px; color: #6b7280; }
 
-.status-badge {
-  display: inline-block;
-  padding: 3px 10px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 700;
-  background: #eceff1;
-  color: #546e7a;
-
-  &[data-status="FINISHED"] { background: #e8f5e9; color: #2e7d32; }
-  &[data-status="FAILED"] { background: #ffebee; color: #c62828; }
-  &[data-status="DETECTING"],
-  &[data-status="RECOGNIZING"] { background: #fff3e0; color: #ef6c00; }
-}
-
 .clickable-row { cursor: pointer; }
 .clickable-row:hover td { background: #f1f5f9; }
 .title-hint { font-size: 12px; font-weight: 400; color: #94a3b8; margin-left: 8px; }
+
+a.disabled { pointer-events: none; opacity: 0.4; }

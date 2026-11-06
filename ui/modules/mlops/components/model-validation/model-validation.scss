@@ -3,31 +3,6 @@
   background-color: var(--bg-body);
   min-height: calc(100vh - var(--header-height));
 
-  .page-header {
-    margin-bottom: 32px;
-    
-    h1 {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-size: 24px;
-      font-weight: 600;
-      color: var(--text-main);
-      margin: 0 0 8px 0;
-
-      mat-icon {
-        color: var(--main-primary-color);
-        font-size: 28px;
-        width: 28px;
-        height: 28px;
-      }
-    }
-
-    p {
-      color: var(--text-muted);
-      margin: 0;
-    }
-  }
 }
 
 .test-grid {
