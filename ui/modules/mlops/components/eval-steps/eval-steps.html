@@ -1,0 +1,22 @@
+<div class="eval-steps" [class.compact]="compact()">
+  <div class="track">
+    @for (s of steps; track s.key; let i = $index) {
+    @let st = state(i);
+    @if (i > 0) { <div class="line" [class.done]="st === 'done' || st === 'active' || st === 'failed'"></div> }
+    <div class="step" [attr.data-state]="st" [title]="s.help">
+      <div class="dot">
+        @if (st === 'done') { <mat-icon>check</mat-icon> }
+        @else if (st === 'failed') { <mat-icon>close</mat-icon> }
+        @else if (!compact()) { <span>{{ i + 1 }}</span> }
+      </div>
+      <span class="label">{{ s.label }}</span>
+    </div>
+    }
+  </div>
+  @if (!compact()) {
+  <div class="info" [class.error]="failed()" [class.ok]="finished()">
+    <mat-icon>{{ failed() ? 'error_outline' : finished() ? 'check_circle' : 'hourglass_top' }}</mat-icon>
+    <span>{{ message() }}</span>
+  </div>
+  }
+</div>

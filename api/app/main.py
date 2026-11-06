@@ -57,6 +57,7 @@ async def lifespan(app: FastAPI):
         conn.execute(text(
             "CREATE INDEX IF NOT EXISTS ix_job_dataset_version_id ON job (dataset_version_id)"))
         conn.execute(text("ALTER TABLE deployment ADD COLUMN IF NOT EXISTS model_family VARCHAR"))
+        conn.execute(text("ALTER TABLE job ADD COLUMN IF NOT EXISTS started_at TIMESTAMP WITH TIME ZONE"))
 
     # 브라우저가 데이터셋 버킷에 직접 업로드할 수 있도록 CORS 설정 (멱등)
     try:

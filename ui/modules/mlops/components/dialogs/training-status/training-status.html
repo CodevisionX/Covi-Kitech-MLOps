@@ -1,0 +1,59 @@
+<div class="status-header">
+  <div class="title">
+    <h2>{{ job().model_variant }} <span class="job-id">#{{ job().id }}</span></h2>
+    <span class="status-chip" [attr.data-status]="job().status">{{ job().status }}</span>
+    @for (tag of job().tags | keyvalue; track tag.key) { <span class="tag-mini">{{ tag.value }}</span> }
+  </div>
+  <div class="actions">
+    <button mat-button (click)="openMlflow()" [disabled]="!job().run_id" matTooltip="MLflow 에서 전체 파라미터·파일 보기">
+      <mat-icon>open_in_new</mat-icon> MLflow
+    </button>
+    @if (hasCharts()) {
+    <button mat-button (click)="openDetail()" matTooltip="최종 평가·P-R 곡선·추론 서버 실행이 있는 상세 화면">
+      <mat-icon>insights</mat-icon> 상세 화면
+    </button>
+    }
+    <button mat-icon-button (click)="close()"><mat-icon>close</mat-icon></button>
+  </div>
+</div>
+
+<div class="summary">
+  <div class="progress">
+    @if (progress(); as pr) {
+    <mat-progress-bar mode="determinate" [value]="percent()"></mat-progress-bar>
+    <span class="label">Epoch {{ pr.epoch }} / {{ pr.total }}</span>
+    } @else {
+    <mat-progress-bar [mode]="job().status === 'RUNNING' ? 'indeterminate' : 'determinate'"
+      [value]="job().status === 'FINISHED' ? 100 : 0"></mat-progress-bar>
+    <span class="label">{{ job().status === 'RUNNING' ? '준비 중' : job().status === 'PENDING' ? '대기 중' : '종료' }}</span>
+    }
+  </div>
+  <div class="fact"><label>시작 일시</label><span>{{ startedAt() }}</span></div>
+  <div class="fact"><label>소요 시간</label><span>{{ elapsed() }}</span></div>
+</div>
+
+<mat-tab-group class="status-tabs" [preserveContent]="true" animationDuration="0ms"
+  [selectedIndex]="tab()" (selectedIndexChange)="onTab($event)">
+  <mat-tab label="학습 추이">
+    <div class="tab-scroll">
+      @if (hasCharts()) {
+      <app-training-charts [runId]="job().run_id!" [hidePrecisionRecall]="isDetection()" [chartHeight]="240"
+        (statusChange)="onRunStatus($event)"></app-training-charts>
+      } @else if (!job().run_id) {
+      <p class="muted">학습이 시작되면 차트가 표시됩니다.</p>
+      } @else {
+      <p class="muted">이 모델은 학습 추이 차트를 지원하지 않습니다. 로그 탭과 MLflow 를 확인하세요.</p>
+      }
+    </div>
+  </mat-tab>
+  <mat-tab>
+    <ng-template mat-tab-label>로그 <span class="log-count">{{ terminal.logs().length }}줄</span></ng-template>
+    <div class="log-body" #logBox>
+      @for (line of terminal.logs(); track $index) {
+      <div class="log-line" [innerHTML]="line"></div>
+      } @empty {
+      <div class="log-empty">{{ terminal.status() === 'running' ? '로그를 기다리는 중...' : '표시할 로그가 없습니다.' }}</div>
+      }
+    </div>
+  </mat-tab>
+</mat-tab-group>

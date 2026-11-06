@@ -19,20 +19,20 @@
       </button>
       <a mat-flat-button color="primary" [href]="api.packageUrl(ev.id)" [class.disabled]="!isFinished()"
         [attr.aria-disabled]="!isFinished()" download
-        matTooltip="현장 폴더 구조의 zip: models/detection/best.pt, models/recognition/inference.json·.pdiparams·.yml, 출처와 평가 점수를 담은 package_info.json">
-        <mat-icon>inventory_2</mat-icon>배포 패키지 받기
+        matTooltip="운영 PC의 models 폴더에 넣을 zip (models/detection/best.pt, models/recognition/inference.*, package_info.json). 운영 PC에서 models 폴더를 바꾸고 프로그램을 다시 시작합니다.">
+        <mat-icon>download</mat-icon>현장 배포 패키지 받기
       </a>
       <button mat-stroked-button (click)="toggleLogs()"><mat-icon>terminal</mat-icon>로그 {{ showLogs() ? '닫기' : '보기' }}</button>
       <button mat-icon-button matTooltip="삭제" (click)="remove()"><mat-icon>delete</mat-icon></button>
     </div>
   </header>
 
-  @if (ev.error_message) {
-  <div class="msg error"><mat-icon>error_outline</mat-icon><span>{{ ev.error_message }}</span></div>
-  } @else if (ev.status_message) {
-  <div class="msg" [class.warn]="ev.status_message.includes('주의') || ev.status_message.includes('같은')">
-    <mat-icon>info</mat-icon><span>{{ ev.status_message }}</span>
-  </div>
+  <mat-card class="steps-card">
+    <app-eval-steps [evaluation]="ev"></app-eval-steps>
+  </mat-card>
+
+  @if (ev.status === 'FINISHED' && ev.status_message && (ev.status_message.includes('주의') || ev.status_message.includes('같은'))) {
+  <div class="msg warn"><mat-icon>info</mat-icon><span>{{ ev.status_message }}</span></div>
   }
 
   @if (showLogs()) {
@@ -41,12 +41,12 @@
 
   <section class="info-grid">
     <mat-card class="info-card">
-      <label>검출 모델 (YOLO26)</label>
+      <label>검출 모델 ({{ detJob()?.model_variant || '검출' }})</label>
       <div class="value link" (click)="goModels(detJob())">작업 #{{ ev.detection_job_id }}</div>
       <div class="sub">{{ jobOrigin(detJob()) }}</div>
     </mat-card>
     <mat-card class="info-card">
-      <label>인식 모델 (PP-OCRv6)</label>
+      <label>인식 모델 ({{ recJob()?.model_variant || '인식' }})</label>
       <div class="value link" (click)="goModels(recJob())">작업 #{{ ev.recognition_job_id }}</div>
       <div class="sub">{{ jobOrigin(recJob()) }}</div>
     </mat-card>
@@ -103,7 +103,7 @@
   @if (isFinished()) {
   <mat-card class="pred-card">
     <div class="pred-header">
-      <div class="card-title">슬롯별 결과</div>
+      <div class="card-title">슬롯별 결과 <span class="title-hint">행을 누르면 이미지로 확인</span></div>
       <div class="filters">
         @for (f of filters; track f.key) {
         <button class="filter-chip" [class.active]="filter() === f.key" [attr.data-key]="f.key" (click)="setFilter(f.key)">
@@ -155,7 +155,8 @@
           <td mat-cell *matCellDef="let r" class="num">{{ r.det_conf || '-' }}</td>
         </ng-container>
         <tr mat-header-row *matHeaderRowDef="columns; sticky: true"></tr>
-        <tr mat-row *matRowDef="let row; columns: columns" [attr.data-result]="row.result"></tr>
+        <tr mat-row *matRowDef="let row; columns: columns" [attr.data-result]="row.result" class="clickable-row"
+          (click)="openSlot(row)" matTooltip="클릭하면 이미지로 확인" matTooltipShowDelay="600"></tr>
       </table>
       @if (!filtered().length) { <div class="empty">해당하는 슬롯이 없습니다.</div> }
     </div>

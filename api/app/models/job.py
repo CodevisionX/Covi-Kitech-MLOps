@@ -41,5 +41,6 @@ class Job(Base):
     # 시간 및 에러 정보
     created_at = Column(DateTime(timezone=True), default=get_kst_now)
     updated_at = Column(DateTime(timezone=True), default=get_kst_now, onupdate=get_kst_now)
+    started_at = Column(DateTime(timezone=True), nullable=True)   # 실행(RUNNING) 시작 시각
     finished_at = Column(DateTime(timezone=True), nullable=True)
     error_message = Column(Text, nullable=True)

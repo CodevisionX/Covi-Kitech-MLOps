@@ -71,7 +71,7 @@ export class ModelDetail {
   onDeployModel() {
     const info = this.runInfo();
     if (!info) return;
-    if (!confirm(`현재 모델(Run ID: ${this.runId().substring(0, 8)})을 BentoML로 배포하시겠습니까?`)) return;
+    if (!confirm(`현재 모델(Run ID: ${this.runId().substring(0, 8)})으로 추론 서버(BentoML)를 실행할까요?`)) return;
 
     this.isDeploying.set(true);
     // 2. 백엔드로 보낼 데이터 구성
@@ -86,12 +86,12 @@ export class ModelDetail {
     this.deploymentService.createDeployment(deployRequest).subscribe({
       next: (response) => {
         this.isDeploying.set(false);
-        this.notificationService.showSuccess('배포 프로세스가 시작되었습니다.');
+        this.notificationService.showSuccess('추론 서버를 시작했습니다.');
         this.router.navigate(['/dashboard/deployments']);
       },
       error: (err: HttpErrorResponse) => {
         this.isDeploying.set(false);
-        const serverMessage = '모델은 한 번에 하나만 배포 가능합니다. 기존 배포를 먼저 중단해 주세요.';
+        const serverMessage = '추론 서버는 한 번에 하나만 실행할 수 있습니다. 실행 중인 서버를 먼저 중단해 주세요.';
         this.notificationService.showWarning(serverMessage);
       }
     });

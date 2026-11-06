@@ -9,9 +9,11 @@
     </div>
 
     <div class="header-actions">
-      <button mat-stroked-button color="primary" (click)="openImportDialog()" [disabled]="!selectedProjectId()"
-        matTooltip="현장에서 쓰던 검출(.pt)·인식(inference.*) 모델을 가져와 새로 학습한 모델과 같은 평가 데이터로 비교합니다">
-        <mat-icon>upload_file</mat-icon> 현장 모델 가져오기
+      <button mat-flat-button color="primary" class="upload-btn" [class.drop-over]="uploadDragOver()"
+        (click)="openImportDialog()" [disabled]="!selectedProjectId()"
+        (dragover)="onUploadDragOver($event)" (dragleave)="uploadDragOver.set(false)" (drop)="onUploadDrop($event)"
+        matTooltip="검출(.pt)·인식(inference.*) 모델 파일을 올려 학습한 모델과 같은 평가 데이터로 비교합니다. 파일을 이 버튼에 끌어다 놓아도 됩니다.">
+        <mat-icon>upload_file</mat-icon> 모델 파일 업로드
       </button>
     </div>
 
@@ -45,11 +47,16 @@
     <div class="skeleton-loader tab-pill-skeleton"></div>
     }
     } @else {
-    @for (variant of availableVariants(); track variant) {
-    <button class="tab-item" [class.active]="selectedVariant() === variant" (click)="onVariantChange(variant)">
-      <mat-icon class="tab-icon">science</mat-icon>
-      <span class="exp-name">{{ variant }}</span>
-    </button>
+    @for (g of variantGroups(); track g.task) {
+    <div class="tab-group">
+      <span class="tab-group-label">{{ g.label }}</span>
+      @for (variant of g.variants; track variant) {
+      <button class="tab-item" [class.active]="selectedVariant() === variant" (click)="onVariantChange(variant)">
+        <mat-icon class="tab-icon">science</mat-icon>
+        <span class="exp-name">{{ variant }}</span>
+      </button>
+      }
+    </div>
     } @empty {
     <div class="empty-tabs-msg">
       <mat-icon>info</mat-icon>
@@ -104,22 +111,51 @@
             </td>
           </ng-container>
 
-          <ng-container matColumnDef="startTime">
-            <th mat-header-cell *matHeaderCellDef>요청 시간</th>
+          <ng-container matColumnDef="progress">
+            <th mat-header-cell *matHeaderCellDef>진행도</th>
             <td mat-cell *matCellDef="let job">
-              @if (isLoading()) { <div class="skeleton-loader cell-skeleton-text" style="width: 50%"></div> }
-              @else { {{ getRelativeTime(job.created_at) }} }
+              @if (isLoading()) { <div class="skeleton-loader cell-skeleton-text" style="width: 60%"></div> }
+              @else if (job.progress; as pr) {
+              <div class="epoch-progress">
+                <mat-progress-bar mode="determinate" [value]="pr.total ? pr.epoch / pr.total * 100 : 0"></mat-progress-bar>
+                <span class="epoch-label">Epoch {{ pr.epoch }} / {{ pr.total }}</span>
+              </div>
+              }
+              @else if (job.status === 'RUNNING') { <span class="epoch-label">준비 중</span> }
+              @else { <span class="epoch-label">-</span> }
             </td>
           </ng-container>
 
-          <ng-container matColumnDef="dashboard">
-            <th mat-header-cell *matHeaderCellDef>대시보드</th>
-            <td mat-cell *matCellDef="let job">
-              @if (isLoading()) { <div class="skeleton-loader cell-skeleton-circle"></div> }
+          <ng-container matColumnDef="startedAt">
+            <th mat-header-cell *matHeaderCellDef>시작 일시</th>
+            <td mat-cell *matCellDef="let job" class="time-cell">
+              @if (isLoading()) { <div class="skeleton-loader cell-skeleton-text" style="width: 50%"></div> }
+              @else if (job.status === 'PENDING') { <span class="epoch-label">대기 중</span> }
               @else {
-              <button mat-icon-button (click)="openMlflowDetail(job)"
-                [disabled]="job.status === 'PENDING' || !job.run_id">
-                <mat-icon>assessment</mat-icon>
+              @let at = formatClock(job.started_at || job.created_at);
+              <div class="date-line">{{ at.split(' ')[0] }}</div>
+              <div>{{ at.split(' ')[1] }}</div>
+              }
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="elapsed">
+            <th mat-header-cell *matHeaderCellDef>소요 시간</th>
+            <td mat-cell *matCellDef="let job" class="time-cell">
+              @if (isLoading()) { <div class="skeleton-loader cell-skeleton-text" style="width: 50%"></div> }
+              @else if (job.status === 'PENDING') { - }
+              @else { {{ elapsed(job.started_at || job.created_at) }} }
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="statusView">
+            <th mat-header-cell *matHeaderCellDef>현황</th>
+            <td mat-cell *matCellDef="let job">
+              @if (isLoading()) { <div class="skeleton-loader cell-skeleton-chip"></div> }
+              @else {
+              <button mat-stroked-button color="primary" class="status-view-btn" (click)="openStatus(job)"
+                [disabled]="job.status === 'PENDING'" matTooltip="학습 추이 차트와 로그를 실시간으로 봅니다">
+                <mat-icon>monitoring</mat-icon> 현황 보기
               </button>
               }
             </td>
@@ -179,26 +215,45 @@
       <div class="skeleton-loader skeleton-best-card" style="margin-bottom: 24px;"></div>
       } @else if (bestJob(); as best) {
       <div class="best-model-card">
-        <div class="best-ribbon">🏆 BEST PERFORMANCE</div>
-        <div class="best-content">
-          <div class="best-info">
-            <span class="best-label">최고 성적 모델</span>
-            <h2 class="best-run-name">{{ best.model_variant }}</h2>
-            <div class="best-metrics">
-              <div class="metric-box">
-                <span class="m-label">{{ bestMetricView()?.label }}</span>
-                <span class="m-value">{{ bestMetricView()?.value | number:'1.2-4' }}</span>
-              </div>
-            </div>
+        <div class="best-top">
+        <div class="best-main">
+          <span class="best-label"><mat-icon>star</mat-icon>최고 성적</span>
+          <div class="best-title">
+            <span class="best-run-name">{{ best.model_variant }}</span>
+            <span class="best-job">#{{ best.id }}</span>
           </div>
-          <div class="best-actions">
-            @if (hasDetail(best.model_variant)) {
-              <button mat-flat-button class="best-deploy-btn" (click)="navigateToRunDetail(best)">
-                <mat-icon>insights</mat-icon> 분석 및 배포
-              </button>
+          <div class="best-sub">
+            @if (best.dataset_version_id) {
+            <span><mat-icon>dataset</mat-icon>{{ datasetNames()[best.dataset_version_id] || ('데이터셋 #' + best.dataset_version_id) }}</span>
             }
+            @if (best.finished_at) { <span><mat-icon>event</mat-icon>{{ best.finished_at | date:'yyyy-MM-dd HH:mm' }} 완료</span> }
+            @if (duration(best); as d) { <span><mat-icon>timer</mat-icon>학습 {{ d }}</span> }
           </div>
         </div>
+        <div class="best-metric">
+          <span class="m-label">{{ bestMetricView()?.label }}</span>
+          <span class="m-value">{{ bestMetricView()?.value | number:'1.3-4' }}</span>
+        </div>
+        @if (hasDetail(best.model_variant)) {
+        <button mat-stroked-button class="best-detail-btn" (click)="navigateToRunDetail(best)">
+          <mat-icon>insights</mat-icon> 상세 보기
+        </button>
+        }
+        </div>
+        @if (bestDetails().length) {
+        <div class="best-details">
+          @for (g of bestDetails(); track g.title) {
+          <div class="detail-group">
+            <span class="group-title">{{ g.title }}</span>
+            <div class="items">
+              @for (it of g.items; track it.label) {
+              <span class="item"><span class="k">{{ it.label }}</span><span class="v">{{ it.value }}</span></span>
+              }
+            </div>
+          </div>
+          }
+        </div>
+        }
       </div>
       }
 
@@ -211,11 +266,11 @@
               @else {
               <div class="model-info-cell">
                 <div class="run-name-wrapper">
-                  @if (job.id === bestJobId()) { <mat-icon class="best-badge">emoji_events</mat-icon> }
                   <div class="run-name">{{ job.model_variant }} <span class="job-id">#{{ job.id }}</span></div>
+                  @if (job.id === bestJobId()) { <span class="best-badge">최고</span> }
                 </div>
                 @if (job.tags?.source === 'imported') {
-                <div class="job-sub imported"><mat-icon>place</mat-icon> 현장 모델 · {{ job.tags?.import_name }}</div>
+                <div class="job-sub imported"><mat-icon>upload_file</mat-icon> 업로드 모델 · {{ job.tags?.import_name }}</div>
                 } @else if (job.dataset_version_id) {
                 <div class="job-sub"><mat-icon>dataset</mat-icon> {{ datasetNames()[job.dataset_version_id] || ('데이터셋 #' + job.dataset_version_id) }}</div>
                 }
@@ -267,7 +322,7 @@
               @if (isLoading()) { <div class="skeleton-loader cell-skeleton-chip" style="width: 60px"></div> }
               @else {
               <button mat-button class="btn-result-view" (click)="navigateToRunDetail(job)" [disabled]="!job.run_id">
-                <mat-icon>insights</mat-icon><span>분석 및 배포</span>
+                <mat-icon>insights</mat-icon><span>상세 보기</span>
               </button>
               }
             </td>

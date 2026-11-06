@@ -43,6 +43,22 @@ def get_predictions(evaluation_id: int, db: Session = Depends(get_db)):
                     headers={"Content-Disposition": f'attachment; filename="e2e_eval{ev.id}_predictions.csv"'})
 
 
+@router.get("/{evaluation_id}/panel-image")
+def get_panel_image(evaluation_id: int, image: str, panel: str, slot: Optional[int] = None,
+                    result: str = "", db: Session = Depends(get_db)):
+    """평가에 쓴 패널 이미지 + 검출 박스 (고른 슬롯 강조)."""
+    ev = evaluation_service.get(db, evaluation_id)
+    return Response(evaluation_service.panel_view(ev, image, panel, slot, result), media_type="image/png")
+
+
+@router.get("/{evaluation_id}/slot-crop")
+def get_slot_crop(evaluation_id: int, image: str, panel: str, slot: int, db: Session = Depends(get_db)):
+    """인식 모델에 들어간 슬롯 이미지."""
+    ev = evaluation_service.get(db, evaluation_id)
+    return Response(evaluation_service.slot_crop(ev, image, panel, slot), media_type="image/png",
+                    headers={"Cache-Control": "private, max-age=3600"})
+
+
 @router.get("/{evaluation_id}/package")
 def download_package(evaluation_id: int, db: Session = Depends(get_db)):
     """고객 현장 폴더 구조(models/detection, models/recognition)의 배포 zip."""

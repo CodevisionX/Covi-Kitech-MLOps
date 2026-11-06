@@ -14,7 +14,8 @@ import { ModelValidationPyfunc } from './components/model-validation-pyfunc/mode
 import { ModelDetailV2 } from './components/model-detail-v2/model-detail-v2';
 
 const routes: Routes = [
-  { path: '', component: Dashboard },
+  { path: '', redirectTo: 'datasets', pathMatch: 'full' }, // 작업 첫 단계인 데이터셋으로
+  { path: 'train', component: Dashboard },
   { path: 'models', component: ModelList },
   { path: 'models/run/yolo/:runId', component: ModelDetail },
   { path: 'models/run/cnn/:runId', component: ModelDetailCnn },
@@ -26,7 +27,7 @@ const routes: Routes = [
   { path: 'deployments/yolo/:deploymentId', component: ModelValidation },
   { path: 'deployments/cnn/:deploymentId', component: ModelValidationCnn },
   { path: 'deployments/pyfunc/:deploymentId', component: ModelValidationPyfunc },
-  { path: '**', redirectTo: 'dashboard' } // 잘못된 주소면
+  { path: '**', redirectTo: 'datasets' } // 잘못된 주소면
 ];
 
 @NgModule({

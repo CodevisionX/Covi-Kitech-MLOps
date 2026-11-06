@@ -1,0 +1,102 @@
+:host { display: block; height: 100%; }
+
+.viewer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #fff;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 12px 10px 20px;
+  border-bottom: 1px solid #e5e7eb;
+
+  .title {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    min-width: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: #1e293b;
+
+    span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pos { font-size: 13px; font-weight: 600; color: #94a3b8; }
+  }
+
+  .tools {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex: none;
+
+    mat-icon { color: #475569; }
+    button[mat-stroked-button] { margin: 0 6px; mat-icon { margin-right: 4px; } }
+  }
+
+  .pct {
+    min-width: 56px;
+    border: none;
+    background: #f1f5f9;
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #334155;
+    cursor: pointer;
+    font-variant-numeric: tabular-nums;
+
+    &:hover { background: #e2e8f0; }
+  }
+
+  .sep { width: 1px; height: 24px; background: #e5e7eb; margin: 0 8px; }
+}
+
+.stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
+  cursor: grab;
+  touch-action: none;
+
+  &.dragging { cursor: grabbing; }
+
+  img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    user-select: none;
+    transform-origin: center center;
+    transition: transform 0.08s ease-out;
+  }
+
+  &.dragging img { transition: none; }
+
+  .nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #fff;
+    color: #334155;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+
+    &.prev { left: 16px; }
+    &.next { right: 16px; }
+  }
+}
+
+.hint {
+  padding: 8px 20px;
+  border-top: 1px solid #e5e7eb;
+  font-size: 12.5px;
+  color: #64748b;
+}

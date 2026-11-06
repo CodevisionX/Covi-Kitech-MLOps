@@ -1,4 +1,7 @@
-"""YOLO26 숫자 그룹 검출 학습 (플랫폼 작업용 진입점).
+"""YOLO 계열 검출 학습 (YOLO26, YOLOv8 공통 진입점).
+
+MODEL_VARIANT 로 모델 종류를, PRETRAINED_WEIGHTS 로 시작 가중치(/opt/pretrained 안의 파일)를 정합니다.
+  YOLO26 -> yolo26n.pt (기본), YOLOv8 -> yolov8n.pt
 
 흐름: 데이터 다운로드 -> 구조 검사 -> 학습(에폭별 지표 MLflow 기록)
       -> Validation 기준 best.pt 선택 -> Validation/Test 평가 -> 모델 기록
@@ -125,7 +128,8 @@ def main():
         logger.error("MLFLOW_RUN_ID 가 없습니다.")
         sys.exit(1)
 
-    logger.info("--- [START] YOLO26 검출 학습 | Job %s ---", JOB_ID)
+    variant = env_str("MODEL_VARIANT", "YOLO26")
+    logger.info("--- [START] %s 검출 학습 | Job %s ---", variant, JOB_ID)
     data_dir = WORK_DIR / "data"
     out_dir = WORK_DIR / "runs"
     mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5000"))
@@ -154,7 +158,7 @@ def main():
                 mlflow.set_tags(job_tags())
             mlflow.set_tags({
                 "task": "detection",
-                "model_family": "YOLO26",
+                "model_family": variant,
                 "dataset_path": dataset_path,
                 "dataset_sha256": manifest["sha256"],
             })

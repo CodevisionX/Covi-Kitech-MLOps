@@ -1,4 +1,4 @@
-import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnDestroy, OnInit, signal, TemplateRef, ViewChild } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -6,6 +6,9 @@ import { DatasetApi } from '../../services/apis/dataset';
 import { Project } from '../../services/apis/project';
 import { Notification } from '../../services/notification';
 import { IProject } from '../../services/apis/models/project.model';
+import { DATASET_GUIDES } from './dataset-guides';
+import { MatDialog, MatDialogRef } from '@angular/material/dialog';
+import { DatasetGuideDialog } from '../../components/dialogs/dataset-guide/dataset-guide';
 import {
   DATASET_TASK_LABELS, DatasetTask, IDatasetVersion, IPresignedFile, IUploadSession,
 } from '../../services/apis/models/dataset.model';
@@ -33,26 +36,35 @@ export class DatasetsPage implements OnInit, OnDestroy {
   private readonly api = inject(DatasetApi);
   private readonly projectService = inject(Project);
   private readonly notify = inject(Notification);
+  private readonly dialog = inject(MatDialog);
+
+  /** 업로드 가이드 모달 (종류를 주면 그 탭으로 엶) */
+  openGuide(task?: DatasetTask) {
+    // 업로드 중에 열면 폴더 준비 단계부터 보여 줌
+    this.dialog.open(DatasetGuideDialog, {
+      data: { task, step: task ? 1 : 0 },
+      width: '1280px', maxWidth: '96vw', height: '88vh', autoFocus: false,
+    });
+  }
 
   readonly taskLabels = DATASET_TASK_LABELS;
   readonly tasks = Object.keys(DATASET_TASK_LABELS) as DatasetTask[];
-  readonly layoutHints: Record<DatasetTask, string[]> = {
-    detection: [
-      'images/train, images/val (필수), images/test (선택) 에 이미지(jpg/png 등)',
-      'labels/<같은 분할>/<이미지 이름>.txt — YOLO 형식 "클래스 cx cy w h" (0~1)',
-      '클래스 이름은 data.yaml (또는 dataset.yaml) 의 names (선택)',
-    ],
-    recognition: [
-      'train_list.txt, val_list.txt (필수), test_list.txt (선택)',
-      '각 줄: "<이미지 상대경로><TAB><정답>" (UTF-8, BOM 허용)',
-      '이미지는 목록에 적은 상대경로에 둡니다 (예: images/...)',
-    ],
-    e2e: [
-      'labels.txt — 각 줄: "<이미지 상대경로><TAB><패널><TAB><슬롯 1~6><TAB><정답>"',
-      '이미지 하나가 패널 하나인 패널 이미지 (예: images/...)',
-      'roi_config.json 이 있으면 전체 프레임 이미지로 보고 패널 좌표대로 잘라 평가',
-    ],
-  };
+  readonly guides = DATASET_GUIDES;
+
+  /** 고른 폴더에 필수 경로가 있는지 (zip 하나만 올리면 서버에서 풀어 검사하므로 건너뜀) */
+  structureCheck = computed(() => {
+    const files = this.picked();
+    if (!files.length) return null;
+    if (files.length === 1 && files[0].path.toLowerCase().endsWith('.zip')) return { zip: true, items: [], ok: true };
+    const paths = files.map(f => f.path);
+    const items = DATASET_GUIDES[this.taskSig()].required.map(r => ({
+      ...r,
+      found: r.kind === 'file' ? paths.includes(r.path) : paths.some(p => p.startsWith(r.path + '/')),
+    }));
+    return { zip: false, items, ok: items.every(i => i.found) };
+  });
+  /** 템플릿 form.task 를 계산값에서 쓰기 위한 신호 */
+  taskSig = signal<DatasetTask>('detection');
 
   projects = signal<IProject[]>([]);
   projectId = signal<number | null>(null);
@@ -68,9 +80,35 @@ export class DatasetsPage implements OnInit, OnDestroy {
     return t ? this.versions().filter(v => v.task === t) : this.versions();
   });
   selected = computed(() => this.versions().find(v => v.id === this.selectedId()) ?? null);
+  /** 종류 탭: 학습용 종류를 먼저, 평가용(E2E)을 마지막에 */
+  readonly tabOrder: DatasetTask[] = ['detection', 'recognition', 'timeseries', 'e2e'];
+  readonly tabLabels: Record<DatasetTask, string> = {
+    detection: '검출', recognition: '인식', timeseries: '시계열', e2e: 'E2E 평가',
+  };
+  taskCounts = computed(() => {
+    const c: Record<string, number> = {};
+    for (const v of this.versions()) c[v.task] = (c[v.task] || 0) + 1;
+    return c;
+  });
 
-  // 업로드 패널
+  // 업로드 모달
+  @ViewChild('uploadTpl') private uploadTpl!: TemplateRef<unknown>;
+  private uploadRef: MatDialogRef<unknown> | null = null;
   showUpload = signal(false);
+
+  private setUploadOpen(open: boolean) {
+    this.showUpload.set(open);
+    if (open && !this.uploadRef) {
+      // 닫기는 X 버튼으로만 (파일 선택창 클릭이 배경으로 전달되어 닫히는 일 방지)
+      this.uploadRef = this.dialog.open(this.uploadTpl, {
+        width: '1200px', maxWidth: '96vw', maxHeight: '92vh', disableClose: true, autoFocus: false,
+        panelClass: 'dataset-upload-panel',
+      });
+      this.uploadRef.afterClosed().subscribe(() => (this.uploadRef = null));
+    } else if (!open && this.uploadRef) {
+      this.uploadRef.close();
+    }
+  }
   session = signal<IUploadSession | null>(null);
   form = { name: '', task: 'detection' as DatasetTask, description: '' };
   picked = signal<PickedFile[]>([]);
@@ -185,9 +223,12 @@ export class DatasetsPage implements OnInit, OnDestroy {
   openNewUpload() {
     if (this.uploading()) return;
     this.session.set(null);
-    this.form = { name: '', task: 'detection', description: '' };
+    // 종류 탭을 보고 있으면 그 종류로 시작
+    const task: DatasetTask = this.taskFilter() || 'detection';
+    this.form = { name: '', task, description: '' };
+    this.taskSig.set(task);
     this.resetPicked();
-    this.showUpload.set(true);
+    this.setUploadOpen(true);
   }
 
   resumeUpload(v: IDatasetVersion) {
@@ -196,8 +237,9 @@ export class DatasetsPage implements OnInit, OnDestroy {
       next: s => {
         this.session.set(s);
         this.form = { name: s.name, task: s.task, description: s.description ?? '' };
+        this.taskSig.set(s.task);
         this.resetPicked();
-        this.showUpload.set(true);
+        this.setUploadOpen(true);
       },
       error: err => this.notify.showError(err.message),
     });
@@ -205,7 +247,7 @@ export class DatasetsPage implements OnInit, OnDestroy {
 
   closeUpload() {
     if (this.uploading()) return;
-    this.showUpload.set(false);
+    this.setUploadOpen(false);
     this.session.set(null);
     this.resetPicked();
   }
@@ -227,16 +269,59 @@ export class DatasetsPage implements OnInit, OnDestroy {
       const rel = (file as any).webkitRelativePath || file.name;
       // 고른 폴더 이름(첫 경로)을 빼서 데이터셋 루트 기준 경로로 만듦
       const parts = rel.split('/');
-      const path = parts.length > 1 ? parts.slice(1).join('/') : parts[0];
-      const base = parts[parts.length - 1];
-      if (SKIP_FILES.has(base) || parts.some((p: string) => p.startsWith('.'))) continue;
-      list.push({ path, file });
+      list.push({ path: parts.length > 1 ? parts.slice(1).join('/') : parts[0], file });
     }
+    input.value = '';
+    this.setPicked(list);
+  }
+
+  // ------------------------------------------------------------ 끌어다 놓기
+  dragOver = signal(false);
+
+  onDragOver(event: DragEvent) {
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+    this.dragOver.set(true);
+  }
+
+  onDragLeave(event: DragEvent) {
+    // 안쪽 요소로 옮겨 갈 때 생기는 leave 는 무시
+    const to = event.relatedTarget as Node | null;
+    if (!to || !(event.currentTarget as HTMLElement).contains(to)) this.dragOver.set(false);
+  }
+
+  /** 등록 버튼에 놓으면 등록 모달을 열고, 모달의 업로드 칸에 놓으면 그대로 파일을 고릅니다. */
+  async onDrop(event: DragEvent) {
+    event.preventDefault();
+    this.dragOver.set(false);
+    if (this.uploading()) return;
+    // 항목 목록은 drop 이벤트 안에서만 읽을 수 있어 먼저 꺼내 둠
+    const entries = Array.from(event.dataTransfer?.items ?? [])
+      .map(i => (i as any).webkitGetAsEntry?.())
+      .filter((e: any) => !!e);
+    if (!entries.length) return;
+    if (!this.showUpload()) this.openNewUpload();
+    try {
+      // 폴더 하나를 놓으면 그 폴더 안을 데이터셋 루트로 봄 (폴더 선택과 같은 규칙)
+      const roots = entries.length === 1 && entries[0].isDirectory ? await readDir(entries[0]) : entries;
+      const list: PickedFile[] = [];
+      for (const e of roots) await collect(e, '', list);
+      this.setPicked(list);
+    } catch (e: any) {
+      this.notify.showError(`끌어다 놓은 파일을 읽지 못했습니다: ${e?.message || e}`);
+    }
+  }
+
+  private setPicked(all: PickedFile[]) {
+    const list = all.filter(f => {
+      const parts = f.path.split('/');
+      return !SKIP_FILES.has(parts[parts.length - 1]) && !parts.some(p => p.startsWith('.'));
+    });
     list.sort((a, b) => a.path.localeCompare(b.path));
     this.picked.set(list);
     this.doneBytes.set(0);
     this.doneFiles.set(0);
-    input.value = '';
+    if (!list.length) this.notify.showWarning('올릴 파일이 없습니다.');
   }
 
   /** 세션이 없으면 만들고 돌려줍니다. */
@@ -267,6 +352,11 @@ export class DatasetsPage implements OnInit, OnDestroy {
   async startUpload() {
     const files = this.picked();
     if (!files.length || !this.projectId() || (!this.session() && !this.nameValid)) return;
+    const check = this.structureCheck();
+    if (check && !check.ok) {
+      const missing = check.items.filter(i => !i.found).map(i => i.path).join(', ');
+      if (!confirm(`필수 경로가 없습니다: ${missing}\n그래도 올리면 검사에서 실패합니다. 계속할까요?`)) return;
+    }
     this.uploading.set(true);
     this.canceled = false;
     this.doneBytes.set(0);
@@ -302,7 +392,7 @@ export class DatasetsPage implements OnInit, OnDestroy {
     try {
       await firstValueFrom(this.api.validate(s.id));
       this.notify.showInfo('검사를 시작했습니다. 끝나면 목록에 결과가 표시됩니다.');
-      this.showUpload.set(false);
+      this.setUploadOpen(false);
       this.session.set(null);
       this.resetPicked();
       this.selectedId.set(s.id);
@@ -407,5 +497,28 @@ export class DatasetsPage implements OnInit, OnDestroy {
 
   first50(list?: string[]): string[] {
     return (list ?? []).slice(0, 50);
+  }
+}
+
+/** 끌어다 놓은 폴더의 바로 아래 항목 (readEntries 는 한 번에 일부만 주므로 빌 때까지 반복) */
+function readDir(dir: any): Promise<any[]> {
+  const reader = dir.createReader();
+  const out: any[] = [];
+  return new Promise((resolve, reject) => {
+    const next = () => reader.readEntries((batch: any[]) => {
+      if (!batch.length) return resolve(out);
+      out.push(...batch);
+      next();
+    }, reject);
+    next();
+  });
+}
+
+async function collect(entry: any, prefix: string, out: PickedFile[]) {
+  if (entry.isFile) {
+    const file: File = await new Promise((resolve, reject) => entry.file(resolve, reject));
+    out.push({ path: prefix + entry.name, file });
+  } else if (entry.isDirectory) {
+    for (const child of await readDir(entry)) await collect(child, `${prefix}${entry.name}/`, out);
   }
 }

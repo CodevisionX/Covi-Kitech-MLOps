@@ -5,7 +5,7 @@
 
 환경 변수
   MLFLOW_RUN_ID   백엔드가 만든 run
-  MODEL_VARIANT   YOLO26 | PP-OCRv6
+  MODEL_VARIANT   검출(YOLO26, YOLOv8) | 인식(PP-OCRv6)
   IMPORT_PATH     올린 파일이 있는 'bucket/prefix'
   IMGSZ           검출 입력 크기 (기본 640)
 """
@@ -23,6 +23,8 @@ from mlops_common import (JOB_ID, WORK_DIR, _s3_client, download_dataset, env_in
                           environment_info, job_tags, logger, report_status, sha256_file)
 
 REC_FILES = ("inference.json", "inference.pdiparams", "inference.yml")
+DETECTION_VARIANTS = ("YOLO26", "YOLOv8")
+RECOGNITION_VARIANTS = ("PP-OCRv6",)
 
 
 def blank_png(w: int, h: int) -> str:
@@ -31,7 +33,7 @@ def blank_png(w: int, h: int) -> str:
     return base64.b64encode(buf.tobytes()).decode()
 
 
-def prepare_detection(root):
+def prepare_detection(root, variant):
     from ultralytics import YOLO
 
     weights = sorted(root.rglob("*.pt"))
@@ -42,7 +44,7 @@ def prepare_detection(root):
     if model.task != "detect":
         raise ValueError(f"검출(detect) 모델이 아닙니다: task={model.task}")
     names = model.names if isinstance(model.names, dict) else dict(enumerate(model.names))
-    mlflow.set_tags({"task": "detection", "model_family": "YOLO26"})
+    mlflow.set_tags({"task": "detection", "model_family": variant})
     mlflow.log_params({"model_sha256": sha256_file(w), "imported_file": w.name,
                        "n_classes": len(names), "imgsz": env_int("IMGSZ", 640)})
     mlflow.log_dict({"names": {int(k): v for k, v in names.items()}}, "dataset/summary.json")
@@ -52,7 +54,7 @@ def prepare_detection(root):
     return PACKAGES, blank_png(640, 640)
 
 
-def prepare_recognition(root):
+def prepare_recognition(root, variant):
     found = {name: sorted(root.rglob(name)) for name in REC_FILES}
     bad = {k: len(v) for k, v in found.items() if len(v) != 1}
     if bad:
@@ -61,7 +63,7 @@ def prepare_recognition(root):
     if len(dirs) != 1:
         raise ValueError("inference.* 파일 3개는 같은 폴더에 있어야 합니다")
     inference_dir = dirs.pop()
-    mlflow.set_tags({"task": "recognition", "model_family": "PP-OCRv6"})
+    mlflow.set_tags({"task": "recognition", "model_family": variant})
     mlflow.log_params({"model_sha256": sha256_file(inference_dir / "inference.pdiparams"),
                        "imported_file": ",".join(REC_FILES)})
 
@@ -91,7 +93,7 @@ def main():
     run_id = os.getenv("MLFLOW_RUN_ID")
     variant = os.getenv("MODEL_VARIANT", "")
     import_path = os.getenv("IMPORT_PATH", "")
-    if not run_id or variant not in ("YOLO26", "PP-OCRv6") or not import_path:
+    if not run_id or variant not in DETECTION_VARIANTS + RECOGNITION_VARIANTS or not import_path:
         logger.error("MLFLOW_RUN_ID / MODEL_VARIANT / IMPORT_PATH 를 확인하세요.")
         report_status("FAILED", "환경 변수가 올바르지 않습니다")
         sys.exit(1)
@@ -104,8 +106,8 @@ def main():
             if job_tags():
                 mlflow.set_tags(job_tags())
             mlflow.set_tag("source", "imported")
-            prepare = prepare_detection if variant == "YOLO26" else prepare_recognition
-            packages, sample = prepare(root)
+            prepare = prepare_detection if variant in DETECTION_VARIANTS else prepare_recognition
+            packages, sample = prepare(root, variant)
             mlflow.log_dict(environment_info(packages), "environment.json")
 
             # 기록한 모델을 다시 불러 한 장 예측해 봅니다 (서빙/평가에서 못 쓰는 파일을 미리 거름)

@@ -6,6 +6,8 @@ import { IDeployment } from '../../services/apis/models/deployment.model';
 import { IJob } from '../../services/apis/models/job.model';
 import { Notification } from '../../services/notification';
 import { Box, PANEL_SLOTS, sortBoxes2x3 } from './slot-order';
+import { isDetectionModel, modelTask } from '../../configs/model-config';
+import { parseNpy } from './npy';
 
 interface DetResult {
   file: File;
@@ -47,7 +49,19 @@ export class ModelValidationPyfunc implements OnInit {
   deployment = signal<IDeployment | null>(null);
   job = signal<IJob | null>(null);
   family = computed(() => this.deployment()?.model_family || this.job()?.model_variant || '');
-  isDetection = computed(() => this.family() === 'YOLO26');
+  isDetection = computed(() => isDetectionModel(this.family()));
+  isTimeseries = computed(() => modelTask(this.family()) === 'timeseries');
+
+  // 시계열: X.npy 를 올려 예측, y.npy 가 있으면 채점
+  tsXFile = signal<File | null>(null);
+  tsYFile = signal<File | null>(null);
+  tsXName = computed(() => this.tsXFile()?.name || '');
+  tsYName = computed(() => this.tsYFile()?.name || '');
+  tsResult = signal<{
+    rows: { pred: string; gt?: string; prob?: string; wrong?: boolean }[];
+    classification: boolean; hasGt: boolean; latencyMs: number;
+    metric?: { label: string; value: string };
+  } | null>(null);
 
   files = signal<File[]>([]);
   isRunning = signal(false);
@@ -269,6 +283,66 @@ export class ModelValidationPyfunc implements OnInit {
       r.onerror = () => reject(r.error);
       r.readAsDataURL(file);
     });
+  }
+
+  // ---------------------------------------------------------------- 시계열
+  onTsFile(event: Event, kind: 'x' | 'y') {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] || null;
+    input.value = '';
+    (kind === 'x' ? this.tsXFile : this.tsYFile).set(file);
+    this.tsResult.set(null);
+  }
+
+  async runTimeseries() {
+    const dep = this.deployment();
+    const x = this.tsXFile();
+    if (!dep || !x) return;
+    this.isRunning.set(true);
+    const t0 = performance.now();
+    try {
+      const res = await new Promise<any>((resolve, reject) =>
+        this.deploymentService.predictNpyFile(dep.id, x).subscribe({ next: resolve, error: reject }));
+      const latencyMs = performance.now() - t0;
+      const p = res?.prediction || {};
+      const classification = Array.isArray(p.labels);
+      const preds: any[] = classification ? p.labels : (p.values || []);
+      let gt: number[][] | null = null;
+      const yFile = this.tsYFile();
+      if (yFile) {
+        const y = parseNpy(await yFile.arrayBuffer());
+        const width = y.shape.length > 1 ? y.shape[1] : 1;
+        gt = Array.from({ length: y.shape[0] }, (_, i) => Array.from(y.data.slice(i * width, (i + 1) * width)));
+        if (gt.length !== preds.length) {
+          this.notificationService.showWarning(`정답 개수(${gt.length})가 예측 개수(${preds.length})와 달라 채점하지 않습니다.`);
+          gt = null;
+        }
+      }
+      const fmt = (v: number) => (Number.isInteger(v) ? `${v}` : v.toFixed(4));
+      const rows = preds.map((v: any, i: number) => {
+        const pred = classification ? `${v}${p.names?.[i] && p.names[i] !== `${v}` ? ` (${p.names[i]})` : ''}` : (v as number[]).map(fmt).join(', ');
+        const g = gt ? gt[i] : undefined;
+        return {
+          pred,
+          gt: g ? g.map(fmt).join(', ') : undefined,
+          prob: classification ? `${Math.max(...p.probs[i]).toFixed(3)}` : undefined,
+          wrong: classification && g ? g[0] !== v : false,
+        };
+      });
+      let metric: { label: string; value: string } | undefined;
+      if (gt && classification) {
+        const correct = preds.filter((v: number, i: number) => gt![i][0] === v).length;
+        metric = { label: '정확도', value: `${((correct / preds.length) * 100).toFixed(2)}% (${correct}/${preds.length})` };
+      } else if (gt) {
+        const errs = preds.flatMap((v: number[], i: number) => v.map((x, j) => Math.abs(x - gt![i][j])));
+        metric = { label: 'MAE', value: (errs.reduce((a: number, b: number) => a + b, 0) / errs.length).toFixed(4) };
+      }
+      this.tsResult.set({ rows, classification, hasGt: !!gt, latencyMs, metric });
+    } catch (e: any) {
+      this.notificationService.showError(e?.message || String(e));
+    } finally {
+      this.isRunning.set(false);
+    }
   }
 
   resultClass(r: RecResult): string {

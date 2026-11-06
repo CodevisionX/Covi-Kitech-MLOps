@@ -1,0 +1,49 @@
+<h2 mat-dialog-title class="slot-title">
+  <span class="mono">{{ row().image }}</span>
+  <span class="sep">·</span> {{ row().panel }}
+  @if (row().slot) { <span class="sep">·</span> 슬롯 {{ row().slot }} }
+</h2>
+
+<mat-dialog-content class="slot-content">
+  <div class="panel-wrap">
+    @if (!panelLoaded() && !panelError()) { <mat-progress-bar mode="indeterminate"></mat-progress-bar> }
+    @if (panelError()) {
+    <div class="img-error"><mat-icon>image_not_supported</mat-icon>패널 이미지를 불러오지 못했습니다.</div>
+    } @else {
+    <img [src]="panelUrl()" alt="패널 이미지" [class.hidden]="!panelLoaded()"
+      (load)="panelLoaded.set(true)" (error)="panelError.set(true)">
+    }
+    <p class="caption">평가에 쓴 패널 이미지와 검출 박스. 선택한 슬롯은 굵게 표시 (초록 정답, 빨강 틀림).</p>
+  </div>
+
+  <div class="detail-row">
+    <div class="crop-box">
+      <span class="label">인식 입력 이미지</span>
+      @if (cropUrl() && !cropError()) {
+      <img [src]="cropUrl()" alt="슬롯 이미지" (error)="cropError.set(true)">
+      } @else {
+      <span class="muted">{{ row().result === 'panel_not_6' ? '박스 6개가 아니라 인식하지 않음' : '없음' }}</span>
+      }
+    </div>
+    <dl class="facts">
+      <div><dt>정답</dt><dd class="mono strong">{{ row().gt || '-' }}</dd></div>
+      <div><dt>인식</dt><dd class="mono strong" [class.bad]="row().result === 'wrong'">{{ row().pred || '-' }}</dd></div>
+      <div><dt>결과</dt><dd><span class="result-badge" [attr.data-result]="row().result">{{ resultLabel(row().result) }}</span></dd></div>
+      <div><dt>인식 점수</dt><dd class="mono">{{ row().rec_score || '-' }}</dd></div>
+      <div><dt>검출 conf</dt><dd class="mono">{{ row().det_conf || '-' }}</dd></div>
+      <div><dt>패널 박스 수</dt><dd class="mono">{{ row().panel_boxes || '-' }}</dd></div>
+    </dl>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions class="slot-actions">
+  <button mat-icon-button (click)="move(-1)" [disabled]="index() === 0" matTooltip="이전 (←)">
+    <mat-icon>chevron_left</mat-icon>
+  </button>
+  <span class="pos">{{ index() + 1 }} / {{ data.rows.length }}</span>
+  <button mat-icon-button (click)="move(1)" [disabled]="index() >= data.rows.length - 1" matTooltip="다음 (→)">
+    <mat-icon>chevron_right</mat-icon>
+  </button>
+  <span class="spacer"></span>
+  <button mat-button mat-dialog-close>닫기</button>
+</mat-dialog-actions>

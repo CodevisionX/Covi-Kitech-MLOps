@@ -1,0 +1,34 @@
+<div class="viewer">
+  <header class="bar">
+    <div class="title">
+      <span>{{ current().title }}</span>
+      @if (images.length > 1) { <span class="pos">{{ index() + 1 }} / {{ images.length }}</span> }
+    </div>
+    <div class="tools">
+      <button mat-icon-button matTooltip="축소 (-)" (click)="zoom(0.8)"><mat-icon>zoom_out</mat-icon></button>
+      <button class="pct" matTooltip="화면에 맞춤 (0)" (click)="fit()">{{ scale() === 1 ? '맞춤' : percent() + '%' }}</button>
+      <button mat-icon-button matTooltip="확대 (+)" (click)="zoom(1.25)"><mat-icon>zoom_in</mat-icon></button>
+      <button mat-icon-button matTooltip="화면에 맞춤 (0)" (click)="fit()"><mat-icon>fit_screen</mat-icon></button>
+      <span class="sep"></span>
+      <button mat-stroked-button (click)="download()" [disabled]="downloading()">
+        <mat-icon>download</mat-icon>다운로드
+      </button>
+      <button mat-icon-button matTooltip="닫기" (click)="dialogRef.close()"><mat-icon>close</mat-icon></button>
+    </div>
+  </header>
+
+  <div class="stage" [class.dragging]="dragging()" (wheel)="onWheel($event)"
+    (pointerdown)="onPointerDown($event)" (pointermove)="onPointerMove($event)"
+    (pointerup)="onPointerUp()" (pointercancel)="onPointerUp()" (dblclick)="fit()">
+    <img [src]="current().src" [alt]="current().title" [style.transform]="transform()" draggable="false">
+
+    @if (images.length > 1) {
+    <button mat-mini-fab class="nav prev" [disabled]="index() === 0" (click)="go(-1)" (pointerdown)="$event.stopPropagation()"
+      matTooltip="이전 (←)"><mat-icon>chevron_left</mat-icon></button>
+    <button mat-mini-fab class="nav next" [disabled]="index() === images.length - 1" (click)="go(1)"
+      (pointerdown)="$event.stopPropagation()" matTooltip="다음 (→)"><mat-icon>chevron_right</mat-icon></button>
+    }
+  </div>
+
+  <footer class="hint">마우스 휠로 확대·축소, 끌어서 이동, 두 번 누르면 화면에 맞춤</footer>
+</div>

@@ -86,6 +86,29 @@ async def get_metrics_history(run_id: str):
     except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
+@router.get("/{run_id}/metrics/series")
+def get_metrics_series(run_id: str):
+    """지표별 [step, 값] 목록. 학습 추이 차트(실시간 갱신 포함)에서 train/val 을 같은 축에 겹쳐 그릴 때 씁니다.
+
+    YOLO26 은 step 이 에폭, PP-OCRv6 는 step 이 global step 입니다(검증은 고객 설정대로 50 step 마다).
+    """
+    try:
+        run = mlflow_provider.client.get_run(run_id)
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    series = {}
+    for key in run.data.metrics.keys():
+        if key.startswith(("best_val/", "test/")):
+            continue
+        try:
+            history = mlflow_provider.client.get_metric_history(run_id, key)
+        except Exception:
+            continue
+        series[key] = sorted([m.step, m.value] for m in history)
+    # 차트 축·최고 지점 계산에 쓰는 학습 설정(에폭 수, 검증 주기 등)도 함께 돌려줌
+    return {"status": run.info.status, "params": dict(run.data.params), "series": series}
+
+
 # [유지/보합] 아티팩트 미리보기
 @router.get("/{run_id}/artifacts/preview")
 async def get_artifact_preview(run_id: str, filename: str):

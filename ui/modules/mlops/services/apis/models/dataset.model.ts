@@ -1,4 +1,4 @@
-export type DatasetTask = 'detection' | 'recognition' | 'e2e';
+export type DatasetTask = 'detection' | 'recognition' | 'e2e' | 'timeseries';
 export type DatasetStatus = 'UPLOADING' | 'VALIDATING' | 'READY' | 'FAILED';
 
 export interface IDatasetVersion {
@@ -51,7 +51,8 @@ export interface IPresignResponse {
 }
 
 export const DATASET_TASK_LABELS: Record<DatasetTask, string> = {
-  detection: '검출 (YOLO26 학습용)',
+  detection: '검출 (YOLO26 · YOLOv8 학습용)',
   recognition: '인식 (PP-OCRv6 학습용)',
   e2e: 'E2E 평가용',
+  timeseries: '시계열 (1D-CNN 학습용)',
 };

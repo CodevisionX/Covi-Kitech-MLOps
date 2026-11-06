@@ -10,6 +10,7 @@ import { Project } from '../../services/apis/project';
 import { Notification } from '../../services/notification';
 import { IProject } from '../../services/apis/models/project.model';
 import { IJob } from '../../services/apis/models/job.model';
+import { isDetectionModel, isLegacyJob, modelTask, sortModels } from '../../configs/model-config';
 import { IDatasetVersion } from '../../services/apis/models/dataset.model';
 import {
   DEFAULT_EVALUATION_PARAMS, IEvaluation, IEvaluationParams,
@@ -24,7 +25,7 @@ const TERMINAL = ['FINISHED', 'FAILED'];
   styleUrl: './evaluations.scss',
 })
 export class EvaluationList implements OnInit, OnDestroy {
-  private readonly api = inject(EvaluationApi);
+  readonly api = inject(EvaluationApi);
   private readonly datasetApi = inject(DatasetApi);
   private readonly jobs = inject(Jobs);
   private readonly projectService = inject(Project);
@@ -46,8 +47,10 @@ export class EvaluationList implements OnInit, OnDestroy {
   name = '';
   params: IEvaluationParams = { ...DEFAULT_EVALUATION_PARAMS };
 
-  detJobs = computed(() => this.finished('YOLO26'));
-  recJobs = computed(() => this.finished('PP-OCRv6'));
+  detJobs = computed(() => this.finished('detection'));
+  recJobs = computed(() => this.finished('recognition'));
+  detGroups = computed(() => this.byModel(this.detJobs()));
+  recGroups = computed(() => this.byModel(this.recJobs()));
   e2eVersions = computed(() => this.versions().filter(v => v.task === 'e2e' && v.status === 'READY'));
   versionMap = computed(() => new Map(this.versions().map(v => [v.id, v])));
 
@@ -111,27 +114,46 @@ export class EvaluationList implements OnInit, OnDestroy {
     this.timer = null;
   }
 
-  private finished(variant: string) {
+  /** 이 데이터셋 종류(검출/인식)로 학습을 마친 작업 (v1 방식 기존 기록 제외) */
+  private finished(task: string) {
     return this.allJobs()
-      .filter(j => j.model_variant === variant && j.status === 'FINISHED' && j.run_id)
+      .filter(j => modelTask(j.model_variant) === task && !isLegacyJob(j) && j.status === 'FINISHED' && j.run_id)
       .sort((a, b) => b.id - a.id);
   }
 
-  jobLabel(job: IJob): string {
-    const det = job.model_variant === 'YOLO26';
-    const key = det ? 'best_val/mAP50-95' : 'best_val/acc';
-    const v = job.metrics?.[key];
-    const metric = `${det ? 'mAP50-95' : '정확도'} ${v === undefined || v === null ? '-' : v.toFixed(3)}`;
-    const origin = job.tags?.['source'] === 'imported'
-      ? `현장 모델${job.tags?.['import_name'] ? ' ' + job.tags['import_name'] : ''}`
-      : this.trainedOn(job);
-    return `#${job.id} · ${origin} · ${metric} · ${this.relTime(job.finished_at)}`;
+  /** 선택 메뉴에서 모델별로 묶어 보여 줍니다 */
+  private byModel(jobs: IJob[]) {
+    return sortModels([...new Set(jobs.map(j => j.model_variant))])
+      // 비교 기준인 업로드 모델을 먼저, 나머지는 최근 학습 순
+      .map(model => ({
+        model,
+        jobs: jobs.filter(j => j.model_variant === model)
+          .sort((a, b) => Number(this.isImported(b)) - Number(this.isImported(a)) || b.id - a.id),
+      }));
   }
 
-  trainedOn(job: IJob): string {
+  isImported(job: IJob): boolean {
+    return job.tags?.['source'] === 'imported';
+  }
+
+  /** 선택 메뉴 첫 줄: 어디서 온 모델인지 */
+  jobOrigin(job: IJob): string {
+    if (this.isImported(job)) return job.tags?.['import_name'] || '업로드 모델';
     if (!job.dataset_version_id) return '학습';
     const v = this.versionMap().get(job.dataset_version_id);
-    return v ? `학습 데이터 ${v.name}:v${v.version}` : `학습 데이터 #${job.dataset_version_id}`;
+    return v ? `${v.name}:v${v.version}` : `데이터셋 #${job.dataset_version_id}`;
+  }
+
+  /** 선택 메뉴 둘째 줄: 성능과 끝난 시각 */
+  jobMetric(job: IJob): string {
+    const det = isDetectionModel(job.model_variant);
+    const v = job.metrics?.[det ? 'best_val/mAP50-95' : 'best_val/acc'];
+    if (v === undefined || v === null) return this.isImported(job) ? '가져온 모델 (학습 성능 기록 없음)' : '성능 기록 없음';
+    return `${det ? 'mAP50-95' : '정확도'} ${v.toFixed(3)}`;
+  }
+
+  jobById(id: number | null, jobs: IJob[]): IJob | undefined {
+    return id ? jobs.find(j => j.id === id) : undefined;
   }
 
   versionLabel(id: number): string {

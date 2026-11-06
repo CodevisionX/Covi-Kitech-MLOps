@@ -6,6 +6,7 @@ import { Deployment } from '../../services/apis/deployment';
 import { DeploymentStatus, IDeployment } from '../../services/apis/models/deployment.model';
 import { Subscription } from 'rxjs';
 import { Router } from '@angular/router';
+import { MODEL_CONFIGS } from '../../configs/model-config';
 
 @Component({
   selector: 'app-deploy',
@@ -51,7 +52,7 @@ export class Deploy implements OnInit, OnDestroy {
         this.isLoading.set(false);
       },
       error: () => {
-        this.notificationService.showError('배포 목록을 가져오지 못했습니다.');
+        this.notificationService.showError('추론 서버 목록을 가져오지 못했습니다.');
         this.isLoading.set(false);
       }
     });
@@ -96,16 +97,16 @@ export class Deploy implements OnInit, OnDestroy {
 
     // 성공적으로 RUNNING이 되었을 때 알림
     if (data.status === DeploymentStatus.RUNNING) {
-      this.notificationService.showSuccess(`모델 배포가 완료되었습니다!`);
+      this.notificationService.showSuccess(`추론 서버가 준비되었습니다.`);
     }
   }
 
-  // 3. 서비스 중단
+  // 3. 추론 서버 중지
   onStop(id: number) {
-    if (confirm('서비스를 중단하시겠습니까? 관련 컨테이너 및 포트 자원이 즉시 회수됩니다.')) {
+    if (confirm('추론 서버를 중지할까요? 컨테이너와 포트가 바로 반납됩니다.')) {
       this.deploymentService.stopDeployment(id).subscribe({
         next: () => {
-          this.notificationService.showSuccess('서비스 중단 요청이 완료되었습니다.');
+          this.notificationService.showSuccess('추론 서버를 중지했습니다.');
           this.loadActiveDeployments();
         }
       });
@@ -113,11 +114,11 @@ export class Deploy implements OnInit, OnDestroy {
   }
 
   onDelete(id: number) {
-    if (!confirm('이 배포 이력을 완전히 삭제하시겠습니까? 관련 컨테이너가 있다면 함께 제거됩니다.')) return;
+    if (!confirm('이 추론 서버 기록을 삭제하시겠습니까? 실행 중인 컨테이너도 함께 제거됩니다.')) return;
 
     this.deploymentService.deleteDeployment(id).subscribe({
       next: () => {
-        this.notificationService.showSuccess('배포 이력이 성공적으로 삭제되었습니다.');
+        this.notificationService.showSuccess('추론 서버 기록을 삭제했습니다.');
         // SSE가 'DELETED' 이벤트를 보내주면 자동으로 리스트에서 필터링됩니다.
       },
       error: (err) => {
@@ -157,21 +158,50 @@ export class Deploy implements OnInit, OnDestroy {
   getStepLabel(step: string): string {
     const labels: any = {
       'REGISTERING': '모델 등록', 'BUILDING': '이미지 빌드',
-      'CREATING': '컨테이너 생성', 'RUNNING': '서비스 중'
+      'CREATING': '컨테이너 생성', 'RUNNING': '실행 중'
     };
     return labels[step] || step;
   }
 
+  /** 서버가 기록한 localhost 를 지금 화면에 접속한 주소로 바꿔, 이 브라우저의 PC에서 바로 쓸 수 있게 함 */
+  apiUrl(url: string): string {
+    try {
+      const u = new URL(url);
+      if (u.hostname === 'localhost' || u.hostname === '127.0.0.1') u.hostname = location.hostname;
+      return u.toString();
+    } catch {
+      return url;
+    }
+  }
+
   copyUrl(url: string) {
-    navigator.clipboard.writeText(url);
-    this.notificationService.showInfo('엔드포인트 URL이 클립보드에 복사되었습니다.');
+    const done = () => this.notificationService.showInfo('API 주소를 복사했습니다.');
+    // http 로 다른 PC에서 접속하면 navigator.clipboard 를 쓸 수 없어 예전 방식으로 복사
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(url).then(done, () => this.copyFallback(url, done));
+    } else {
+      this.copyFallback(url, done);
+    }
   }
 
+  private copyFallback(url: string, done: () => void) {
+    const ta = document.createElement('textarea');
+    ta.value = url;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    if (ok) done(); else this.notificationService.showError('복사하지 못했습니다. 주소를 직접 선택해 복사해 주세요.');
+  }
+
+  /** MLflow 서빙 배포 (v1 방식 기존 기록은 model_family 가 'yolo' / 'cnn' 이라 BentoML 경로) */
   isPyfunc(dep: IDeployment): boolean {
-    return dep.model_family === 'YOLO26' || dep.model_family === 'PP-OCRv6';
+    return !!dep.model_family && !!MODEL_CONFIGS[dep.model_family]?.pyfunc;
   }
 
-  /** MLflow 서빙(YOLO26, PP-OCRv6)은 빌드 단계가 없습니다 */
+  /** MLflow 서빙은 빌드 단계가 없습니다 */
   stepsFor(dep: IDeployment): string[] {
     return this.isPyfunc(dep) ? ['REGISTERING', 'CREATING', 'RUNNING'] : ['REGISTERING', 'BUILDING', 'CREATING', 'RUNNING'];
   }

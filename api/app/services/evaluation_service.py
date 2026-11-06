@@ -1,22 +1,27 @@
 # E2E 평가 (검출 + 인식) 실행과 배포 패키지 생성
 import asyncio
 import hashlib
+import io
 import json
 import os
 import shutil
 import tempfile
+import threading
 import zipfile
 from pathlib import Path
+from typing import Optional
 
 import mlflow
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.constants import DatasetStatus, DatasetTask, EvaluationStatus, JobStatus
+from app.core.constants import (DETECTION_MODELS, RECOGNITION_MODELS, DatasetStatus, DatasetTask,
+                                EvaluationStatus, JobStatus, is_legacy_job)
 from app.db.session import SessionLocal
 from app.integrations.docker import docker_provider
 from app.integrations.mlflow import mlflow_provider
+from app.integrations.s3 import s3_provider
 from app.models.dataset import DatasetVersion
 from app.models.evaluation import Evaluation
 from app.models.job import Job, get_kst_now
@@ -25,12 +30,19 @@ from app.schemas.evaluation import EvaluationCreate, EvaluationReport
 from app.services.sse_service import sse_manager
 
 LOG_DIR = "/app/runs/evaluations"
+# 슬롯 이미지 보기용으로 내려받은 1단계 결과(detections.json, crops.zip) 보관 위치
+VIEW_CACHE_DIR = Path(tempfile.gettempdir()) / "e2e_view_cache"
+_VIEW_LOCK = threading.Lock()
+_VIEW_DOCS: dict = {}  # 캐시 폴더 -> detections.json 내용 (최근 몇 개만)
+SLOT_COLORS = {"correct": (22, 163, 74), "wrong": (220, 38, 38), "other": (37, 99, 235)}
 
 # 단계별 실행 이미지. 각 모델을 학습한 것과 같은 환경에서 추론합니다.
 STAGES = (
     ("detect", EvaluationStatus.DETECTING, lambda: settings.TRAINING_IMAGE_YOLO26),
     ("recognize", EvaluationStatus.RECOGNIZING, lambda: settings.TRAINING_IMAGE_PPOCR),
 )
+
+STAGE_NAMES = {"detect": "1단계 검출·크롭", "recognize": "2단계 인식·평가"}
 
 # 고객 현장 폴더 구조: (모델 아티팩트 안에서 찾을 파일 이름, 패키지 안 경로)
 # 학습 결과가 last.pt 로 대체됐더라도 현장 규칙에 맞춰 best.pt 로 넣습니다.
@@ -55,12 +67,13 @@ def _sha256(path: Path) -> str:
 class EvaluationService:
 
     # ------------------------------------------------------------ 생성
-    def _finished_job(self, db: Session, job_id: int, variant: str, project_id: int) -> Job:
+    def _finished_job(self, db: Session, job_id: int, variants: set, role: str, project_id: int) -> Job:
         job = db.query(Job).get(job_id)
         if not job:
             raise HTTPException(404, f"학습 작업 {job_id} 이 없습니다")
-        if job.model_variant != variant:
-            raise HTTPException(400, f"학습 작업 {job_id} 은 {variant} 모델이 아닙니다 ({job.model_variant})")
+        if job.model_variant not in variants or is_legacy_job(job):
+            raise HTTPException(400, f"학습 작업 {job_id} 은 {role} 모델({', '.join(sorted(variants))})이 아닙니다 "
+                                     f"({job.model_variant})")
         if job.project_id != project_id:
             raise HTTPException(400, f"학습 작업 {job_id} 은 다른 프로젝트의 작업입니다")
         if job.status != JobStatus.FINISHED.value or not job.run_id:
@@ -71,8 +84,8 @@ class EvaluationService:
         project = db.query(Project).get(body.project_id)
         if not project:
             raise HTTPException(404, "프로젝트가 없습니다")
-        det = self._finished_job(db, body.detection_job_id, "YOLO26", project.id)
-        rec = self._finished_job(db, body.recognition_job_id, "PP-OCRv6", project.id)
+        det = self._finished_job(db, body.detection_job_id, DETECTION_MODELS, "검출", project.id)
+        rec = self._finished_job(db, body.recognition_job_id, RECOGNITION_MODELS, "인식", project.id)
         dv = db.query(DatasetVersion).get(body.dataset_version_id)
         if not dv or dv.project_id != project.id:
             raise HTTPException(400, "이 프로젝트의 데이터셋 버전이 아닙니다")
@@ -158,7 +171,7 @@ class EvaluationService:
                 if ev.status == EvaluationStatus.FAILED.value:
                     return
                 env = self._env(ev, stage)
-            await self._set(ev_id, status=status.value, status_message=f"{stage} 단계 실행 중")
+            await self._set(ev_id, status=status.value, status_message=f"{STAGE_NAMES[stage]} 실행 중")
             command = ["/bin/bash", "-o", "pipefail", "-c",
                        f"mkdir -p {LOG_DIR} && /app/.venv/bin/python -u evaluate_e2e.py 2>&1 "
                        f"| tee -a {LOG_DIR}/{ev_id}.log"]
@@ -174,7 +187,7 @@ class EvaluationService:
             except Exception as e:
                 code = f"컨테이너 오류: {e}"
             if code != 0:
-                return await self._fail(ev_id, f"{stage} 단계 실패 (exit {code})")
+                return await self._fail(ev_id, f"{STAGE_NAMES[stage]} 실패 (exit {code})")
 
         with SessionLocal() as db:
             ev = db.query(Evaluation).get(ev_id)
@@ -252,6 +265,100 @@ class EvaluationService:
         db.commit()
         await sse_manager.broadcast("evaluation_status", {"id": ev.id, "project_id": ev.project_id,
                                                           "status": "DELETED"})
+
+    # ------------------------------------------------------------ 슬롯 이미지 보기
+    def _stage1_files(self, ev: Evaluation) -> Path:
+        """1단계 결과(detections.json, crops.zip)를 한 번만 내려받아 둡니다. 끝난 평가는 바뀌지 않습니다."""
+        if ev.status != EvaluationStatus.FINISHED.value:
+            raise HTTPException(409, "평가가 끝나지 않았습니다")
+        root = VIEW_CACHE_DIR / f"{ev.id}_{ev.run_id}"
+        with _VIEW_LOCK:
+            if not (root / "detections.json").is_file():
+                self._download_stage1(ev, root)
+        return root
+
+    def _download_stage1(self, ev: Evaluation, root: Path):
+        tmp = Path(tempfile.mkdtemp(prefix="e2eview_"))
+        try:
+            stage = tmp / "stage1"
+            stage.mkdir()
+            for name in ("crops.zip", "detections.json"):  # detections.json 이 있으면 다 받은 것으로 봄
+                path = mlflow.artifacts.download_artifacts(run_id=ev.run_id, artifact_path=f"stage1/{name}",
+                                                           dst_path=str(tmp / name.split(".")[0]))
+                shutil.move(path, str(stage / name))
+            root.parent.mkdir(parents=True, exist_ok=True)
+            shutil.rmtree(root, ignore_errors=True)
+            shutil.move(str(stage), str(root))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def _panel_record(self, ev: Evaluation, image: str, panel: str):
+        root = self._stage1_files(ev)
+        doc = _VIEW_DOCS.get(root)
+        if doc is None:
+            doc = json.loads((root / "detections.json").read_text(encoding="utf-8"))
+            if len(_VIEW_DOCS) >= 4:
+                _VIEW_DOCS.pop(next(iter(_VIEW_DOCS)))
+            _VIEW_DOCS[root] = doc
+        for rec in doc["panels"]:
+            if rec["image"] == image and rec["panel"] == panel:
+                return root, doc, rec
+        raise HTTPException(404, "평가 결과에 해당 패널이 없습니다")
+
+    def slot_crop(self, ev: Evaluation, image: str, panel: str, slot: int) -> bytes:
+        """인식 모델에 들어간 슬롯 이미지 (1단계 crops.zip 의 파일 그대로)."""
+        root, _, rec = self._panel_record(ev, image, panel)
+        entry = next((s for s in rec["slots"] if s["slot"] == slot), None)
+        if not entry or not entry.get("crop"):
+            raise HTTPException(404, "이 슬롯은 잘라낸 이미지가 없습니다 (박스 6개 미검출)")
+        with zipfile.ZipFile(root / "crops.zip") as zf:
+            return zf.read(entry["crop"])
+
+    def panel_view(self, ev: Evaluation, image: str, panel: str, slot: Optional[int] = None,
+                   result: str = "") -> bytes:
+        """평가에 쓴 패널 이미지에 검출 박스를 그려 돌려줍니다. 고른 슬롯은 결과 색으로 굵게 표시합니다.
+
+        프레임+ROI 모드면 roi_config.json 의 패널 좌표로 잘라 검출 때와 같은 좌표계로 맞춥니다.
+        """
+        from PIL import Image, ImageDraw, ImageFont
+
+        _, doc, rec = self._panel_record(ev, image, panel)
+        dv = ev.dataset_version
+        bucket, _, prefix = dv.data_path.partition("/")
+        if ".." in Path(image).parts:
+            raise HTTPException(400, "잘못된 이미지 경로입니다")
+        try:
+            body = s3_provider.client.get_object(Bucket=bucket, Key=f"{prefix}/{image}")["Body"].read()
+        except Exception:
+            raise HTTPException(404, "데이터셋에서 이미지를 찾을 수 없습니다")
+        img = Image.open(io.BytesIO(body)).convert("RGB")
+        if doc.get("mode") == "frame":
+            roi = json.loads(s3_provider.client.get_object(
+                Bucket=bucket, Key=f"{prefix}/roi_config.json")["Body"].read().decode("utf-8-sig"))
+            img = img.crop(tuple(roi["panels"][panel]))
+
+        # 작은 패널도 보기 좋게 키워서 그림
+        scale = max(1.0, 1000 / max(img.width, 1))
+        if scale > 1:
+            img = img.resize((round(img.width * scale), round(img.height * scale)), Image.LANCZOS)
+        draw = ImageDraw.Draw(img)
+        try:
+            font = ImageFont.truetype("DejaVuSans-Bold.ttf", max(14, round(img.width / 32)))
+        except OSError:
+            font = ImageFont.load_default()
+        slot_box = {s["slot"]: s["bbox"] for s in rec["slots"]}
+        boxes = [(n, b) for n, b in slot_box.items()] or [(None, b[:4]) for b in rec["boxes"]]
+        for n, b in boxes:
+            x1, y1, x2, y2 = (v * scale for v in b)
+            picked = slot is not None and n == slot
+            color = SLOT_COLORS.get(result, SLOT_COLORS["other"]) if picked else (148, 163, 184)
+            draw.rectangle([x1, y1, x2, y2], outline=color, width=max(4, round(img.width / 200)) if picked else max(2, round(img.width / 450)))
+            if n is not None:  # 번호는 숫자를 가리지 않도록 박스 왼쪽 바깥에
+                w = draw.textlength(str(n), font=font)
+                draw.text((max(0, x1 - w - 4), y1), str(n), fill=color, font=font)
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        return buf.getvalue()
 
     # ------------------------------------------------------------ 배포 패키지
     def build_package(self, db: Session, ev: Evaluation) -> Path:

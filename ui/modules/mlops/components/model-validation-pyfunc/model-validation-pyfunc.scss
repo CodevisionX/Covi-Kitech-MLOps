@@ -96,3 +96,15 @@ mat-progress-bar { margin-top: 12px; }
   &.wrong { border-color: #fdba74; background: #fff7ed; .rec-text { color: #c2410c; } }
   &.error { border-color: #fecaca; background: #fef2f2; }
 }
+
+.ts-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; .spacer { flex: 1; } }
+.ts-summary { display: flex; gap: 24px; margin-bottom: 12px; font-size: 14px; color: #475569; b { color: #0f172a; } }
+.ts-table-wrap { max-height: 60vh; overflow: auto; }
+.ts-table {
+  width: 100%; border-collapse: collapse; font-size: 13px;
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid #e2e8f0; }
+  th { position: sticky; top: 0; background: #f8fafc; font-weight: 600; }
+  tr.wrong td { background: #fef2f2; color: #b91c1c; }
+}
+.mono { font-family: 'JetBrains Mono', 'D2Coding', monospace; }
+.muted { color: #94a3b8; }

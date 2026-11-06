@@ -1,22 +1,23 @@
-<h2 mat-dialog-title>현장 모델 가져오기</h2>
+<h2 mat-dialog-title>모델 파일 업로드</h2>
 
 <mat-dialog-content class="import-content">
   <p class="desc">
-    현장에서 쓰던 모델 파일을 학습 결과와 같은 형식으로 등록합니다.
-    등록하면 새로 학습한 모델처럼 배포해 확인하거나, E2E 평가에서 같은 데이터로 비교할 수 있습니다.
+    이 시스템 밖에서 만든 모델 파일(예: 운영 PC에서 쓰던 모델)을 학습 결과와 같은 형식으로 등록합니다.
+    등록하면 학습한 모델과 똑같이 E2E 평가로 비교하거나 추론 테스트를 할 수 있습니다.
   </p>
 
   <mat-radio-group [(ngModel)]="variant" (change)="onVariantChange()" class="variant-group">
-    <mat-radio-button value="YOLO26">검출 (YOLO26)</mat-radio-button>
-    <mat-radio-button value="PP-OCRv6">인식 (PP-OCRv6)</mat-radio-button>
+    @for (v of variants; track v.name) {
+    <mat-radio-button [value]="v.name">{{ v.label }} ({{ v.name }})</mat-radio-button>
+    }
   </mat-radio-group>
 
   <div class="fields">
     <mat-form-field appearance="outline">
       <mat-label>이름</mat-label>
-      <input matInput [(ngModel)]="name" maxlength="64" placeholder="예: site-2026-10">
+      <input matInput [(ngModel)]="name" maxlength="64" placeholder="예: running-2026-10">
     </mat-form-field>
-    @if (variant === 'YOLO26') {
+    @if (isDetection) {
     <mat-form-field appearance="outline">
       <mat-label>입력 크기 (imgsz)</mat-label>
       <input matInput type="number" [(ngModel)]="imgsz" min="32" max="4096">
@@ -24,25 +25,27 @@
     }
   </div>
 
-  <div class="file-box">
-    @if (variant === 'YOLO26') {
-    <p>현장 폴더의 <code>models/detection/best.pt</code> 를 고르세요.</p>
-    } @else {
-    <p>현장 폴더 <code>models/recognition/</code> 의 {{ recFiles.join(', ') }} 3개를 함께 고르세요.</p>
-    }
+  <div class="drop-zone" [class.over]="dragOver()" [class.has-files]="files().length > 0" [class.disabled]="submitting()"
+    role="button" tabindex="0" (click)="!submitting() && fileInput.click()" (keydown.enter)="fileInput.click()"
+    (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)" (drop)="onDrop($event)">
     <input #fileInput type="file" hidden (change)="onFiles($event)"
-      [accept]="variant === 'YOLO26' ? '.pt' : '.json,.pdiparams,.yml'" [multiple]="variant !== 'YOLO26'">
-    <button mat-stroked-button type="button" (click)="fileInput.click()" [disabled]="submitting()">
-      <mat-icon>attach_file</mat-icon> 파일 선택
-    </button>
-
-    @if (files().length > 0) {
+      [accept]="isDetection ? '.pt' : '.json,.pdiparams,.yml'" [multiple]="!isDetection">
+    @if (files().length === 0) {
+    <mat-icon class="dz-icon">add</mat-icon>
+    <div class="dz-title">모델 파일 선택</div>
+    @if (isDetection) {
+    <div class="dz-hint">눌러서 <code>best.pt</code> 를 고르거나 여기로 끌어다 놓으세요 (운영 PC의 <code>models/detection/</code>)</div>
+    } @else {
+    <div class="dz-hint">눌러서 inference.json · .pdiparams · .yml 3개를 고르거나 폴더째 끌어다 놓으세요 (<code>models/recognition/</code>)</div>
+    }
+    } @else {
+    <mat-icon class="dz-icon">task</mat-icon>
     <ul class="file-list">
       @for (f of files(); track f.name) {
       <li><mat-icon>description</mat-icon>{{ f.name }}</li>
       }
     </ul>
-    <span class="size">합계 {{ totalSize() }}</span>
+    <div class="dz-hint">합계 {{ totalSize() }} · 다시 누르거나 끌어다 놓으면 바뀝니다</div>
     }
   </div>
 
@@ -57,5 +60,5 @@
 
 <mat-dialog-actions align="end">
   <button mat-button (click)="close()" [disabled]="submitting()">취소</button>
-  <button mat-flat-button color="primary" (click)="submit()" [disabled]="!canSubmit">가져오기</button>
+  <button mat-flat-button color="primary" (click)="submit()" [disabled]="!canSubmit">업로드</button>
 </mat-dialog-actions>

@@ -11,9 +11,11 @@ import { ko } from 'date-fns/locale';
 import { TerminalLog } from '../dialogs/terminal-log/terminal-log';
 import { IProject } from '../../services/apis/models/project.model';
 import { Project } from '../../services/apis/project';
-import { MODEL_CONFIGS } from '../../configs/model-config';
+import { METRIC_LABELS, MODEL_CONFIGS, TASK_NAMES, isLegacyJob, modelTask, modelsForTask, sortModels } from '../../configs/model-config';
 import { DatasetApi } from '../../services/apis/dataset';
-import { ImportModelDialog } from '../dialogs/import-model/import-model';
+import { ImportModelDialog, filesFromDrop } from '../dialogs/import-model/import-model';
+import { Experiment } from '../../services/apis/experiment';
+import { TrainingStatusDialog } from '../dialogs/training-status/training-status';
 
 @Component({
   selector: 'app-model-list',
@@ -31,6 +33,7 @@ export class ModelList implements OnInit, OnDestroy {
   private dialog = inject(MatDialog);
   private ngZone = inject(NgZone);
   private datasetApi = inject(DatasetApi);
+  private experimentApi = inject(Experiment);
 
   /** 데이터셋 버전 id -> 'name:vN' */
   datasetNames = signal<Record<number, string>>({});
@@ -58,7 +61,19 @@ export class ModelList implements OnInit, OnDestroy {
     const activeVariants = this.allActiveJobs().map(j => j.model_variant);
     const historyVariants = this.allHistoryJobs().map(j => j.model_variant);
     const combined = [...new Set([...activeVariants, ...historyVariants])];
-    return combined.sort();
+    return sortModels(combined);
+  });
+
+  /** 탭을 검출 / 인식 / 시계열 묶음으로 보여 줍니다 */
+  variantGroups = computed(() => {
+    const groups: { task: string; label: string; variants: string[] }[] = [];
+    for (const v of this.availableVariants()) {
+      const task = modelTask(v) ?? 'etc';
+      let g = groups.find(x => x.task === task);
+      if (!g) groups.push(g = { task, label: TASK_NAMES[task] ?? '기타', variants: [] });
+      g.variants.push(v);
+    }
+    return groups;
   });
 
   // 2. 선택된 탭(Variant)에 따라 필터링된 데이터 제공
@@ -77,7 +92,7 @@ export class ModelList implements OnInit, OnDestroy {
     const variant = this.selectedVariant();
     const metric = variant ? MODEL_CONFIGS[variant]?.bestMetric : undefined;
     if (metric) {
-      // 신규 모델: 설정된 지표가 있는 학습만 비교 (가져온 현장 모델은 학습 지표가 없어 제외)
+      // 신규 모델: 설정된 지표가 있는 학습만 비교 (업로드 모델은 학습 지표가 없어 제외)
       const scored = history.filter(j => j.metrics?.[metric.key] !== undefined);
       if (scored.length === 0) return null;
       return scored.reduce((prev, cur) => {
@@ -120,7 +135,41 @@ export class ModelList implements OnInit, OnDestroy {
 
   bestJobId = computed(() => this.bestJob()?.id || null);
 
-  activeDisplayedColumns = ['modelInfo', 'status', 'startTime', 'dashboard', 'actions', 'cancel'];
+  /** 최고 성적 카드 아래쪽 정보: 검증 성능 / 테스트 성능 / 학습 설정 */
+  bestDetails = computed(() => {
+    const best = this.bestJob();
+    if (!best) return [];
+    const main = MODEL_CONFIGS[best.model_variant]?.bestMetric?.key;
+    const pick = (prefix: string) => Object.entries(best.metrics ?? {})
+      .filter(([k]) => k.startsWith(prefix) && k !== main)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([k, v]) => {
+        const name = k.slice(prefix.length);
+        return { label: METRIC_LABELS[name] || name, value: this.fmtNum(v) };
+      });
+    const params = Object.entries(best.params ?? {})
+      .map(([k, v]) => ({ label: k, value: String(v) }));
+    return [
+      { title: '검증 성능', items: pick('best_val/') },
+      { title: '테스트 성능', items: pick('test/') },
+      { title: '학습 설정', items: params },
+    ].filter(g => g.items.length);
+  });
+
+  private fmtNum(v: number): string {
+    if (!Number.isFinite(v)) return '-';
+    return Math.abs(v) >= 100 ? v.toFixed(1) : v.toFixed(4);
+  }
+
+  /** 학습에 걸린 시간 'H:MM:SS' */
+  duration(job: IJob): string | null {
+    if (!job.started_at || !job.finished_at) return null;
+    const sec = Math.max(0, Math.floor((new Date(job.finished_at).getTime() - new Date(job.started_at).getTime()) / 1000));
+    const p = (n: number) => String(n).padStart(2, '0');
+    return `${Math.floor(sec / 3600)}:${p(Math.floor(sec / 60) % 60)}:${p(sec % 60)}`;
+  }
+
+  activeDisplayedColumns = ['modelInfo', 'status', 'progress', 'startedAt', 'elapsed', 'statusView', 'cancel'];
   historyDisplayedColumns = computed(() => {
     const variant = this.selectedVariant();
     
@@ -142,6 +191,9 @@ export class ModelList implements OnInit, OnDestroy {
     return metric && value !== undefined ? { label: metric.label, value } : null;
   }
 
+  /** 모델 파일 업로드를 지원하는 모델 (검출·인식) */
+  readonly importable = [...modelsForTask('detection'), ...modelsForTask('recognition')];
+
   isPyfunc(variant: string | null): boolean {
     return !!variant && !!MODEL_CONFIGS[variant]?.pyfunc;
   }
@@ -149,6 +201,12 @@ export class ModelList implements OnInit, OnDestroy {
   private sseSubscription: Subscription | null = null;
   private currentLogDialogRef: MatDialogRef<TerminalLog> | null = null;
   private refreshTrigger = new Subject<void>();
+  /** 실행 중인 학습이 있는 동안 진행도를 갱신하는 타이머 (화면 깜빡임 없이 실행 중 목록만 다시 받음) */
+  private progressTimer: ReturnType<typeof setInterval> | null = null;
+  private static readonly PROGRESS_POLL_MS = 1000;
+  private pollInFlight = false;
+  /** 소요 시간 표시용 현재 시각 (1초마다 갱신) */
+  now = signal(Date.now());
 
   constructor() {
     this.refreshTrigger.pipe(debounceTime(500)).subscribe(() => this.refreshJobs());
@@ -159,6 +217,10 @@ export class ModelList implements OnInit, OnDestroy {
 
     this.loadProjects();
     this.subscribeToJobUpdates();
+    this.progressTimer = setInterval(() => {
+      this.now.set(Date.now());
+      this.pollActiveProgress();
+    }, ModelList.PROGRESS_POLL_MS);
 
     this.route.queryParams.subscribe(params => {
       if (params['projectId']) {
@@ -175,6 +237,7 @@ export class ModelList implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    if (this.progressTimer) clearInterval(this.progressTimer);
     if (this.sseSubscription) {
       console.log('sse 구독을 해제하고 연결을 종료합니다.');
       this.sseSubscription.unsubscribe();
@@ -231,6 +294,20 @@ export class ModelList implements OnInit, OnDestroy {
     });
   }
 
+  private pollActiveProgress() {
+    const projectId = this.selectedProjectId();
+    if (!projectId || this.isLoading() || document.hidden) return;
+    if (this.pollInFlight || !this.allActiveJobs().some(j => j.status === 'RUNNING')) return;
+    this.pollInFlight = true;
+    this.jobService.getActiveJobs(projectId).subscribe({
+      next: active => {
+        if (projectId === this.selectedProjectId()) this.allActiveJobs.set(active);
+        this.pollInFlight = false;
+      },
+      error: () => { this.pollInFlight = false; },
+    });
+  }
+
   private loadDatasetNames(projectId: number) {
     this.datasetApi.listVersions({ project_id: projectId }).subscribe({
       next: list => this.datasetNames.set(
@@ -239,14 +316,31 @@ export class ModelList implements OnInit, OnDestroy {
     });
   }
 
-  /** 현장 모델 파일(.pt / inference.*)을 가져와 학습 결과처럼 쓸 수 있게 합니다. */
-  openImportDialog() {
+  uploadDragOver = signal(false);
+
+  onUploadDragOver(e: DragEvent) {
+    e.preventDefault();
+    this.uploadDragOver.set(true);
+  }
+
+  /** 버튼에 끌어다 놓은 파일·폴더로 업로드 창을 엽니다 */
+  async onUploadDrop(e: DragEvent) {
+    e.preventDefault();
+    this.uploadDragOver.set(false);
+    if (!this.selectedProjectId() || !e.dataTransfer) return;
+    this.openImportDialog(await filesFromDrop(e.dataTransfer));
+  }
+
+  /** 모델 파일(.pt / inference.*)을 올려 학습 결과처럼 쓸 수 있게 합니다. */
+  openImportDialog(files?: File[]) {
     const projectId = this.selectedProjectId();
     if (!projectId) return;
     const variant = this.selectedVariant();
     this.dialog.open(ImportModelDialog, {
       width: '560px',
-      data: { projectId, variant: this.isPyfunc(variant) ? variant : 'YOLO26' },
+      // 파일 선택창의 '열기' 클릭이 배경으로 전달되어 모달이 닫히는 일을 막습니다 (취소 버튼으로만 닫기)
+      disableClose: true,
+      data: { projectId, variant: this.importable.includes(variant || '') ? variant : this.importable[0], files },
     }).afterClosed().subscribe(job => {
       if (!job) return;
       this.refreshJobs();
@@ -326,6 +420,15 @@ export class ModelList implements OnInit, OnDestroy {
     });
   }
 
+  /** 실행 중인 학습의 현황(진행도, 실시간 차트, 로그) 모달 */
+  openStatus(job: IJob) {
+    this.dialog.open(TrainingStatusDialog, {
+      data: { job },
+      width: '1280px', maxWidth: '96vw', height: '92vh',
+      panelClass: 'training-status-panel', autoFocus: false,
+    });
+  }
+
   openLogDialog(job: IJob) {
     if (!job || !job.id) return;
 
@@ -350,7 +453,7 @@ export class ModelList implements OnInit, OnDestroy {
       return;
     }
     // MLflow UI URL (환경변수나 설정에서 가져오는 것이 좋음)
-    const mlflowUrl = `http://localhost:15000/#/experiments/${job.experiment_id}/runs/${job.run_id}`;
+    const mlflowUrl = `${this.experimentApi.mlflowUiUrl}/#/experiments/${job.experiment_id}/runs/${job.run_id}`;
     window.open(mlflowUrl, '_blank');
   }
 
@@ -362,7 +465,8 @@ export class ModelList implements OnInit, OnDestroy {
       '1D-CNN': 'cnn'
     };
 
-    const segment = this.isPyfunc(job.model_variant) ? 'v2' : (pathMap[job.model_variant] || 'yolo');
+    // v1 방식 기존 기록은 기존 상세 화면, 그 외(등록 데이터셋·가져온 모델)는 새 상세 화면
+    const segment = this.isPyfunc(job.model_variant) && !isLegacyJob(job) ? 'v2' : (pathMap[job.model_variant] || 'yolo');
 
     this.router.navigate(['/dashboard/models/run', segment, job.run_id], {
       queryParams: {
@@ -371,6 +475,23 @@ export class ModelList implements OnInit, OnDestroy {
         jobId: job.id
       }
     });
+  }
+
+  /** 'YYYY-MM-DD HH:mm:ss' */
+  formatClock(dateStr?: string | null): string {
+    if (!dateStr) return '-';
+    const d = new Date(dateStr);
+    const p = (n: number) => String(n).padStart(2, '0');
+    const time = `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${time}`;
+  }
+
+  /** 시작부터 지금까지 'H:MM:SS' (1초마다 갱신) */
+  elapsed(dateStr?: string | null): string {
+    if (!dateStr) return '-';
+    const sec = Math.max(0, Math.floor((this.now() - new Date(dateStr).getTime()) / 1000));
+    const p = (n: number) => String(n).padStart(2, '0');
+    return `${Math.floor(sec / 3600)}:${p(Math.floor(sec / 60) % 60)}:${p(sec % 60)}`;
   }
 
   getRelativeTime(dateStr?: string | null): string {

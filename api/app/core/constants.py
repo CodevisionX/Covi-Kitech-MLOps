@@ -45,20 +45,40 @@ class DatasetTask(str, Enum):
     DETECTION = "detection"
     RECOGNITION = "recognition"
     E2E = "e2e"                 # 검출 + 인식을 이어 붙인 평가 전용 (패널/프레임 이미지 + 슬롯 정답)
+    TIMESERIES = "timeseries"   # 시계열 (X.npy / y.npy, 분류·회귀)
 
     def __str__(self):
         return self.value
 
 
-# 등록된 데이터셋 버전으로만 학습하는 모델과 그 데이터셋 종류
+# 모델 종류 -> 학습에 쓰는 데이터셋 종류. 모든 모델은 등록된 데이터셋 버전으로만 학습합니다.
+# 모델을 추가할 때는 여기와 job_service.get_training_runtime, UI 의 model-config 를 함께 맞춥니다.
 MODEL_DATASET_TASKS = {
     "YOLO26": DatasetTask.DETECTION.value,
+    "YOLOv8": DatasetTask.DETECTION.value,
     "PP-OCRv6": DatasetTask.RECOGNITION.value,
+    "1D-CNN": DatasetTask.TIMESERIES.value,
 }
 
+# 종류별 모델 목록 (예: E2E 평가의 검출 모델 후보)
+DETECTION_MODELS = {m for m, t in MODEL_DATASET_TASKS.items() if t == DatasetTask.DETECTION.value}
+RECOGNITION_MODELS = {m for m, t in MODEL_DATASET_TASKS.items() if t == DatasetTask.RECOGNITION.value}
 
 # MLflow pyfunc 로 기록되어 학습 이미지에서 바로 서빙하는 모델 (BentoML 빌드를 거치지 않음)
-PYFUNC_SERVING_MODELS = {"YOLO26", "PP-OCRv6"}
+PYFUNC_SERVING_MODELS = set(MODEL_DATASET_TASKS)
+
+# v1 에서 버킷 경로로 직접 학습하던 모델. 그때 만든 학습 기록은 BentoML 경로로 계속 보고 배포합니다.
+LEGACY_MODELS = {"YOLOv8", "1D-CNN"}
+
+
+def is_legacy_job(job) -> bool:
+    """v1 방식(등록 데이터셋 없이 경로로 학습)으로 만든 기존 모델 학습 기록인지."""
+    return (job.model_variant in LEGACY_MODELS and not job.dataset_version_id
+            and (job.tags or {}).get("source") != "imported")
+
+
+def is_pyfunc_job(job) -> bool:
+    return job.model_variant in PYFUNC_SERVING_MODELS and not is_legacy_job(job)
 
 
 class EvaluationStatus(str, Enum):

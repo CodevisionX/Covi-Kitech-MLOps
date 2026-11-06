@@ -36,11 +36,14 @@ class JobResponse(JobBase):
     created_at: datetime
     updated_at: Optional[datetime]
     finished_at: Optional[datetime]
+    started_at: Optional[datetime] = None
     run_id: Optional[str] = None
     container_id: Optional[str] = None
     deployment: Optional[DeploymentSimple] = None
     error_message: Optional[str] = None
     metrics: Optional[Dict[str, float]] = None
+    # 실행 중인 학습의 에폭 진행도 {"epoch": 완료 에폭, "total": 전체 에폭} (MLflow 기록 기준)
+    progress: Optional[Dict[str, int]] = None
     
     class Config:
         from_attributes = True

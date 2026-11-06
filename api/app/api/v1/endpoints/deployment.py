@@ -12,7 +12,7 @@ from app.schemas.deployment import DeploymentCreate, DeploymentResponse
 import base64
 import json
 
-from app.core.constants import PYFUNC_SERVING_MODELS
+from app.core.constants import PYFUNC_SERVING_MODELS, MODEL_DATASET_TASKS, DatasetTask
 from app.services.deployment_service import SERVING_PORT, deployment_service, serving_host
 from app.services.sse_service import sse_manager
 
@@ -113,9 +113,14 @@ def stream_deployment_logs(deployment_id: int, db: Session = Depends(get_db)):
         media_type="text/event-stream"
     )
 
-async def _invoke_pyfunc(dep: Deployment, images: List[str], params: Optional[dict]):
-    """MLflow 서빙(/invocations)에 base64 이미지 목록을 보냅니다."""
-    body = {"dataframe_split": {"columns": ["image"], "data": [[img] for img in images]}}
+def _is_timeseries(dep: Deployment) -> bool:
+    return MODEL_DATASET_TASKS.get(dep.model_family) == DatasetTask.TIMESERIES.value
+
+
+async def _invoke_pyfunc(dep: Deployment, items: List[str], params: Optional[dict]):
+    """MLflow 서빙(/invocations)에 base64 목록을 보냅니다 (이미지 모델은 이미지, 시계열 모델은 .npy)."""
+    column = "npy" if _is_timeseries(dep) else "image"
+    body = {"dataframe_split": {"columns": [column], "data": [[x] for x in items]}}
     if params:
         body["params"] = params
     url = f"http://{serving_host(dep)}:{SERVING_PORT}/invocations"
@@ -149,6 +154,15 @@ async def predict_data(
     기존 모델(1D-CNN 등): BentoML /predict 규격 그대로 전달
     """
     dep = _running(db, deployment_id)
+    if _is_timeseries(dep):
+        items = payload.get("npy")
+        if items is None and payload.get("inputs") is not None:
+            items = [_npy_b64(payload["inputs"])]
+        if not isinstance(items, list) or not items or not all(isinstance(i, str) for i in items):
+            raise HTTPException(status_code=422,
+                                detail="npy 에 base64 .npy 목록, 또는 inputs 에 (샘플, 윈도[, 채널]) 숫자 배열이 필요합니다")
+        preds = await _invoke_pyfunc(dep, items, None)
+        return {"status": "success", "model": dep.model_family, "prediction": preds}
     if dep.model_family in PYFUNC_SERVING_MODELS:
         images = payload.get("images")
         if not isinstance(images, list) or not images or not all(isinstance(i, str) for i in images):
@@ -175,8 +189,8 @@ async def predict_image(
 ):
     """[YOLO26 / PP-OCRv6] 이미지 파일 하나를 올려 결과를 JSON 으로 받습니다. params 는 JSON 문자열(선택)."""
     dep = _running(db, deployment_id)
-    if dep.model_family not in PYFUNC_SERVING_MODELS:
-        raise HTTPException(status_code=400, detail="YOLO26 / PP-OCRv6 배포에서만 사용할 수 있습니다")
+    if dep.model_family not in PYFUNC_SERVING_MODELS or _is_timeseries(dep):
+        raise HTTPException(status_code=400, detail="이미지 모델(검출·인식) 배포에서만 사용할 수 있습니다")
     try:
         extra = json.loads(params) if params else None
     except json.JSONDecodeError:
@@ -184,6 +198,30 @@ async def predict_image(
     image = base64.b64encode(await upload_file.read()).decode()
     preds = await _invoke_pyfunc(dep, [image], extra)
     return {"status": "success", "model": dep.model_family, "prediction": preds[0] if preds else None}
+
+
+@router.post("/{deployment_id}/predict/npy")
+async def predict_npy(deployment_id: int, upload_file: UploadFile = File(...), db: Session = Depends(get_db)):
+    """[시계열 1D-CNN] .npy 파일 하나(샘플 1개 또는 여러 개)를 올려 예측합니다."""
+    dep = _running(db, deployment_id)
+    if not _is_timeseries(dep):
+        raise HTTPException(status_code=400, detail="시계열 모델 배포에서만 사용할 수 있습니다")
+    raw = await upload_file.read()
+    preds = await _invoke_pyfunc(dep, [base64.b64encode(raw).decode()], None)
+    return {"status": "success", "model": dep.model_family, "prediction": preds[0] if preds else None}
+
+
+def _npy_b64(values) -> str:
+    import io
+    import numpy as np
+
+    try:
+        arr = np.asarray(values, dtype=np.float32)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=422, detail="inputs 는 숫자 배열이어야 합니다")
+    buf = io.BytesIO()
+    np.save(buf, arr, allow_pickle=False)
+    return base64.b64encode(buf.getvalue()).decode()
 
 
 @router.post("/{deployment_id}/predict/visual")

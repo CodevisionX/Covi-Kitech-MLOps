@@ -13,7 +13,7 @@ from app.integrations.mlflow import mlflow_provider
 from app.integrations.docker import docker_provider
 from app.core.config import settings
 from app.models.job import Job
-from app.core.constants import PYFUNC_SERVING_MODELS
+from app.core.constants import PYFUNC_SERVING_MODELS, is_pyfunc_job
 from app.services.job_service import get_training_runtime
 
 logger = logging.getLogger(__name__)
@@ -43,8 +43,8 @@ class DeploymentService:
             if job: job_id = job.id
         if job and job.run_id != run_id:
             raise HTTPException(status_code=400, detail="학습 작업과 run_id 가 맞지 않습니다")
-        # 모델 종류: 학습 작업에서 확인. 기존 모델은 이전처럼 이름으로 yolo/cnn 구분
-        if job and job.model_variant in PYFUNC_SERVING_MODELS:
+        # 모델 종류: 학습 작업에서 확인. v1 방식 학습 기록은 이전처럼 이름으로 yolo/cnn 구분 (BentoML)
+        if job and is_pyfunc_job(job):
             model_family = job.model_variant
         else:
             model_family = "yolo" if "yolo" in model_name.lower() else "cnn"

@@ -10,6 +10,8 @@ import { IEvaluation, IEvaluationRow } from '../../services/apis/models/evaluati
 import { IJob } from '../../services/apis/models/job.model';
 import { IDatasetVersion } from '../../services/apis/models/dataset.model';
 import { parseCsv } from './csv';
+import { MatDialog } from '@angular/material/dialog';
+import { SlotViewDialog, SlotViewData } from '../../components/dialogs/slot-view/slot-view';
 
 const TERMINAL = ['FINISHED', 'FAILED'];
 const PAGE_SIZE = 100;
@@ -31,6 +33,7 @@ export class EvaluationDetail implements OnInit, OnDestroy {
   private readonly datasetApi = inject(DatasetApi);
   private readonly jobs = inject(Jobs);
   private readonly notification = inject(Notification);
+  private readonly dialog = inject(MatDialog);
 
   id = 0;
   evaluation = signal<IEvaluation | null>(null);
@@ -216,8 +219,15 @@ export class EvaluationDetail implements OnInit, OnDestroy {
 
   jobOrigin(job: IJob | null): string {
     if (!job) return '';
-    if (job.tags?.['source'] === 'imported') return `현장 모델${job.tags?.['import_name'] ? ' · ' + job.tags['import_name'] : ''}`;
+    if (job.tags?.['source'] === 'imported') return `업로드 모델${job.tags?.['import_name'] ? ' · ' + job.tags['import_name'] : ''}`;
     return job.tags?.['dataset_version'] ? `학습 데이터 ${job.tags['dataset_version']}` : '학습 모델';
+  }
+
+  /** 슬롯 행을 누르면 패널·슬롯 이미지를 띄웁니다. 현재 필터 목록 안에서 이전/다음으로 넘겨 볼 수 있습니다. */
+  openSlot(row: IEvaluationRow) {
+    const rows = this.filtered();
+    const data: SlotViewData = { evaluationId: this.id, rows, index: Math.max(0, rows.indexOf(row)) };
+    this.dialog.open(SlotViewDialog, { data, width: '1200px', maxWidth: '95vw', maxHeight: '95vh', autoFocus: false });
   }
 
   resultLabel(r: string): string {

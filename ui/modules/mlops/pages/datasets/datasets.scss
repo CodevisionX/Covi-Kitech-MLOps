@@ -240,3 +240,126 @@ $border-radius: 12px;
 @media (max-width: 800px) {
   .form-grid, .detail .detail-grid { grid-template-columns: 1fr; }
 }
+
+// ---------------------------------------------------------------- 등록 안내 카드
+// 헤더의 등록 버튼 (폴더를 끌어다 놓을 수도 있음)
+.register-btn {
+  height: 54px; padding: 0 30px; border-radius: 10px; font-size: 16.5px; font-weight: 700;
+  mat-icon { margin-right: 6px; font-size: 24px; width: 24px; height: 24px; }
+  &.drop-over { box-shadow: 0 0 0 4px rgba(0, 35, 135, 0.2); }
+}
+
+// ---------------------------------------------------------------- 등록 모달
+.upload-dialog { display: flex; flex-direction: column; max-height: 92vh; }
+.dialog-head {
+  display: flex; align-items: center; gap: 8px; flex: none;
+  padding: 14px 16px 14px 24px; border-bottom: 1px solid #e5e7eb;
+  font-size: 18px; font-weight: 700; color: #1a1a1a;
+  > mat-icon { color: $primary-color; }
+  .spacer { flex: 1; }
+}
+.dialog-body { overflow-y: auto; padding: 20px 24px 24px; }
+
+// ---------------------------------------------------------------- 업로드 카드
+.upload-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 24px;
+  @media (max-width: 1100px) { grid-template-columns: minmax(0, 1fr); }
+}
+
+.upload-steps { display: flex; flex-direction: column; gap: 20px; }
+.upload-steps .form-grid { row-gap: 20px; }
+.step-head {
+  font-size: 15px; font-weight: 700; color: #1a1a1a; margin-bottom: 10px;
+  .req { color: #d32f2f; }
+}
+.step-note { margin: 8px 0 0; font-size: 13px; color: #555; }
+
+// 모델 확인 화면의 파일 선택 영역과 같은 모양
+// 업로드 칸: + 표시, 마우스를 올리면 조금 어두워지고 끌어다 놓기 안내가 나옴
+.drop-zone {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 28px 16px; border: 1.5px dashed #c5cad3; border-radius: 10px; background: #f8f9fb;
+  text-align: center; cursor: pointer; outline: none;
+  transition: background .15s, border-color .15s;
+  .dz-icon { font-size: 36px; width: 36px; height: 36px; color: #94a3b8; transition: color .15s; }
+  .dz-title { font-size: 15px; font-weight: 600; color: #334155; }
+  .dz-hint { font-size: 12.5px; color: #64748b; opacity: 0; transition: opacity .15s; }
+  &:hover, &:focus-visible {
+    background: #eceff3; border-color: #94a3b8;
+    .dz-icon { color: $primary-color; }
+    .dz-hint { opacity: 1; }
+  }
+  &.drag-over {
+    background: #e6ebf5; border-color: $primary-color; border-style: solid;
+    .dz-icon { color: $primary-color; }
+    .dz-hint { opacity: 1; }
+  }
+  &.has-files {
+    border-style: solid; border-color: #c8e6c9; background: #f6fbf6;
+    .dz-icon { color: #2e7d32; }
+    .dz-hint { opacity: 1; }
+    &:hover { background: #edf6ed; }
+  }
+  &.disabled { cursor: default; opacity: .6; pointer-events: none; }
+}
+
+.check-list {
+  margin-top: 10px; font-size: 13px;
+  .check-item {
+    display: flex; align-items: center; gap: 6px; color: #c62828; padding: 2px 0;
+    mat-icon { font-size: 18px; width: 18px; height: 18px; }
+    &.ok { color: #2e7d32; }
+    code { color: #333; }
+  }
+  .check-note { margin: 6px 0 0; font-size: 12px; color: #c62828; }
+}
+
+// 폴더 구조 안내 (기존 안내 상자와 같은 색)
+.guide {
+  background: #f0f4ff; border-radius: 8px; padding: 14px 16px; font-size: 13px; color: #333;
+  align-self: start;
+  .guide-head {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+    mat-icon { color: $primary-color; }
+    b { display: block; font-size: 14px; }
+    small { color: #666; font-size: 12px; }
+  }
+  .guide-summary { margin: 0 0 10px; line-height: 1.5; }
+  pre {
+    margin: 0; white-space: pre; overflow-x: auto;
+    font-family: 'JetBrains Mono', 'D2Coding', monospace; font-size: 12.5px; line-height: 1.5;
+  }
+  .tree { background: #fff; border-radius: 6px; padding: 10px 12px; }
+  .example {
+    margin-top: 10px;
+    .ex-title { font-weight: 600; margin-bottom: 4px; }
+    pre { background: #fff; border-radius: 6px; padding: 8px 10px; }
+  }
+  .rules { margin: 10px 0 0; padding-left: 18px; line-height: 1.6; }
+  .guide-foot { margin: 8px 0 0; font-size: 12.5px; color: #555; }
+}
+
+// ---------------------------------------------------------------- 종류 탭 (학습 이력 탭과 같은 모양)
+.task-tabs {
+  display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;
+  .task-tab {
+    display: flex; align-items: center; gap: 6px;
+    padding: 8px 18px; border-radius: 30px; border: 1.5px solid #e2e8f0; background: white;
+    color: #64748b; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; transition: all .2s;
+    .count { padding: 0 7px; border-radius: 9px; background: #eef2f7; font-size: 12px; }
+    &:hover { background: #f1f5f9; border-color: $primary-color; color: $primary-color; }
+    &.active {
+      background: $primary-color; color: white; border-color: $primary-color;
+      box-shadow: 0 4px 12px rgba(0, 35, 135, 0.2);
+      .count { background: rgba(255, 255, 255, .25); color: #fff; }
+    }
+  }
+}
+
+.help-btn {
+  color: #888;
+  mat-icon { color: inherit !important; font-size: 22px !important; width: 22px !important; height: 22px !important; }
+  &:hover { color: $primary-color; }
+}

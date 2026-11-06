@@ -53,6 +53,7 @@ def training_image_for(task: str) -> str:
         DatasetTask.DETECTION.value: settings.TRAINING_IMAGE_YOLO26,
         DatasetTask.RECOGNITION.value: settings.TRAINING_IMAGE_PPOCR,
         DatasetTask.E2E.value: settings.TRAINING_IMAGE_PPOCR,  # 정답 문자를 인식 사전과 대조
+        DatasetTask.TIMESERIES.value: settings.TRAINING_IMAGE_YOLO26,  # numpy 만 필요 (1D-CNN 학습 이미지)
     }[task]
 
 

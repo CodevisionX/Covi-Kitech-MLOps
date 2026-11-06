@@ -103,7 +103,8 @@ export class TerminalService {
    */
   private processLogLine(sseEvent: any) {
     this.zone.runOutsideAngular(() => {
-      const rawLine = (sseEvent && sseEvent.data) ? String(sseEvent.data) : String(sseEvent);
+      // 빈 줄 이벤트({data: ''})를 객체째 문자열로 바꾸면 '[object Object]' 가 찍히므로 data 유무로 구분
+      const rawLine = sseEvent && typeof sseEvent === 'object' ? String(sseEvent.data ?? '') : String(sseEvent ?? '');
       if (!rawLine || rawLine.trim() === '') return;
 
       const highlighted = this.highlightLog(rawLine.trimEnd());

@@ -1,10 +1,19 @@
 <div class="datasets-container">
   <header class="page-header">
     <div class="header-left">
-      <h1><mat-icon>dataset</mat-icon>데이터셋</h1>
-      <p>데이터를 올리면 검사를 거쳐 바꿀 수 없는 버전으로 등록됩니다. 학습과 평가는 등록된 버전만 씁니다.</p>
+      <h1><mat-icon>dataset</mat-icon>데이터셋
+        <button mat-icon-button class="help-btn" (click)="openGuide()" matTooltip="업로드 가이드"><mat-icon>help_outline</mat-icon></button>
+      </h1>
+      <p>학습과 평가에 쓰는 데이터셋을 종류별·버전별로 관리합니다.</p>
     </div>
     <div class="header-actions">
+      <button mat-flat-button color="primary" class="register-btn" [class.drop-over]="dragOver()"
+        (click)="openNewUpload()" [disabled]="!projectId() || uploading()"
+        (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)" (drop)="onDrop($event)"
+        matTooltip="폴더를 이 버튼에 끌어다 놓아도 됩니다">
+        <mat-icon>add</mat-icon> 데이터셋 등록
+      </button>
+      @if (projects().length > 1) {
       <mat-form-field appearance="outline" class="project-select" subscriptSizing="dynamic">
         <mat-label>프로젝트</mat-label>
         <mat-select [ngModel]="projectId()" (selectionChange)="onProjectChange($event.value)">
@@ -13,135 +22,177 @@
           }
         </mat-select>
       </mat-form-field>
-      <button mat-flat-button color="primary" (click)="openNewUpload()" [disabled]="!projectId() || uploading()">
-        <mat-icon>upload</mat-icon> 새 데이터셋 올리기
-      </button>
+      }
     </div>
   </header>
 
-  @if (showUpload()) {
-  <section class="card upload-card">
-    <div class="card-title">
+  <!-- 데이터셋 등록 모달 (상태와 업로드 로직은 이 화면의 것을 그대로 씀) -->
+  <ng-template #uploadTpl>
+  <div class="upload-dialog">
+    <div class="dialog-head">
       <mat-icon>cloud_upload</mat-icon>
-      <span>{{ session() ? (session()!.name + ' 이어서 올리기 (세션 #' + session()!.id + ')') : '새 데이터셋 올리기' }}</span>
+      <span>{{ session() ? (session()!.name + ' 이어서 올리기 (세션 #' + session()!.id + ')') : '데이터셋 등록' }}</span>
+      <button mat-icon-button class="help-btn" (click)="openGuide(form.task)" matTooltip="업로드 가이드"><mat-icon>help_outline</mat-icon></button>
       <span class="spacer"></span>
       <button mat-icon-button (click)="closeUpload()" [disabled]="uploading()" matTooltip="닫기">
         <mat-icon>close</mat-icon>
       </button>
     </div>
 
-    <div class="form-grid">
-      <mat-form-field appearance="outline">
-        <mat-label>이름</mat-label>
-        <input matInput [(ngModel)]="form.name" [disabled]="!!session() || uploading()" placeholder="panel-det">
-        <mat-hint>영문/숫자/._- 만, 64자 이내. 같은 이름으로 올리면 다음 버전이 됩니다.</mat-hint>
-        @if (form.name && !nameValid) {
-        <mat-error>이름 형식이 올바르지 않습니다</mat-error>
+    <div class="upload-layout dialog-body">
+      <div class="upload-steps">
+        <div class="step">
+          <div class="step-head">1. 종류와 이름</div>
+          <div class="form-grid">
+            <mat-form-field appearance="outline">
+              <mat-label>종류</mat-label>
+              <mat-select [(ngModel)]="form.task" (selectionChange)="taskSig.set($event.value)" required
+                [disabled]="!!session() || uploading()">
+                @for (t of tasks; track t) {
+                <mat-option [value]="t">{{ taskLabels[t] }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>이름</mat-label>
+              <input matInput [(ngModel)]="form.name" required pattern="[A-Za-z0-9][A-Za-z0-9._\-]{0,63}" [disabled]="!!session() || uploading()" placeholder="예: panel-det">
+              <mat-hint>같은 이름이면 다음 버전으로 등록</mat-hint>
+              <mat-error>영문·숫자·._- 만 쓸 수 있습니다 (64자 이내)</mat-error>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="wide">
+              <mat-label>설명</mat-label>
+              <input matInput [(ngModel)]="form.description" [disabled]="!!session() || uploading()" placeholder="예: 10월 현장 데이터, 야간 포함">
+            </mat-form-field>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-head">2. 데이터 폴더 선택 <span class="req">*</span></div>
+          <input #folder type="file" webkitdirectory multiple hidden (change)="onFolderPicked($event)">
+          <div class="drop-zone" [class.disabled]="uploading()" [class.drag-over]="dragOver()" [class.has-files]="picked().length > 0"
+            role="button" tabindex="0" (click)="!uploading() && folder.click()" (keydown.enter)="!uploading() && folder.click()"
+            (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)" (drop)="onDrop($event)">
+            @if (picked().length) {
+            <mat-icon class="dz-icon">folder</mat-icon>
+            <div class="dz-title">{{ picked().length }}개 파일 · {{ formatSize(pickedBytes()) }} 선택됨</div>
+            <div class="dz-hint">다시 누르거나 다른 폴더를 끌어다 놓으면 바뀝니다</div>
+            } @else {
+            <mat-icon class="dz-icon plus">add</mat-icon>
+            <div class="dz-title">데이터 폴더 선택</div>
+            <div class="dz-hint">눌러서 폴더를 고르거나, 폴더를 여기로 끌어다 놓으세요 (맨 위 폴더: {{ guides[form.task].tree.split('/')[0] }})</div>
+            }
+          </div>
+
+          @if (structureCheck(); as c) {
+          <div class="check-list" [class.ok]="c.ok">
+            @if (c.zip) {
+            <div class="check-item ok"><mat-icon>inventory_2</mat-icon> zip 파일 1개: 서버에서 압축을 풀어 검사합니다</div>
+            } @else {
+            @for (i of c.items; track i.path) {
+            <div class="check-item" [class.ok]="i.found">
+              <mat-icon>{{ i.found ? 'check_circle' : 'cancel' }}</mat-icon>
+              <code>{{ i.path }}{{ i.kind === 'dir' ? '/' : '' }}</code> {{ i.found ? '있음' : '없음' }}
+            </div>
+            }
+            @if (!c.ok) { <p class="check-note">필수 경로가 없습니다. 폴더를 잘못 골랐거나 종류가 다른지 확인하세요.</p> }
+            }
+          </div>
+          }
+        </div>
+
+        <div class="step">
+          <div class="step-head">3. 업로드 · 검사</div>
+          @if (uploading() || doneFiles() > 0) {
+          <div class="progress-box">
+            <mat-progress-bar mode="determinate" [value]="progress()"></mat-progress-bar>
+            <div class="progress-text">
+              {{ doneFiles() }} / {{ picked().length }}개 · {{ formatSize(doneBytes()) }} / {{ formatSize(pickedBytes()) }}
+              ({{ progress().toFixed(1) }}%)
+            </div>
+          </div>
+          }
+          <div class="actions">
+            @if (uploading()) {
+            <button mat-stroked-button color="warn" (click)="cancelUpload()">
+              <mat-icon>stop</mat-icon> 취소
+            </button>
+            } @else {
+            @if (!session()) {
+            <button mat-button (click)="createSessionOnly()" [disabled]="!nameValid"
+              matTooltip="수십 GB 데이터를 CLI 로 올릴 때 세션만 먼저 만듭니다">
+              세션만 만들기 (CLI 업로드)
+            </button>
+            } @else {
+            <button mat-stroked-button color="primary" (click)="validateSession()">
+              <mat-icon>fact_check</mat-icon> 검사 시작
+            </button>
+            }
+            <button mat-flat-button color="primary" (click)="startUpload()"
+              [disabled]="!picked().length || (!session() && !nameValid)">
+              <mat-icon>upload</mat-icon> 업로드하고 검사
+            </button>
+            }
+          </div>
+          <p class="step-note">업로드가 끝나면 자동으로 검사합니다. 결과는 아래 목록에서 행을 눌러 확인합니다.</p>
+
+          @if (session(); as s) {
+          <div class="cli-box">
+            <div class="cli-note">
+              <mat-icon>terminal</mat-icon>
+              수십 GB 데이터는 CLI(aws s3 sync)로 아래 임시 위치에 올린 뒤 <strong>검사 시작</strong>을 누르세요.
+            </div>
+            <div class="cli-line">
+              <code>{{ s.cli_example }}</code>
+              <button mat-icon-button (click)="copy(s.cli_example)" matTooltip="복사"><mat-icon>content_copy</mat-icon></button>
+            </div>
+            <div class="cli-meta">임시 위치: {{ s.staging_uri }} · S3 주소: {{ s.s3_endpoint }}</div>
+          </div>
+          }
+        </div>
+      </div>
+
+      <aside class="guide">
+        <div class="guide-head">
+          <mat-icon>account_tree</mat-icon>
+          <div>
+            <b>폴더 구조 · {{ taskLabels[form.task] }}</b>
+          </div>
+        </div>
+        <p class="guide-summary">{{ guides[form.task].summary }}</p>
+        <pre class="tree">{{ guides[form.task].tree }}</pre>
+        @for (ex of guides[form.task].examples; track ex.title) {
+        <div class="example">
+          <div class="ex-title">{{ ex.title }}</div>
+          <pre>{{ ex.body }}</pre>
+        </div>
         }
-      </mat-form-field>
-      <mat-form-field appearance="outline">
-        <mat-label>종류</mat-label>
-        <mat-select [(ngModel)]="form.task" [disabled]="!!session() || uploading()">
-          @for (t of tasks; track t) {
-          <mat-option [value]="t">{{ taskLabels[t] }}</mat-option>
-          }
-        </mat-select>
-      </mat-form-field>
-      <mat-form-field appearance="outline" class="wide">
-        <mat-label>설명 (선택)</mat-label>
-        <input matInput [(ngModel)]="form.description" [disabled]="!!session() || uploading()">
-      </mat-form-field>
-    </div>
-
-    <div class="layout-hint">
-      <mat-icon>info</mat-icon>
-      <div>
-        <strong>폴더 구조 ({{ taskLabels[form.task] }})</strong>
-        <ul>
-          @for (h of layoutHints[form.task]; track h) {
-          <li>{{ h }}</li>
-          }
+        <ul class="rules">
+          @for (r of guides[form.task].rules; track r) { <li>{{ r }}</li> }
         </ul>
-      </div>
+        <p class="guide-foot">폴더 대신 같은 구조를 압축한 zip 파일 하나만 들어 있는 폴더를 골라도 됩니다.</p>
+      </aside>
     </div>
-
-    <div class="picker-row">
-      <input #folder type="file" webkitdirectory multiple hidden (change)="onFolderPicked($event)">
-      <button mat-stroked-button color="primary" (click)="folder.click()" [disabled]="uploading()">
-        <mat-icon>folder_open</mat-icon> 폴더 선택
-      </button>
-      @if (picked().length) {
-      <span class="picked-info">{{ picked().length }}개 파일 · {{ formatSize(pickedBytes()) }}</span>
-      } @else {
-      <span class="picked-info muted">데이터셋 루트 폴더를 고르세요 (폴더 이름은 경로에서 빠집니다)</span>
-      }
-    </div>
-
-    @if (uploading() || doneFiles() > 0) {
-    <div class="progress-box">
-      <mat-progress-bar mode="determinate" [value]="progress()"></mat-progress-bar>
-      <div class="progress-text">
-        {{ doneFiles() }} / {{ picked().length }}개 · {{ formatSize(doneBytes()) }} / {{ formatSize(pickedBytes()) }}
-        ({{ progress().toFixed(1) }}%)
-      </div>
-    </div>
-    }
-
-    <div class="actions">
-      @if (uploading()) {
-      <button mat-stroked-button color="warn" (click)="cancelUpload()">
-        <mat-icon>stop</mat-icon> 취소
-      </button>
-      } @else {
-      @if (!session()) {
-      <button mat-stroked-button (click)="createSessionOnly()" [disabled]="!nameValid"
-        matTooltip="파일은 CLI 로 올릴 때 세션만 먼저 만듭니다">
-        세션만 만들기 (CLI 업로드)
-      </button>
-      } @else {
-      <button mat-stroked-button color="primary" (click)="validateSession()">
-        <mat-icon>fact_check</mat-icon> 검사 시작
-      </button>
-      }
-      <button mat-flat-button color="primary" (click)="startUpload()"
-        [disabled]="!picked().length || (!session() && !nameValid)">
-        <mat-icon>upload</mat-icon> 업로드 시작
-      </button>
-      }
-    </div>
-
-    @if (session(); as s) {
-    <div class="cli-box">
-      <div class="cli-note">
-        <mat-icon>terminal</mat-icon>
-        수십 GB 데이터는 CLI(aws s3 sync)로 아래 임시 위치에 올린 뒤 <strong>검사 시작</strong>을 누르세요.
-      </div>
-      <div class="cli-line">
-        <code>{{ s.cli_example }}</code>
-        <button mat-icon-button (click)="copy(s.cli_example)" matTooltip="복사"><mat-icon>content_copy</mat-icon></button>
-      </div>
-      <div class="cli-meta">임시 위치: {{ s.staging_uri }} · S3 주소: {{ s.s3_endpoint }}</div>
-    </div>
-    }
-  </section>
-  }
+  </div>
+  </ng-template>
 
   <section class="card list-card">
     <div class="card-title">
       <mat-icon>list</mat-icon>
       <span>등록된 버전과 업로드 세션</span>
       <span class="spacer"></span>
-      <mat-form-field appearance="outline" class="task-filter" subscriptSizing="dynamic">
-        <mat-label>종류</mat-label>
-        <mat-select [ngModel]="taskFilter()" (selectionChange)="taskFilter.set($event.value)">
-          <mat-option value="">전체</mat-option>
-          @for (t of tasks; track t) {
-          <mat-option [value]="t">{{ taskLabels[t] }}</mat-option>
-          }
-        </mat-select>
-      </mat-form-field>
       <button mat-icon-button (click)="refresh()" matTooltip="새로고침"><mat-icon>refresh</mat-icon></button>
     </div>
+
+    <nav class="task-tabs">
+      <button class="task-tab" [class.active]="taskFilter() === ''" (click)="taskFilter.set('')">
+        전체 <span class="count">{{ versions().length }}</span>
+      </button>
+      @for (t of tabOrder; track t) {
+      <button class="task-tab" [class.active]="taskFilter() === t" (click)="taskFilter.set(t)" [matTooltip]="guides[t].usedBy">
+        {{ tabLabels[t] }} <span class="count">{{ taskCounts()[t] || 0 }}</span>
+      </button>
+      }
+    </nav>
 
     @if (loading()) {
     <mat-progress-bar mode="indeterminate"></mat-progress-bar>

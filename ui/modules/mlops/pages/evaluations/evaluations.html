@@ -18,23 +18,57 @@
     <div class="card-title"><mat-icon>add_task</mat-icon>새 평가</div>
     <div class="form-grid">
       <mat-form-field appearance="outline">
-        <mat-label>검출 모델 (YOLO26)</mat-label>
-        <mat-select [(ngModel)]="detJobId">
-          @for (j of detJobs(); track j.id) {
-          <mat-option [value]="j.id">{{ jobLabel(j) }}</mat-option>
+        <mat-label>검출 모델</mat-label>
+        <mat-select [(ngModel)]="detJobId" panelClass="eval-model-panel">
+          <mat-select-trigger>
+            @let selDet = jobById(detJobId, detJobs());
+            @if (selDet) { #{{ selDet.id }} {{ selDet.model_variant }} · {{ jobOrigin(selDet) }} }
+          </mat-select-trigger>
+          @for (g of detGroups(); track g.model) {
+          <mat-optgroup [label]="g.model">
+            @for (j of g.jobs; track j.id) {
+            <mat-option [value]="j.id">
+              <div class="job-opt">
+                <div class="job-opt-main">
+                  <span class="job-id">#{{ j.id }}</span>
+                  <span class="job-origin">{{ jobOrigin(j) }}</span>
+                  <span class="job-src" [class.imported]="isImported(j)">{{ isImported(j) ? '업로드' : '학습' }}</span>
+                </div>
+                <div class="job-opt-sub">{{ jobMetric(j) }} · {{ relTime(j.finished_at) }}</div>
+              </div>
+            </mat-option>
+            }
+          </mat-optgroup>
           } @empty {
-          <mat-option disabled>학습을 마친 YOLO26 모델이 없습니다</mat-option>
+          <mat-option disabled>학습을 마친 검출 모델이 없습니다</mat-option>
           }
         </mat-select>
       </mat-form-field>
 
       <mat-form-field appearance="outline">
-        <mat-label>인식 모델 (PP-OCRv6)</mat-label>
-        <mat-select [(ngModel)]="recJobId">
-          @for (j of recJobs(); track j.id) {
-          <mat-option [value]="j.id">{{ jobLabel(j) }}</mat-option>
+        <mat-label>인식 모델</mat-label>
+        <mat-select [(ngModel)]="recJobId" panelClass="eval-model-panel">
+          <mat-select-trigger>
+            @let selRec = jobById(recJobId, recJobs());
+            @if (selRec) { #{{ selRec.id }} {{ selRec.model_variant }} · {{ jobOrigin(selRec) }} }
+          </mat-select-trigger>
+          @for (g of recGroups(); track g.model) {
+          <mat-optgroup [label]="g.model">
+            @for (j of g.jobs; track j.id) {
+            <mat-option [value]="j.id">
+              <div class="job-opt">
+                <div class="job-opt-main">
+                  <span class="job-id">#{{ j.id }}</span>
+                  <span class="job-origin">{{ jobOrigin(j) }}</span>
+                  <span class="job-src" [class.imported]="isImported(j)">{{ isImported(j) ? '업로드' : '학습' }}</span>
+                </div>
+                <div class="job-opt-sub">{{ jobMetric(j) }} · {{ relTime(j.finished_at) }}</div>
+              </div>
+            </mat-option>
+            }
+          </mat-optgroup>
           } @empty {
-          <mat-option disabled>학습을 마친 PP-OCRv6 모델이 없습니다</mat-option>
+          <mat-option disabled>학습을 마친 인식 모델이 없습니다</mat-option>
           }
         </mat-select>
       </mat-form-field>
@@ -56,7 +90,7 @@
 
       <mat-form-field appearance="outline">
         <mat-label>이름 (선택)</mat-label>
-        <input matInput [(ngModel)]="name" maxlength="128" placeholder="예: 현장 모델 기준">
+        <input matInput [(ngModel)]="name" maxlength="128" placeholder="예: 운영 모델 기준">
       </mat-form-field>
     </div>
 
@@ -102,6 +136,10 @@
 
   <mat-card class="list-card">
     <div class="card-title"><mat-icon>history</mat-icon>평가 이력</div>
+    <div class="deploy-hint">
+      <mat-icon>info</mat-icon>
+      <span>현장 반영: 평가를 마친 행의 <b>패키지 받기</b>로 zip을 받고, 운영 PC에서 OCR 프로그램을 끈 뒤 <code>models</code> 폴더를 백업하고 zip 안의 <code>models</code> 폴더로 바꿉니다. 프로그램을 다시 시작하면 새 모델을 읽습니다.</span>
+    </div>
     @if (evaluations().length) {
     <table mat-table [dataSource]="evaluations()" class="eval-table">
       <ng-container matColumnDef="id">
@@ -121,10 +159,14 @@
         <td mat-cell *matCellDef="let e">{{ versionLabel(e.dataset_version_id) }}</td>
       </ng-container>
       <ng-container matColumnDef="status">
-        <th mat-header-cell *matHeaderCellDef>상태</th>
+        <th mat-header-cell *matHeaderCellDef>진행 단계</th>
         <td mat-cell *matCellDef="let e">
-          <span class="status-badge" [attr.data-status]="e.status">{{ e.status }}</span>
-          @if (e.status !== 'FINISHED' && (e.error_message || e.status_message)) {
+          @if (e.status === 'FINISHED') {
+          <span class="status-badge" data-status="FINISHED">완료</span>
+          } @else {
+          <app-eval-steps [evaluation]="e" [compact]="true"></app-eval-steps>
+          }
+          @if (e.status === 'FAILED' && (e.error_message || e.status_message)) {
           <div class="status-msg" [matTooltip]="e.error_message || e.status_message">
             {{ e.error_message || e.status_message }}
           </div>
@@ -146,6 +188,10 @@
       <ng-container matColumnDef="actions">
         <th mat-header-cell *matHeaderCellDef></th>
         <td mat-cell *matCellDef="let e" class="actions">
+          @if (e.status === 'FINISHED') {
+          <a mat-stroked-button class="pkg-btn" matTooltip="운영 PC의 models 폴더에 넣을 zip (검출·인식 모델, package_info.json)"
+            [href]="api.packageUrl(e.id)" download (click)="$event.stopPropagation()"><mat-icon>download</mat-icon>패키지 받기</a>
+          }
           <button mat-icon-button matTooltip="결과 보기" (click)="open(e)"><mat-icon>open_in_new</mat-icon></button>
           <button mat-icon-button matTooltip="삭제" (click)="remove(e, $event)"><mat-icon>delete</mat-icon></button>
         </td>

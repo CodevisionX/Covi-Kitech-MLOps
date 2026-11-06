@@ -8,7 +8,7 @@
   </header>
 
   <section class="info-section">
-    @if (requiredTask) {
+    @if (showVersionCard) {
     <div class="path-card" [class.ready]="selectedVersion">
       <div class="path-header">
         <div class="title-group">
@@ -25,64 +25,35 @@
       <div class="path-body">
         @if (datasetVersions.length > 0) {
         <mat-form-field appearance="outline" class="full-width">
-          <mat-label>등록된 {{ requiredTask === 'detection' ? '검출' : '인식' }} 데이터셋</mat-label>
-          <mat-select [(ngModel)]="selectedVersionId">
-            @for (v of datasetVersions; track v.id) {
-            <mat-option [value]="v.id">
-              {{ v.name }}:v{{ v.version }} · 파일 {{ v.file_count }}개 · {{ v.manifest_sha256?.slice(0, 12) }}
-            </mat-option>
+          <mat-label>등록된 데이터셋</mat-label>
+          <mat-select [ngModel]="selectedVersionId" (selectionChange)="onVersionChange($event.value)">
+            @for (g of versionGroups; track g.task) {
+            <mat-optgroup [label]="g.label">
+              @for (v of g.versions; track v.id) {
+              <mat-option [value]="v.id">
+                {{ v.name }}:v{{ v.version }} · 파일 {{ v.file_count }}개 · {{ v.manifest_sha256?.slice(0, 12) }}
+              </mat-option>
+              }
+            </mat-optgroup>
             }
           </mat-select>
         </mat-form-field>
         @if (selectedVersion?.stats?.['counts']; as counts) {
         <div class="version-counts">
           @for (c of counts | keyvalue; track c.key) {
-          <span class="count-chip">{{ c.key }}: {{ $any(c.value)?.images ?? c.value }}</span>
+          <span class="count-chip">{{ c.key }}: {{ $any(c.value)?.images ?? $any(c.value)?.samples ?? c.value }}</span>
           }
         </div>
         }
         } @else {
         <code class="path-text error-text">
           <mat-icon class="inline-icon">info</mat-icon>
-          등록된 {{ requiredTask === 'detection' ? '검출' : '인식' }} 데이터셋이 없습니다.
+          등록된 {{ requiredTask ? (taskLabels[requiredTask] + ' ') : '' }}데이터셋이 없습니다.
           <a routerLink="/dashboard/datasets">데이터셋 페이지</a>에서 먼저 올려 주세요.
         </code>
         }
-        <p class="version-hint">등록된 버전은 바뀌지 않으므로 같은 버전으로 학습하면 같은 데이터로 재현됩니다.
-          왼쪽 브라우저는 기존 모델(YOLOv8, 1D-CNN)용입니다.</p>
-      </div>
-    </div>
-    } @else {
-    <div class="path-card" [class.ready]="modelService.selectedDatasetPath()">
-      <div class="path-header">
-        <div class="title-group">
-          <mat-icon [style.color]="modelService.selectedDatasetPath() ? 'var(--success-color)' : 'var(--error-color)'">
-            {{ modelService.selectedDatasetPath() ? 'check_circle' : 'error_outline' }}
-          </mat-icon>
-          <span>학습 데이터셋 경로</span>
-        </div>
-        <span class="status-badge" [class.active]="modelService.selectedDatasetPath()">
-          {{ modelService.selectedDatasetPath() ? '준비됨' : '선택 필요' }}
-        </span>
-      </div>
-
-      <div class="path-body">
-        <div class="path-line">
-          <code class="path-text" [class.error-text]="!modelService.selectedDatasetPath()">
-            <mat-icon class="inline-icon">folder</mat-icon>
-            {{ modelService.selectedDatasetPath() || '왼쪽 브라우저에서 학습할 폴더를 선택해주세요.' }}
-          </code>
-        </div>
-
-        @if (modelService.inferredModelName()) {
-        <div class="analysis-result-area" @fadeInScale>
-          <div class="analysis-tag">
-            <mat-icon>psychology</mat-icon>
-            <span class="label">시스템 분석 결과:</span>
-            <span class="value">{{ modelService.inferredModelName() }}</span>
-          </div>
-        </div>
-        }
+        <p class="version-hint">데이터셋을 고르면 종류(검출·인식·시계열)에 맞는 모델로 바뀝니다.
+          등록된 버전은 고유하게 보관되므로 같은 버전으로 학습하면 같은 데이터로 재현됩니다.</p>
       </div>
     </div>
     }
@@ -110,9 +81,6 @@
             <mat-option [value]="m.key">
               <div class="option-content">
                 <strong>{{ m.key }}</strong> - {{ m.value.description }}
-                @if (m.key === modelService.inferredModelName()) {
-                <span class="auto-badge">Auto</span>
-                }
               </div>
             </mat-option>
             }
@@ -144,6 +112,8 @@
             }
 
             @if (p.type === 'select') {
+            @if (p.custom && customParams[p.name]) {
+            <!-- '직접 입력': 선택 칸과 같은 자리에서 숫자 입력 칸으로 바뀜 -->
             <mat-form-field appearance="outline">
               <mat-label>
                 <div class="label-with-info">
@@ -152,12 +122,35 @@
                     matTooltipPosition="above">help_outline</mat-icon>
                 </div>
               </mat-label>
-              <mat-select [(ngModel)]="dynamicParams[p.name]">
+              <input matInput type="number" step="1" [min]="p.custom.min" [max]="p.custom.max"
+                [(ngModel)]="dynamicParams[p.name]" [id]="'custom-' + p.name">
+              <button mat-icon-button matSuffix type="button" class="back-to-list" matTooltip="목록에서 고르기"
+                (click)="backToList(p)"><mat-icon>list</mat-icon></button>
+              @if (customValid(p)) {
+              <mat-hint>직접 입력 · {{ p.custom.hint }}</mat-hint>
+              } @else {
+              <mat-hint class="custom-error">{{ p.custom.min }}~{{ p.custom.max }} 정수만 가능</mat-hint>
+              }
+            </mat-form-field>
+            } @else {
+            <mat-form-field appearance="outline">
+              <mat-label>
+                <div class="label-with-info">
+                  {{ p.label }}
+                  <mat-icon class="help-icon" [matTooltip]="p.tooltip"
+                    matTooltipPosition="above">help_outline</mat-icon>
+                </div>
+              </mat-label>
+              <mat-select [ngModel]="dynamicParams[p.name]" (selectionChange)="onSelectParam(p, $event.value)">
                 @for (opt of p.options; track opt) {
                 <mat-option [value]="opt">{{ opt }}</mat-option>
                 }
+                @if (p.custom) {
+                <mat-option [value]="CUSTOM">직접 입력</mat-option>
+                }
               </mat-select>
             </mat-form-field>
+            }
             }
           </div>
           }
@@ -166,15 +159,6 @@
       }
 
       <div class="action-row">
-        @if (!requiredTask && modelService.selectedDatasetPath() && selectedModelName && !isCompatible) {
-        <div class="incompatible-warning" @fadeInScale>
-          <!-- <mat-icon>warning</mat-icon> -->
-          <p class="analysis-desc">
-            올바른 알고리즘인지 확인해주세요.
-          </p>
-        </div>
-        }
-
         @if (isReady) {
         <div class="launch-summary">
           <mat-icon>info</mat-icon>

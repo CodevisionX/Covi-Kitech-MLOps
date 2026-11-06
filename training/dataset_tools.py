@@ -193,6 +193,153 @@ def detection_split(rel: str):
     return parts[1] if len(parts) > 2 and parts[0] == "images" else None
 
 
+# ---------------------------------------------------------------- 시계열 (1D-CNN)
+# 구조: {train,val[,test]}/X.npy, y.npy  +  meta.json (선택)
+#   X: (샘플 수, 윈도 길이, 채널 수) 또는 (샘플 수, 윈도 길이) -> 채널 1개로 봄
+#   y: 분류는 정수 라벨 (샘플 수,) / 회귀는 실수 (샘플 수,) 또는 (샘플 수, 출력 수)
+#   meta.json: {"problem": "classification" | "regression", "class_names": [...]} (없으면 y 의 자료형으로 판단)
+TS_SPLITS = ("train", "val", "test")
+TS_FILES = ("X.npy", "y.npy")
+TS_CHUNK = 4096
+
+
+def read_ts_meta(root: Path) -> dict:
+    p = root / "meta.json"
+    if not p.is_file():
+        return {}
+    import json
+
+    meta = json.loads(p.read_text(encoding="utf-8-sig")) or {}
+    if not isinstance(meta, dict):
+        raise ValueError("meta.json 은 객체({...})여야 합니다")
+    return meta
+
+
+def _ts_finite(arr, rep: Report, rel: str):
+    import numpy as np
+
+    for start in range(0, len(arr), TS_CHUNK):
+        chunk = np.asarray(arr[start:start + TS_CHUNK])
+        if not np.isfinite(chunk).all():
+            rep.error(f"{rel}: NaN 또는 무한대 값이 있습니다 (샘플 {start} 부근)")
+            return
+
+
+def ts_problem(meta: dict, y) -> str:
+    """분류/회귀 판단: meta.json 우선, 없으면 y 가 정수 1열이면 분류."""
+    import numpy as np
+
+    if meta.get("problem") in ("classification", "regression"):
+        return meta["problem"]
+    one_col = y.ndim == 1 or (y.ndim == 2 and y.shape[1] == 1)
+    return "classification" if one_col and np.issubdtype(y.dtype, np.integer) else "regression"
+
+
+def validate_timeseries(root: Path):
+    import numpy as np
+
+    rep = Report()
+    try:
+        meta = read_ts_meta(root)
+    except Exception as e:
+        rep.error(f"meta.json: 읽을 수 없습니다 ({e})")
+        meta = {}
+    if meta.get("problem") not in (None, "classification", "regression"):
+        rep.error("meta.json: problem 은 classification 또는 regression 이어야 합니다")
+
+    for p in sorted(root.rglob("*")):
+        if p.is_file():
+            rel = p.relative_to(root).as_posix()
+            parts = rel.split("/")
+            if rel != "meta.json" and not (len(parts) == 2 and parts[0] in TS_SPLITS and parts[1] in TS_FILES):
+                rep.warn(f"{rel}: 사용하지 않는 파일입니다")
+
+    counts, shapes, problem, n_out = {}, {}, None, None
+    labels_by_split = {}
+    for split in TS_SPLITS:
+        d = root / split
+        if not d.is_dir():
+            if split != "test":
+                rep.error(f"{split}/ 폴더가 없습니다 ({split}/X.npy, {split}/y.npy 필요)")
+            continue
+        missing = [f for f in TS_FILES if not (d / f).is_file()]
+        if missing:
+            rep.error(f"{split}/: {', '.join(missing)} 가 없습니다")
+            continue
+        try:
+            X = np.load(d / "X.npy", mmap_mode="r", allow_pickle=False)
+            y = np.load(d / "y.npy", mmap_mode="r", allow_pickle=False)
+        except Exception as e:
+            rep.error(f"{split}/: npy 파일을 읽을 수 없습니다 ({type(e).__name__}: {e})")
+            continue
+        if X.ndim not in (2, 3) or not np.issubdtype(X.dtype, np.number):
+            rep.error(f"{split}/X.npy: (샘플, 윈도[, 채널]) 숫자 배열이어야 합니다 (현재 {X.shape}, {X.dtype})")
+            continue
+        if y.ndim not in (1, 2) or not np.issubdtype(y.dtype, np.number):
+            rep.error(f"{split}/y.npy: (샘플,) 또는 (샘플, 출력) 숫자 배열이어야 합니다 (현재 {y.shape}, {y.dtype})")
+            continue
+        if len(X) != len(y):
+            rep.error(f"{split}/: X 와 y 의 샘플 수가 다릅니다 ({len(X)} vs {len(y)})")
+            continue
+        if len(X) == 0:
+            rep.error(f"{split}/: 샘플이 없습니다")
+            continue
+        window, channels = X.shape[1], (X.shape[2] if X.ndim == 3 else 1)
+        shapes[split] = (window, channels)
+        _ts_finite(X, rep, f"{split}/X.npy")
+        _ts_finite(y, rep, f"{split}/y.npy")
+
+        p = ts_problem(meta, y)
+        if problem is None:
+            problem = p
+        elif p != problem:
+            rep.error(f"{split}/y.npy: 다른 분할과 문제 종류가 다릅니다 ({p} vs {problem})")
+        counts[split] = {"samples": int(len(X))}
+        if p == "classification":
+            labels = np.asarray(y).reshape(-1)
+            if not np.issubdtype(labels.dtype, np.integer) and not np.all(labels == np.round(labels)):
+                rep.error(f"{split}/y.npy: 분류 라벨은 정수여야 합니다")
+                continue
+            labels = labels.astype(np.int64)
+            if labels.min() < 0:
+                rep.error(f"{split}/y.npy: 분류 라벨은 0 이상이어야 합니다")
+                continue
+            uniq, cnt = np.unique(labels, return_counts=True)
+            counts[split]["per_class"] = {int(k): int(v) for k, v in zip(uniq, cnt)}
+            labels_by_split[split] = set(int(k) for k in uniq)
+        else:
+            out = 1 if y.ndim == 1 else y.shape[1]
+            if n_out is None:
+                n_out = out
+            elif out != n_out:
+                rep.error(f"{split}/y.npy: 출력 수가 다른 분할과 다릅니다 ({out} vs {n_out})")
+
+    if len(set(shapes.values())) > 1:
+        rep.error("분할마다 윈도 길이·채널 수가 다릅니다: "
+                  + ", ".join(f"{k}={v[0]}x{v[1]}" for k, v in shapes.items()))
+    stats = {"task": "timeseries", "problem": problem, "counts": counts}
+    if shapes:
+        stats["window"], stats["channels"] = next(iter(shapes.values()))
+    if problem == "classification" and labels_by_split:
+        all_labels = set().union(*labels_by_split.values())
+        stats["num_classes"] = max(all_labels) + 1
+        names = meta.get("class_names")
+        if names is not None and (not isinstance(names, list) or len(names) < stats["num_classes"]):
+            rep.error(f"meta.json: class_names 개수가 라벨 수({stats['num_classes']})보다 적습니다")
+        for split in ("val", "test"):
+            extra = labels_by_split.get(split, set()) - labels_by_split.get("train", set())
+            if extra:
+                rep.warn(f"{split}: train 에 없는 라벨이 있습니다 {sorted(extra)}")
+    elif problem == "regression":
+        stats["outputs"] = n_out
+    return stats, rep
+
+
+def timeseries_split(rel: str):
+    parts = rel.split("/")
+    return parts[0] if len(parts) == 2 and parts[0] in TS_SPLITS else None
+
+
 # ---------------------------------------------------------------- 인식 (PP-OCR)
 def read_rec_list(path: Path):
     return [l for l in path.read_text(encoding="utf-8-sig").splitlines() if l.strip()]

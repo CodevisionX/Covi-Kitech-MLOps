@@ -5,7 +5,7 @@
 
 환경 변수
   DATASET_VERSION_ID  백엔드 DB 의 데이터셋 버전 id
-  DATASET_TASK        detection | recognition | e2e
+  DATASET_TASK        detection | recognition | e2e | timeseries
   STAGING_PATH        bucket/_staging/<업로드 id>
   TARGET_PATH         bucket/registered/.../v<N>   (데이터는 그 아래 data/, 매니페스트는 manifest.json)
 """
@@ -19,8 +19,8 @@ from pathlib import Path
 import requests
 
 from dataset_tools import (
-    check_split_leakage, detection_split, normalize_upload, recognition_split_map,
-    validate_detection, validate_e2e, validate_recognition,
+    check_split_leakage, detection_split, normalize_upload, recognition_split_map, timeseries_split,
+    validate_detection, validate_e2e, validate_recognition, validate_timeseries,
 )
 from mlops_common import (
     BACKEND_URL, WORK_DIR, _s3_client, dataset_manifest, download_dataset, env_int, logger,
@@ -64,7 +64,7 @@ def main():
     t_bucket, t_prefix = split_path(target)
     uploaded = []
     try:
-        if task not in ("detection", "recognition", "e2e"):
+        if task not in ("detection", "recognition", "e2e", "timeseries"):
             raise ValueError(f"알 수 없는 작업 종류: {task}")
         if list_keys(s3, t_bucket, t_prefix):
             raise RuntimeError(f"등록 위치가 비어 있지 않습니다(덮어쓰기 금지): {target}")
@@ -80,6 +80,9 @@ def main():
         if task == "detection":
             stats, rep = validate_detection(root)
             split_of = detection_split
+        elif task == "timeseries":
+            stats, rep = validate_timeseries(root)
+            split_of = timeseries_split
         elif task == "e2e":
             stats, rep = validate_e2e(root, charset=charset)
             split_of = lambda rel: None  # 평가 전용 데이터라 분할이 없음

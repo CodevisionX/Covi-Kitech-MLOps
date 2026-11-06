@@ -1,6 +1,7 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { ChartConfiguration, ChartOptions } from 'chart.js';
+import { MatDialog } from '@angular/material/dialog';
+import { ImageViewerDialog, ImageViewerData } from '../dialogs/image-viewer/image-viewer';
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { Experiment } from '../../services/apis/experiment';
@@ -9,22 +10,13 @@ import { Jobs } from '../../services/apis/job';
 import { IMLflowRun } from '../../services/apis/models/experiment.model';
 import { IJob } from '../../services/apis/models/job.model';
 import { Notification } from '../../services/notification';
+import { METRIC_LABELS, isDetectionModel } from '../../configs/model-config';
 
 interface MetricTile { key: string; label: string; value: number; }
-interface ChartGroup { title: string; data: ChartConfiguration<'line'>['data']; }
 
-const METRIC_LABELS: Record<string, string> = {
-  'mAP50': 'mAP@0.5',
-  'mAP50-95': 'mAP@0.5:0.95',
-  'precision': 'Precision',
-  'recall': 'Recall',
-  'acc': '정확도',
-  'norm_edit_dis': '정규화 편집 유사도',
-};
 
-const COLORS = ['#002387', '#E91E63', '#4CAF50', '#FF9800', '#00ACC1', '#8E24AA'];
 
-/** YOLO26 / PP-OCRv6 학습(또는 가져온 현장 모델) run 상세 */
+/** YOLO26 / PP-OCRv6 학습(또는 업로드 모델) run 상세 */
 @Component({
   selector: 'app-model-detail-v2',
   standalone: false,
@@ -38,13 +30,13 @@ export class ModelDetailV2 implements OnInit {
   private readonly deploymentService = inject(Deployment);
   private readonly jobService = inject(Jobs);
   private readonly notificationService = inject(Notification);
+  private readonly dialog = inject(MatDialog);
 
   runId = signal('');
   projectId = signal<number | null>(null);
   jobId = signal<number | null>(null);
   job = signal<IJob | null>(null);
   runInfo = signal<IMLflowRun | null>(null);
-  history = signal<Record<string, number[]>>({});
   isDeploying = signal(false);
   showParams = signal(false);
   brokenImages = signal<Set<string>>(new Set());
@@ -52,10 +44,9 @@ export class ModelDetailV2 implements OnInit {
   variant = computed(() => {
     const j = this.job();
     if (j?.model_variant) return j.model_variant;
-    const fam = this.runInfo()?.tags?.['model_family'] || '';
-    return fam.startsWith('PP-OCR') ? 'PP-OCRv6' : fam.startsWith('YOLO26') ? 'YOLO26' : fam;
+    return this.runInfo()?.tags?.['model_family'] || '';
   });
-  isDetection = computed(() => this.variant() === 'YOLO26');
+  isDetection = computed(() => isDetectionModel(this.variant()));
   isImported = computed(() => this.runInfo()?.tags?.['source'] === 'imported');
   tags = computed(() => this.runInfo()?.tags || {});
   testMissing = computed(() => this.tags()['test_split'] === 'missing');
@@ -68,49 +59,17 @@ export class ModelDetailV2 implements OnInit {
   paramsList = computed(() =>
     Object.entries(this.runInfo()?.params || {}).sort(([a], [b]) => a.localeCompare(b)));
 
-  /** 기록된 지표 이름으로 차트를 묶습니다 (학습 손실 / 검증 손실 / 학습 지표 / 검증 지표) */
-  chartGroups = computed<ChartGroup[]>(() => {
-    const h = this.history();
-    const keys = Object.keys(h).filter(k => h[k]?.length > 1
-      && !k.startsWith('best_val/') && !k.startsWith('test/') && !k.startsWith('lr/')
-      && k !== 'train/epoch' && k !== 'train/lr');
-    const isLoss = (k: string) => /loss/i.test(k);
-    const groups: [string, string[]][] = [
-      ['학습 손실', keys.filter(k => k.startsWith('train/') && isLoss(k))],
-      ['검증 손실', keys.filter(k => k.startsWith('val/') && isLoss(k))],
-      ['학습 지표', keys.filter(k => k.startsWith('train/') && !isLoss(k))],
-      ['검증 지표', keys.filter(k => (k.startsWith('val/') || k.startsWith('metrics/')) && !isLoss(k))],
-    ];
-    return groups.filter(([, ks]) => ks.length).map(([title, ks]) => {
-      const len = Math.max(...ks.map(k => h[k].length));
-      return {
-        title,
-        data: {
-          labels: Array.from({ length: len }, (_, i) => `${i + 1}`),
-          datasets: ks.map((k, i) => ({
-            data: h[k], label: k.replace(/^(train|val|metrics)\//, '').replace(/_B$/, ''),
-            borderColor: COLORS[i % COLORS.length], backgroundColor: COLORS[i % COLORS.length],
-            tension: 0.3, fill: false, pointRadius: 2,
-          })),
-        },
-      };
-    });
-  });
+  /** 차트 부품이 알려 주는 run 상태 (학습 중 여부) */
+  liveStatus = signal<string | null>(null);
+  isLive = computed(() => (this.liveStatus() ?? this.runInfo()?.status) === 'RUNNING');
 
-  /** YOLO 학습이 남기는 그림 (가져온 모델에는 없음) */
-  plotImages = computed(() => this.isDetection() && !this.isImported() ? [
-    { path: 'training/fit/val_batch0_labels.jpg', label: 'Validation 정답' },
-    { path: 'training/fit/val_batch0_pred.jpg', label: 'Validation 예측' },
-    { path: 'training/fit/results.png', label: '학습 곡선 (ultralytics)' },
-    { path: 'training/fit/confusion_matrix.png', label: 'Confusion Matrix' },
+  /** 선택된 체크포인트의 최종 검증 그림: 데이터마다 P-R 곡선과 Confusion Matrix 를 나란히 (없는 그림은 숨김) */
+  evalPlots = computed(() => this.isDetection() && !this.isImported() && !this.isLive() ? [
+    { path: 'training/eval_val/BoxPR_curve.png', label: 'P-R 곡선 · Validation' },
+    { path: 'training/eval_val/confusion_matrix.png', label: 'Confusion Matrix · Validation' },
+    { path: 'training/eval_test/BoxPR_curve.png', label: 'P-R 곡선 · Test' },
+    { path: 'training/eval_test/confusion_matrix.png', label: 'Confusion Matrix · Test' },
   ].filter(p => !this.brokenImages().has(p.path)) : []);
-
-  chartOptions: ChartOptions<'line'> = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: { legend: { position: 'top' }, tooltip: { mode: 'index', intersect: false } },
-    scales: { x: { grid: { display: false }, title: { display: true, text: 'step / epoch' } } },
-  };
 
   ngOnInit() {
     const id = this.route.snapshot.paramMap.get('runId')!;
@@ -125,10 +84,21 @@ export class ModelDetailV2 implements OnInit {
       next: info => this.runInfo.set(info),
       error: () => this.notificationService.showError('상세 정보를 불러오지 못했습니다.'),
     });
-    this.experimentService.getMetricsHistory(id).subscribe({
-      next: data => this.history.set(data || {}),
-      error: () => this.history.set({}),
-    });
+  }
+
+  /** 학습이 끝나면 최종 지표(best_val, test)와 상태를 다시 받음 */
+  onRunStatus(status: string) {
+    const wasLive = this.isLive();
+    this.liveStatus.set(status);
+    if (wasLive && status !== 'RUNNING') {
+      this.experimentService.getRunDetail(this.runId()).subscribe({ next: info => this.runInfo.set(info) });
+      if (this.jobId()) this.jobService.getJob(this.jobId()!).subscribe({ next: j => this.job.set(j) });
+    }
+  }
+
+  openMlflow() {
+    const exp = this.job()?.experiment_id ?? this.route.snapshot.queryParamMap.get('expId');
+    window.open(`${this.experimentService.mlflowUiUrl}/#/experiments/${exp}/runs/${this.runId()}`, '_blank');
   }
 
   private tilesFor(prefix: string): MetricTile[] {
@@ -147,13 +117,29 @@ export class ModelDetailV2 implements OnInit {
     return this.experimentService.getArtifactPreviewUrl(this.runId(), path);
   }
 
+  /** 최종 검증 그림을 모달로 크게 보기 (이전/다음으로 다른 그림도 넘겨 봄) */
+  openPlot(index: number) {
+    const job = this.jobId() ? `job${this.jobId()}_` : '';
+    const data: ImageViewerData = {
+      index,
+      images: this.evalPlots().map(p => ({
+        src: this.previewUrl(p.path),
+        title: p.label,
+        fileName: `${job}${p.path.split('/').slice(-2).join('_')}`,
+      })),
+    };
+    this.dialog.open(ImageViewerDialog, {
+      data, width: '1400px', maxWidth: '96vw', height: '92vh', panelClass: 'image-viewer-panel', autoFocus: false,
+    });
+  }
+
   onImgError(path: string) {
     this.brokenImages.update(s => new Set(s).add(path));
   }
 
   onDeployModel() {
     if (!this.runInfo()) return;
-    if (!confirm(`이 모델(Run ${this.runId().substring(0, 8)})을 서빙 컨테이너로 배포하시겠습니까?`)) return;
+    if (!confirm(`이 모델(Run ${this.runId().substring(0, 8)})으로 추론 서버를 실행할까요? MLOps PC에서 확인용으로만 쓰이며 운영 PC에는 반영되지 않습니다.`)) return;
     this.isDeploying.set(true);
     this.deploymentService.createDeployment({
       project_id: this.projectId() ?? this.job()?.project_id ?? 1,
@@ -163,12 +149,12 @@ export class ModelDetailV2 implements OnInit {
     }).subscribe({
       next: () => {
         this.isDeploying.set(false);
-        this.notificationService.showSuccess('배포를 시작했습니다.');
+        this.notificationService.showSuccess('추론 서버를 시작했습니다. 추론 테스트 메뉴에서 확인하세요.');
         this.router.navigate(['/dashboard/deployments']);
       },
       error: (err: Error) => {
         this.isDeploying.set(false);
-        this.notificationService.showWarning(err.message || '배포 요청에 실패했습니다.');
+        this.notificationService.showWarning(err.message || '추론 서버 실행 요청에 실패했습니다.');
       },
     });
   }

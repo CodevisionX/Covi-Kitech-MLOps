@@ -159,16 +159,6 @@ $transition-base: all var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
   justify-content: space-between;
   width: 100%;
 
-  .auto-badge {
-    background: var(--success-color);
-    color: white;
-    font-size: 10px;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-weight: 800;
-    margin-left: 10px;
-    text-transform: uppercase;
-  }
 }
 
 /* 설정 카드 영역 */
@@ -200,6 +190,9 @@ $transition-base: all var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
       }
     }
   }
+
+  .back-to-list { color: #64748b; }
+  .custom-error { color: var(--error-color, #c62828); }
 
   .params-grid {
     display: grid;

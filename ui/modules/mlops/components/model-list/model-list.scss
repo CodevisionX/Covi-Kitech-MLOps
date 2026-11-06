@@ -194,6 +194,27 @@
       }
     }
 
+    .tab-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: none;
+
+      & + .tab-group {
+        margin-left: 12px;
+        padding-left: 20px;
+        border-left: 1px solid #e2e8f0;
+      }
+    }
+
+    .tab-group-label {
+      font-size: 13px;
+      font-weight: 700;
+      color: #64748b;
+      margin-right: 2px;
+      white-space: nowrap;
+    }
+
     .empty-tabs-msg {
       display: flex;
       align-items: center;
@@ -345,6 +366,32 @@
 
     .mat-column-startTime {
       width: 180px;
+    }
+
+    .mat-column-progress {
+      width: 30%;
+    }
+
+    .mat-column-startedAt {
+      width: 130px;
+    }
+
+    .date-line {
+      font-size: 12px;
+      color: #64748b;
+    }
+
+    .mat-column-elapsed {
+      width: 120px;
+    }
+
+    .time-cell {
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .mat-column-statusView {
+      width: 140px;
     }
 
     .mat-column-dashboard {
@@ -526,96 +573,129 @@ button[mat-icon-button] {
   }
 }
 
-// 베스트 모델 요약 카드
+// 최고 성적 모델 요약 카드 (다른 카드와 같은 흰 바탕, 왼쪽 남색 선으로만 강조)
 .best-model-card {
-  position: relative;
-  background: linear-gradient(135deg, #ffffff 0%, #fffbeb 100%);
-  border: 2px solid #fbbf24;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid var(--main-primary-color);
   border-radius: 12px;
-  padding: 20px 24px;
+  padding: 18px 24px;
   margin-bottom: 24px;
-  box-shadow: 0 10px 15px -3px rgba(251, 191, 36, 0.1);
-  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
 
-  .best-ribbon {
-    position: absolute;
-    top: 0;
-    right: 0;
-    background: #fbbf24;
-    color: #92400e;
-    font-size: 11px;
-    font-weight: 900;
-    padding: 4px 12px;
-    border-bottom-left-radius: 12px;
-    letter-spacing: 0.05em;
+  .best-top {
+    display: flex;
+    align-items: center;
+    gap: 32px;
   }
 
-  .best-content {
+  .best-main { flex: 1; min-width: 0; }
+
+  .best-details {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid #eef2f7;
+  }
 
-    .best-label {
-      color: #b45309;
-      font-size: 13px;
-      font-weight: 600;
-    }
+  .detail-group {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
 
-    .best-run-name {
-      margin: 4px 0 12px;
-      font-size: 22px;
-      font-weight: 800;
-      color: #1a202c;
-    }
-
-    .best-metrics {
-      display: flex;
-      gap: 20px;
-
-      .metric-box {
-        display: flex;
-        flex-direction: column;
-
-        .m-label {
-          font-size: 11px;
-          color: #78350f;
-          font-weight: 600;
-        }
-
-        .m-value {
-          font-size: 20px;
-          font-weight: 900;
-          color: #d97706;
-        }
-      }
-    }
-
-    .best-deploy-btn {
-      background-color: #d97706;
-      color: white;
+    .group-title {
+      flex: none;
+      width: 72px;
+      font-size: 12.5px;
       font-weight: 700;
-      padding: 0 24px;
-      height: 48px;
-      border-radius: 8px;
-
-      &:hover {
-        background-color: #b45309;
-      }
+      color: #64748b;
     }
+
+    .items { display: flex; flex-wrap: wrap; gap: 6px 20px; }
+
+    .item {
+      display: inline-flex;
+      gap: 6px;
+      font-size: 13.5px;
+
+      .k { color: #64748b; }
+      .v { color: #1e293b; font-weight: 600; font-variant-numeric: tabular-nums; }
+    }
+  }
+
+  .best-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--main-primary-color);
+
+    mat-icon { font-size: 16px; width: 16px; height: 16px; }
+  }
+
+  .best-title {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin: 4px 0 6px;
+  }
+
+  .best-run-name { font-size: 20px; font-weight: 800; color: #1e293b; }
+  .best-job { font-size: 14px; font-weight: 600; color: #94a3b8; }
+
+  .best-sub {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    font-size: 13px;
+    color: #64748b;
+
+    span { display: inline-flex; align-items: center; gap: 4px; }
+    mat-icon { font-size: 15px; width: 15px; height: 15px; color: #94a3b8; }
+  }
+
+  .best-metric {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    padding-left: 32px;
+    border-left: 1px solid #e2e8f0;
+
+    .m-label { font-size: 12.5px; font-weight: 600; color: #64748b; }
+    .m-value {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--main-primary-color);
+      font-variant-numeric: tabular-nums;
+    }
+  }
+
+  .best-detail-btn {
+    flex: none;
+    height: 40px;
+    border-radius: 8px;
+    font-weight: 600;
   }
 }
 
-// 테이블 내 베스트 배지 애니메이션
+// 표 안 최고 성적 표시
 .best-badge {
-  color: #fbbf24;
-  margin-right: 6px;
-  animation: crown-bounce 2s infinite ease-in-out;
+  flex: none;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: #e8edf7;
+  color: var(--main-primary-color);
 }
 
 .run-name-wrapper {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
 }
 
 /* 서빙 중 아이콘 애니메이션 */
@@ -662,20 +742,8 @@ button[mat-icon-button] {
   animation: rotate 2s linear infinite;
 }
 
-@keyframes crown-bounce {
-
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-
-  50% {
-    transform: translateY(-4px);
-  }
-}
-
 .is-best-row {
-  background-color: #fffdf2 !important;
+  background-color: #f8faff !important;
 }
 
 @keyframes rotate {
@@ -879,4 +947,36 @@ button[mat-icon-button] {
   &.imported {
     color: var(--warning-color);
   }
+}
+
+.epoch-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  min-width: 160px;
+}
+
+.epoch-label {
+  font-size: 12px;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.status-view-btn {
+  white-space: nowrap;
+  mat-icon { margin-right: 2px; }
+}
+
+// 모델 파일 업로드 버튼 (파일을 끌어다 놓을 수도 있음)
+.upload-btn {
+  height: 54px;
+  padding: 0 30px;
+  border-radius: 10px;
+  font-size: 16.5px;
+  font-weight: 700;
+
+  mat-icon { margin-right: 6px; font-size: 24px; width: 24px; height: 24px; }
+
+  &.drop-over { box-shadow: 0 0 0 4px rgba(0, 35, 135, 0.2); }
 }

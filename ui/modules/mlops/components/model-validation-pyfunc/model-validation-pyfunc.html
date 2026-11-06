@@ -3,12 +3,15 @@
     <div class="title-row">
       <button mat-icon-button class="back-btn" (click)="goBack()"><mat-icon>arrow_back</mat-icon></button>
       <h1>
-        <mat-icon>{{ isDetection() ? 'center_focus_strong' : 'pin' }}</mat-icon>
-        {{ isDetection() ? '검출 모델 확인 (YOLO26)' : '인식 모델 확인 (PP-OCRv6)' }}
+        <mat-icon>{{ isTimeseries() ? 'show_chart' : isDetection() ? 'center_focus_strong' : 'pin' }}</mat-icon>
+        {{ isTimeseries() ? '시계열 모델 확인' : isDetection() ? '검출 모델 확인' : '인식 모델 확인' }} ({{ family() }})
       </h1>
     </div>
     <p>
-      @if (isDetection()) {
+      @if (isTimeseries()) {
+      .npy 파일(샘플 1개 (윈도[, 채널]) 또는 여러 개 (샘플, 윈도[, 채널]))을 올려 예측 결과를 확인합니다.
+      정답 y.npy 를 함께 올리면 정확도(분류) 또는 오차(회귀)를 계산합니다.
+      } @else if (isDetection()) {
       패널 이미지를 올려 숫자 영역 검출 결과를 확인합니다. 현장 운영 코드는 패널에서 박스가 정확히 6개일 때만 인식으로 넘깁니다.
       } @else {
       잘라낸 숫자 이미지를 여러 장 올려 인식 결과를 확인합니다. 정답 목록 파일을 함께 올리면 정확도를 계산합니다.
@@ -21,12 +24,52 @@
     <div class="info-grid">
       <div class="info-item"><span class="label">모델</span><span class="value">{{ dep.model_name }} v{{ dep.model_version ?? '-' }}</span></div>
       <div class="info-item"><span class="label">상태</span><span class="value status" [attr.data-status]="dep.status">{{ dep.status }}</span></div>
-      <div class="info-item"><span class="label">학습 Job</span><span class="value">{{ dep.job_id ?? '-' }}{{ job()?.tags?.['source'] === 'imported' ? ' (현장 모델)' : '' }}</span></div>
+      <div class="info-item"><span class="label">학습 Job</span><span class="value">{{ dep.job_id ?? '-' }}{{ job()?.tags?.['source'] === 'imported' ? ' (업로드 모델)' : '' }}</span></div>
       <div class="info-item wide"><span class="label">엔드포인트</span><span class="value mono">{{ dep.endpoint_url || '-' }}</span></div>
     </div>
   </mat-card>
   }
 
+  @if (isTimeseries()) {
+  <mat-card class="control-card">
+    <div class="ts-controls">
+      <button mat-stroked-button (click)="tsX.click()"><mat-icon>upload_file</mat-icon> 입력 X.npy 선택</button>
+      <span class="muted">{{ tsXName() || '선택 안 함' }}</span>
+      <input type="file" #tsX hidden accept=".npy" (change)="onTsFile($event, 'x')">
+      <button mat-stroked-button (click)="tsY.click()"><mat-icon>fact_check</mat-icon> 정답 y.npy (선택)</button>
+      <span class="muted">{{ tsYName() || '선택 안 함' }}</span>
+      <input type="file" #tsY hidden accept=".npy" (change)="onTsFile($event, 'y')">
+      <span class="spacer"></span>
+      <button mat-flat-button color="primary" [disabled]="!tsXFile() || isRunning()" (click)="runTimeseries()">
+        <mat-icon>play_arrow</mat-icon> 예측
+      </button>
+    </div>
+    @if (isRunning()) { <mat-progress-bar mode="indeterminate"></mat-progress-bar> }
+  </mat-card>
+
+  @if (tsResult(); as r) {
+  <mat-card class="result-card">
+    <div class="ts-summary">
+      <span>샘플 <b>{{ r.rows.length }}</b>개</span>
+      <span>응답 <b>{{ r.latencyMs | number:'1.0-0' }}</b> ms</span>
+      @if (r.metric) { <span>{{ r.metric.label }} <b>{{ r.metric.value }}</b></span> }
+    </div>
+    <div class="ts-table-wrap">
+      <table class="ts-table">
+        <tr><th>#</th><th>예측</th>@if (r.hasGt) {<th>정답</th>}@if (r.classification) {<th>확률</th>}</tr>
+        @for (row of r.rows.slice(0, 500); track $index) {
+        <tr [class.wrong]="row.wrong">
+          <td>{{ $index }}</td><td class="mono">{{ row.pred }}</td>
+          @if (r.hasGt) {<td class="mono">{{ row.gt }}</td>}
+          @if (r.classification) {<td class="mono muted">{{ row.prob }}</td>}
+        </tr>
+        }
+      </table>
+      @if (r.rows.length > 500) { <p class="muted">앞 500개만 표시합니다.</p> }
+    </div>
+  </mat-card>
+  }
+  } @else {
   <mat-card class="control-card">
     <div class="drop-zone" (click)="fileInput.click()" (drop)="onDrop($event)" (dragover)="$event.preventDefault()">
       <mat-icon>cloud_upload</mat-icon>
@@ -150,5 +193,6 @@
     </div>
     }
   </div>
+  }
   }
 </div>

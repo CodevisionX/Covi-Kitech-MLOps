@@ -91,9 +91,30 @@ $border-radius: 12px;
 
   .num { font-variant-numeric: tabular-nums; }
   .strong { font-weight: 700; color: $primary-color; }
-  .actions { text-align: right; white-space: nowrap; }
+  .actions { text-align: right; white-space: nowrap; > * { vertical-align: middle; } }
   .clickable { cursor: pointer; }
   .clickable:hover { background: rgba(0, 35, 135, 0.04); }
+}
+
+.deploy-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: -4px 0 16px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #f5f7fb;
+  color: #374151;
+  font-size: 13.5px;
+  line-height: 1.6;
+
+  mat-icon { color: $primary-color; font-size: 18px; width: 18px; height: 18px; flex: none; margin-top: 2px; }
+  code { background: #e8ecf3; border-radius: 4px; padding: 0 5px; font-size: 12.5px; }
+}
+
+.pkg-btn {
+  margin-right: 4px;
+  mat-icon { margin-right: 4px; }
 }
 
 .status-msg {
@@ -130,4 +151,40 @@ $border-radius: 12px;
   p { margin: 8px 0; }
   .muted { color: #6b7280; font-size: 13px; }
   a { color: $primary-color; font-weight: 600; }
+}
+
+// 모델 선택 메뉴: 모델별 묶음 + 두 줄 항목 (오버레이라 전역 선택자로 지정)
+::ng-deep .eval-model-panel {
+  min-width: 420px;
+  max-height: min(480px, 60vh) !important;
+
+  .mat-mdc-optgroup-label {
+    min-height: 36px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #475569;
+    background: #f8fafc;
+  }
+
+  .mat-mdc-option {
+    min-height: 60px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+
+  .job-opt { display: flex; flex-direction: column; gap: 3px; line-height: 1.35; }
+  .job-opt-main { display: flex; align-items: center; gap: 8px; font-size: 14.5px; color: #1e293b; }
+  .job-id { font-weight: 700; color: #334155; min-width: 34px; }
+  .job-origin { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .job-src {
+    flex: none;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 1px 8px;
+    border-radius: 10px;
+    background: #f1f5f9;
+    color: #475569;
+    &.imported { background: #fff7ed; color: #c2410c; }
+  }
+  .job-opt-sub { font-size: 12.5px; color: #64748b; padding-left: 42px; }
 }

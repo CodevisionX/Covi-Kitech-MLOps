@@ -1,0 +1,14 @@
+@if (overfitNote()) { <p class="overfit-note">{{ overfitNote() }}</p> }
+@if (!chartGroups().length) {
+<p class="muted">{{ !loaded() ? '불러오는 중...' : isLive() ? '첫 기록을 기다리는 중입니다.' : '기록된 학습 지표가 없습니다.' }}</p>
+}
+<div class="charts-grid" [style.grid-template-columns]="'repeat(' + columns() + ', minmax(0, 1fr))'">
+  @for (g of chartGroups(); track g.title) {
+  <mat-card class="chart-card">
+    <div class="chart-title">{{ g.title }}</div>
+    <div class="canvas-wrapper" [style.height.px]="chartHeight()">
+      <canvas baseChart [data]="g.data" [options]="chartOptions()" [type]="'line'"></canvas>
+    </div>
+  </mat-card>
+  }
+</div>

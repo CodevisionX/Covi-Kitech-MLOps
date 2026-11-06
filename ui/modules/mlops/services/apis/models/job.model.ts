@@ -32,6 +32,8 @@ export interface IJob {
   tags: Record<string, any>;
 
   metrics?: Record<string, number> | null;
+  /** 실행 중인 학습의 에폭 진행도 (완료 에폭 / 전체 에폭) */
+  progress?: { epoch: number; total: number } | null;
 
   // 실행 정보
   run_id?: string | null;
@@ -43,6 +45,7 @@ export interface IJob {
   created_at: string;
   updated_at?: string | null;
   finished_at?: string | null;
+  started_at?: string | null;
 
   // 에러 정보
   error_message?: string | null; // [추가됨]

@@ -67,7 +67,7 @@ export class Jobs extends BaseApi {
     return this.sse.getServerSentEvent(url, []);
   }
 
-  /** 현장 모델 파일 가져오기 (YOLO26: .pt 1개, PP-OCRv6: inference.json/.pdiparams/.yml) */
+  /** 모델 파일 업로드 (YOLO26: .pt 1개, PP-OCRv6: inference.json/.pdiparams/.yml) */
   importModel(projectId: number, variant: string, name: string, files: File[], imgsz = 640): Observable<IJob> {
     const form = new FormData();
     form.append('project_id', String(projectId));

@@ -14,11 +14,17 @@ import { ModelValidation } from './components/model-validation/model-validation'
 import { ModelDetailCnn } from './components/model-detail-cnn/model-detail-cnn';
 import { ModelValidationCnn } from './components/model-validation-cnn/model-validation-cnn';
 import { DatasetsPage } from './pages/datasets/datasets';
+import { EvalSteps } from './components/eval-steps/eval-steps';
 import { EvaluationList } from './pages/evaluations/evaluations';
 import { EvaluationDetail } from './pages/evaluation-detail/evaluation-detail';
 import { ModelValidationPyfunc } from './components/model-validation-pyfunc/model-validation-pyfunc';
 import { ModelDetailV2 } from './components/model-detail-v2/model-detail-v2';
 import { ImportModelDialog } from './components/dialogs/import-model/import-model';
+import { SlotViewDialog } from './components/dialogs/slot-view/slot-view';
+import { ImageViewerDialog } from './components/dialogs/image-viewer/image-viewer';
+import { TrainingStatusDialog } from './components/dialogs/training-status/training-status';
+import { TrainingCharts } from './components/training-charts/training-charts';
+import { DatasetGuideDialog } from './components/dialogs/dataset-guide/dataset-guide';
 
 @NgModule({
   declarations: [
@@ -33,11 +39,17 @@ import { ImportModelDialog } from './components/dialogs/import-model/import-mode
     ModelDetailCnn,
     ModelValidationCnn,
     DatasetsPage,
+    EvalSteps,
     EvaluationList,
     EvaluationDetail,
     ModelValidationPyfunc,
     ModelDetailV2,
     ImportModelDialog,
+    SlotViewDialog,
+    ImageViewerDialog,
+    TrainingStatusDialog,
+    TrainingCharts,
+    DatasetGuideDialog,
   ],
   imports: [
     CommonModule,

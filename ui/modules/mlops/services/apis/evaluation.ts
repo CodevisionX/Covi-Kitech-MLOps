@@ -37,6 +37,20 @@ export class EvaluationApi extends BaseApi {
     return `${this.baseUrl}/api/v1/evaluations/${id}/predictions`;
   }
 
+  /** 평가에 쓴 패널 이미지 + 검출 박스 (선택 슬롯 강조) */
+  panelImageUrl(id: number, r: { image: string; panel: string; slot?: string; result?: string }): string {
+    const q = new URLSearchParams({ image: r.image, panel: r.panel });
+    if (r.slot) q.set('slot', r.slot);
+    if (r.result) q.set('result', r.result);
+    return `${this.baseUrl}/api/v1/evaluations/${id}/panel-image?${q}`;
+  }
+
+  /** 인식 모델에 들어간 슬롯 이미지 */
+  slotCropUrl(id: number, r: { image: string; panel: string; slot: string }): string {
+    const q = new URLSearchParams({ image: r.image, panel: r.panel, slot: r.slot });
+    return `${this.baseUrl}/api/v1/evaluations/${id}/slot-crop?${q}`;
+  }
+
   /** 현장 폴더 구조의 배포 패키지 zip (브라우저가 바로 내려받음) */
   packageUrl(id: number): string {
     return `${this.baseUrl}/api/v1/evaluations/${id}/package`;

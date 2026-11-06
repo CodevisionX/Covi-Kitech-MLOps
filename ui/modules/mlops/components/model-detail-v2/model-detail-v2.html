@@ -11,11 +11,14 @@
         <h1>{{ variant() || 'Run' }} · {{ runId().substring(0, 8) }}</h1>
         <span class="status-badge" [attr.data-status]="runInfo()?.status">{{ runInfo()?.status }}</span>
         @if (isImported()) {
-        <span class="imported-badge" matTooltip="현장에서 쓰던 모델 파일을 가져와 기록한 run 입니다.">현장 모델</span>
+        <span class="imported-badge" matTooltip="모델 파일을 직접 올려 기록한 run 입니다.">업로드 모델</span>
         }
       </div>
     </div>
     <div class="header-actions">
+      <button mat-button (click)="openMlflow()" matTooltip="MLflow 에서 전체 파라미터·파일 보기">
+        <mat-icon>open_in_new</mat-icon> MLflow
+      </button>
       <button mat-stroked-button color="primary" (click)="goEvaluation()"
         [disabled]="runInfo()?.status !== 'FINISHED'">
         <mat-icon>fact_check</mat-icon> E2E 평가하기
@@ -23,7 +26,7 @@
       <button mat-flat-button color="primary" class="deploy-btn"
         [disabled]="isDeploying() || runInfo()?.status !== 'FINISHED'" (click)="onDeployModel()">
         <mat-icon>{{ isDeploying() ? 'sync' : 'rocket_launch' }}</mat-icon>
-        {{ isDeploying() ? '배포 요청 중...' : '모델 배포' }}
+        {{ isDeploying() ? '요청 중...' : '추론 서버 실행' }}
       </button>
     </div>
   </header>
@@ -34,7 +37,7 @@
       <div class="info-item"><label>Job ID</label><div class="value">{{ jobId() ?? '-' }}</div></div>
       <div class="info-item">
         <label>데이터셋 버전</label>
-        <div class="value">{{ tags()['dataset_version'] || (isImported() ? '(현장 모델)' : '-') }}</div>
+        <div class="value">{{ tags()['dataset_version'] || (isImported() ? '(업로드 모델)' : '-') }}</div>
       </div>
       <div class="info-item">
         <label>체크포인트 선택</label>
@@ -54,7 +57,7 @@
   <section class="section">
     <h3 class="section-title"><mat-icon>leaderboard</mat-icon> 최종 평가 (선택된 체크포인트)</h3>
     @if (isImported()) {
-    <p class="muted">가져온 현장 모델은 학습 지표가 없습니다. E2E 평가로 새 모델과 비교하세요.</p>
+    <p class="muted">업로드 모델은 학습 지표가 없습니다. E2E 평가로 다른 모델과 비교하세요.</p>
     } @else {
     <div class="tiles-row">
       <div class="tile-group">
@@ -79,32 +82,25 @@
     }
   </section>
 
-  @if (chartGroups().length) {
   <section class="section">
-    <h3 class="section-title"><mat-icon>analytics</mat-icon> 학습 추이</h3>
-    <div class="charts-grid">
-      @for (g of chartGroups(); track g.title) {
-      <mat-card class="card chart-card">
-        <div class="chart-title">{{ g.title }}</div>
-        <div class="canvas-wrapper">
-          <canvas baseChart [data]="g.data" [options]="chartOptions" [type]="'line'"></canvas>
-        </div>
-      </mat-card>
-      }
-    </div>
+    <h3 class="section-title"><mat-icon>analytics</mat-icon> 학습 추이
+      @if (isLive()) { <span class="live-badge"><span class="dot"></span>실시간 갱신 중</span> }
+    </h3>
+    <app-training-charts [runId]="runId()" [hidePrecisionRecall]="isDetection()"
+      (statusChange)="onRunStatus($event)"></app-training-charts>
   </section>
-  }
 
-  @if (plotImages().length) {
+  @if (evalPlots().length) {
   <section class="section">
-    <h3 class="section-title"><mat-icon>image_search</mat-icon> 학습 결과 그림</h3>
-    <div class="image-grid">
-      @for (p of plotImages(); track p.path) {
+    <h3 class="section-title"><mat-icon>show_chart</mat-icon> P-R 곡선 · Confusion Matrix (선택된 체크포인트)</h3>
+    <p class="overfit-note">P-R 곡선은 신뢰도 기준값을 바꿔 가며 계산한 Precision과 Recall이며, 곡선 아래 넓이가 mAP@0.5입니다. Confusion Matrix는 정답 클래스와 예측 클래스를 비교한 표입니다. 그림을 누르면 크게 보고 확대하거나 내려받을 수 있습니다.</p>
+    <div class="pr-grid">
+      @for (p of evalPlots(); track p.path; let i = $index) {
       <mat-card class="card image-card">
         <span class="img-tag">{{ p.label }}</span>
-        <a [href]="previewUrl(p.path)" target="_blank">
+        <button type="button" class="img-open" (click)="openPlot(i)" matTooltip="크게 보기">
           <img [src]="previewUrl(p.path)" (error)="onImgError(p.path)" [alt]="p.label">
-        </a>
+        </button>
       </mat-card>
       }
     </div>

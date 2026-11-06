@@ -128,6 +128,13 @@ export class Deployment extends BaseApi {
   }
 
   /** YOLO26 / PP-OCRv6 서빙에 base64 이미지 여러 장을 한 번에 보냅니다. */
+  /** 시계열 모델: .npy 파일 하나로 예측 */
+  predictNpyFile(deploymentId: number, file: File): Observable<any> {
+    const form = new FormData();
+    form.append('upload_file', file, file.name);
+    return this.http.post<any>(`/deployments/${deploymentId}/predict/npy`, form).pipe(catchError(this.handleError));
+  }
+
   predictImages(deploymentId: number, images: string[], params?: Record<string, number>): Observable<any> {
     return this.http.post<any>(`/deployments/${deploymentId}/predict`, { images, params })
       .pipe(catchError(this.handleError));

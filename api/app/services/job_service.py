@@ -13,7 +13,8 @@ import aiofiles
 from app.models.job import Job, get_kst_now
 from app.models.project import Project
 from app.schemas.job import JobCreate
-from app.core.constants import JobStatus, DatasetStatus, MODEL_DATASET_TASKS, PYFUNC_SERVING_MODELS
+from app.core.constants import (JobStatus, DatasetStatus, MODEL_DATASET_TASKS, DETECTION_MODELS,
+                                RECOGNITION_MODELS)
 from app.models.dataset import DatasetVersion
 from fastapi import HTTPException
 
@@ -26,17 +27,26 @@ from app.core.config import settings
 # Services
 from app.services.sse_service import sse_manager
 
+# 모델 종류별 (학습 이미지, 학습 스크립트, 추가 환경 변수).
+# YOLOv8 과 1D-CNN 도 PyTorch 학습 이미지(YOLO26 이미지)에서 학습·서빙합니다.
+_RUNTIMES = {
+    "YOLO26": (lambda: settings.TRAINING_IMAGE_YOLO26, "train_yolo26.py", {}),
+    "YOLOv8": (lambda: settings.TRAINING_IMAGE_YOLO26, "train_yolo26.py", {"PRETRAINED_WEIGHTS": "yolov8n.pt"}),
+    "PP-OCRv6": (lambda: settings.TRAINING_IMAGE_PPOCR, "train_ppocr.py", {}),
+    "1D-CNN": (lambda: settings.TRAINING_IMAGE_YOLO26, "train_cnn1d.py", {}),
+}
+
+
 def get_training_runtime(model_variant: str):
     """모델 종류별 (학습 이미지, 학습 스크립트). 모르는 종류는 다른 모델로 학습되지 않도록 거부합니다."""
-    runtimes = {
-        "YOLOv8": (settings.TRAINING_IMAGE, "train_yolo.py"),
-        "1D-CNN": (settings.TRAINING_IMAGE, "train_cnn.py"),
-        "YOLO26": (settings.TRAINING_IMAGE_YOLO26, "train_yolo26.py"),
-        "PP-OCRv6": (settings.TRAINING_IMAGE_PPOCR, "train_ppocr.py"),
-    }
-    if model_variant not in runtimes:
-        raise ValueError(f"지원하지 않는 모델 종류입니다: {model_variant} (가능: {', '.join(runtimes)})")
-    return runtimes[model_variant]
+    if model_variant not in _RUNTIMES:
+        raise ValueError(f"지원하지 않는 모델 종류입니다: {model_variant} (가능: {', '.join(_RUNTIMES)})")
+    image, script, _ = _RUNTIMES[model_variant]
+    return image(), script
+
+
+def training_extra_env(model_variant: str) -> dict:
+    return dict(_RUNTIMES.get(model_variant, (None, None, {}))[2])
 
 
 class JobService:
@@ -144,6 +154,7 @@ class JobService:
                 run = await loop.run_in_executor(None, lambda: mlflow_provider.create_run(experiment_name=experiment_name))
                 
                 job.status = JobStatus.RUNNING.value
+                job.started_at = get_kst_now()
                 job.run_id = run.info.run_id
                 job.experiment_id = run.info.experiment_id
 
@@ -233,6 +244,8 @@ class JobService:
             "MLFLOW_PYTHON_IGNORE_GIT_ERROR": "true",
         }
 
+        env["MODEL_VARIANT"] = job.model_variant
+        env.update(training_extra_env(job.model_variant))
         if job.params:
             for k, v in job.params.items():
                 env[k.upper()] = str(v)
@@ -457,8 +470,50 @@ class JobService:
         
         if project_id:
             query = query.filter(Job.project_id == project_id)
-            
-        return query.order_by(Job.id.desc()).all()
+
+        jobs = query.order_by(Job.id.desc()).all()
+        for job in jobs:
+            if job.status == JobStatus.RUNNING.value:
+                job.progress = self._epoch_progress(job)
+        return jobs
+
+    # 모델별 에폭 진행 지표: (MLflow 지표 이름, 읽는 방법, 학습 스크립트의 EPOCHS 기본값)
+    #  - step: 에폭마다 step=에폭 번호(1부터)로 기록되는 지표의 마지막 step
+    #  - step0: step=에폭 번호(0부터)
+    #  - value: 지표 값 자체가 진행 중인 에폭 번호(1부터)
+    #  모델마다 후보를 앞에서부터 찾아 처음 기록이 있는 것을 씀 (v1 기록 호환 포함)
+    _EPOCH_SOURCE = {
+        "YOLO26": ([("lr/pg0", "step")], 100),
+        "YOLOv8": ([("lr/pg0", "step")], 100),
+        "1D-CNN": ([("train/loss", "step"), ("train_loss", "step0")], 50),
+        "PP-OCRv6": ([("train/epoch", "value")], 50),
+    }
+
+    def _epoch_progress(self, job: Job) -> Optional[Dict[str, int]]:
+        """MLflow 에 기록된 에폭 지표로 완료 에폭 수를 계산합니다. 학습 이미지 변경 없이 동작합니다."""
+        source = self._EPOCH_SOURCE.get(job.model_variant)
+        if not source or not job.run_id or (job.tags or {}).get("source") == "imported":
+            return None
+        candidates, default_total = source
+        try:
+            total = int((job.params or {}).get("epochs", default_total))
+        except (TypeError, ValueError):
+            return None
+        done = 0
+        try:
+            metrics = mlflow_provider.client.get_run(job.run_id).data.metrics
+            key, mode = next(((k, m) for k, m in candidates if k in metrics), candidates[0])
+            if mode == "value":  # 진행 중인 에폭 번호이므로 그 전 에폭까지 완료. 기록이 많아 마지막 값만 읽음
+                latest = metrics.get(key)
+                if latest is not None:
+                    done = int(latest) - 1
+            else:  # 에폭당 1건이라 이력이 짧음
+                history = mlflow_provider.client.get_metric_history(job.run_id, key)
+                if history:
+                    done = max(m.step for m in history) + (1 if mode == "step0" else 0)
+        except Exception:
+            return None
+        return {"epoch": max(0, min(done, total)), "total": total}
 
     def get_job_history(self, db: Session, project_id: Optional[int], skip: int = 0, limit: int = 20) -> List[Job]:
         # 1. DB에서 먼저 이력 정보를 가져옵니다.
@@ -480,7 +535,10 @@ class JobService:
         """
         특정 ID의 작업 상세 정보를 조회합니다. (MLflow 메트릭 포함)
         """
-        return db.query(Job).filter(Job.id == job_id).first()
+        job = db.query(Job).filter(Job.id == job_id).first()
+        if job and job.status == JobStatus.RUNNING.value:
+            job.progress = self._epoch_progress(job)
+        return job
     
     async def get_all_logs(self, job_id: int) -> str:
         """종료된 작업의 로그 파일 전체 내용을 읽어 반환합니다."""
@@ -505,7 +563,8 @@ class JobService:
             model_variant=job_in.model_variant,
             params=job_in.params,
             tags=job_in.tags,
-            status=JobStatus.RUNNING.value
+            status=JobStatus.RUNNING.value,
+            started_at=get_kst_now(),
         )
         db.add(job)
         db.commit()
@@ -546,13 +605,14 @@ class JobService:
         파일 확인과 기록만 하므로 학습 큐를 거치지 않고 바로 실행합니다.
         Paddle GPU 빌드는 GPU 라이브러리 없이는 import 되지 않으므로 GPU 를 붙여 실행합니다.
         """
-        if model_variant not in PYFUNC_SERVING_MODELS:
-            raise HTTPException(400, f"가져올 수 있는 모델 종류: {', '.join(sorted(PYFUNC_SERVING_MODELS))}")
+        importable = DETECTION_MODELS | RECOGNITION_MODELS
+        if model_variant not in importable:
+            raise HTTPException(400, f"가져올 수 있는 모델 종류: {', '.join(sorted(importable))}")
         project = db.query(Project).get(project_id)
         if not project:
             raise HTTPException(404, "프로젝트를 찾을 수 없습니다")
         names = [os.path.basename(f.filename or "") for f in files]
-        if model_variant == "YOLO26":
+        if model_variant in DETECTION_MODELS:
             if len(names) != 1 or not names[0].lower().endswith(".pt"):
                 raise HTTPException(400, "검출 모델은 .pt 파일 1개를 올려 주세요")
         elif sorted(names) != sorted(self.IMPORT_REC_FILES):
@@ -560,9 +620,10 @@ class JobService:
 
         job = Job(
             project_id=project_id, experiment_id="0", dataset="", model_variant=model_variant,
-            params={"imgsz": imgsz} if model_variant == "YOLO26" else {},
+            params={"imgsz": imgsz} if model_variant in DETECTION_MODELS else {},
             tags={"source": "imported", "import_name": name},
             status=JobStatus.RUNNING.value,
+            started_at=get_kst_now(),
         )
         db.add(job)
         db.commit()

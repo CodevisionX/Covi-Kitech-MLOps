@@ -46,6 +46,14 @@ $border-radius: 12px;
   }
 }
 
+.steps-card {
+  border-radius: 12px !important;
+  border: 1px solid #eef0f5;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+  padding: 20px 28px;
+  margin-bottom: 16px;
+}
+
 .msg {
   display: flex;
   align-items: center;
@@ -231,3 +239,7 @@ mat-card {
   &[data-status="DETECTING"],
   &[data-status="RECOGNIZING"] { background: #fff3e0; color: #ef6c00; }
 }
+
+.clickable-row { cursor: pointer; }
+.clickable-row:hover td { background: #f1f5f9; }
+.title-hint { font-size: 12px; font-weight: 400; color: #94a3b8; margin-left: 8px; }
