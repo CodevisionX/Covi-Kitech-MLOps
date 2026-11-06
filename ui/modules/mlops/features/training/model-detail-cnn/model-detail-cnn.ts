@@ -4,6 +4,7 @@ import { Chart, registerables, ChartConfiguration, ChartOptions } from 'chart.js
 import { Experiment } from '../../../services/apis/experiment';
 import { Notification } from '../../../services/notification';
 import { IMLflowRun } from '../../../services/apis/models/experiment.model';
+import { CHART_COLORS } from '../../../../shared/utils/chart-theme';
 import { relativeTime } from '../../../../shared/utils/format';
 import { Deployment } from '../../../services/apis/deployment';
 import { HttpErrorResponse, HttpResponse } from '@angular/common/http';
@@ -122,10 +123,10 @@ export class ModelDetailCnn {
       datasets: [{
         data: chartValues,
         label: performanceKey === 'train_loss' ? 'Accuracy' : 'mAP@0.5',
-        borderColor: '#002387',
+        borderColor: CHART_COLORS[0],
         backgroundColor: 'rgba(0, 35, 135, 0.1)',
         fill: true,
-        tension: 0.4,
+        tension: 0,
         pointRadius: 2
       }]
     };
@@ -143,8 +144,8 @@ export class ModelDetailCnn {
       datasets.push({ 
         data: data['train_loss'], 
         label: 'Total Loss (CNN)', 
-        borderColor: '#F44336', 
-        tension: 0.4, 
+        borderColor: CHART_COLORS[0], 
+        tension: 0, 
         fill: false 
       });
       labels = data['train_loss'].map((_: any, i: number) => `Epoch ${i + 1}`);
@@ -153,8 +154,8 @@ export class ModelDetailCnn {
     else {
       const boxLoss = data['train/box_loss'] || [];
       const clsLoss = data['train/cls_loss'] || [];
-      if (boxLoss.length > 0) datasets.push({ data: boxLoss, label: 'Box Loss', borderColor: '#E91E63', tension: 0.4, fill: false });
-      if (clsLoss.length > 0) datasets.push({ data: clsLoss, label: 'Class Loss', borderColor: '#4CAF50', tension: 0.4, fill: false });
+      if (boxLoss.length > 0) datasets.push({ data: boxLoss, label: 'Box Loss', borderColor: CHART_COLORS[0], tension: 0, fill: false });
+      if (clsLoss.length > 0) datasets.push({ data: clsLoss, label: 'Class Loss', borderColor: CHART_COLORS[1], tension: 0, fill: false });
       labels = boxLoss.length > 0 ? boxLoss.map((_: any, i: number) => `Epoch ${i + 1}`) : [];
     }
 
@@ -179,7 +180,8 @@ export class ModelDetailCnn {
         }
       },
       x: {
-        grid: { display: false }
+        grid: { display: false },
+        ticks: { maxRotation: 0 }
       }
     }
   };

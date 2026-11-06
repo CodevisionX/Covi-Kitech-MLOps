@@ -9,6 +9,7 @@ import { MlopsRoutingModule } from './mlops-routing-module';
 import { Dashboard } from './features/training/dashboard/dashboard';
 import { Train } from './features/training/train/train';
 import { SharedModule } from '../shared/shared-module';
+import { applyChartTheme } from '../shared/utils/chart-theme';
 import { ModelValidation } from './features/inference/model-validation/model-validation';
 import { ModelDetailCnn } from './features/training/model-detail-cnn/model-detail-cnn';
 import { ModelValidationCnn } from './features/inference/model-validation-cnn/model-validation-cnn';
@@ -61,4 +62,8 @@ import { DatasetGuideDialog } from './features/datasets/dataset-guide/dataset-gu
 
   ]
 })
-export class MlopsModule { }
+export class MlopsModule {
+  constructor() {
+    applyChartTheme();
+  }
+}

@@ -4,6 +4,7 @@ import { Chart, registerables, ChartConfiguration, ChartOptions } from 'chart.js
 import { Experiment } from '../../../services/apis/experiment';
 import { Notification } from '../../../services/notification';
 import { IMLflowRun } from '../../../services/apis/models/experiment.model';
+import { CHART_COLORS } from '../../../../shared/utils/chart-theme';
 import { relativeTime } from '../../../../shared/utils/format';
 import { Deployment } from '../../../services/apis/deployment';
 import { HttpErrorResponse, HttpResponse } from '@angular/common/http';
@@ -121,10 +122,10 @@ export class ModelDetail {
       datasets: [{
         data: data[key],
         label: 'mAP@0.5',
-        borderColor: '#002387',
+        borderColor: CHART_COLORS[0],
         backgroundColor: 'rgba(0, 35, 135, 0.1)',
         fill: true,
-        tension: 0.4,
+        tension: 0,
         pointRadius: 2
       }]
     };
@@ -144,8 +145,8 @@ export class ModelDetail {
         ? boxLoss.map((_: any, i: number) => `Epoch ${i + 1}`)
         : clsLoss.map((_: any, i: number) => `Epoch ${i + 1}`),
       datasets: [
-        { data: boxLoss, label: 'Box Loss', borderColor: '#E91E63', tension: 0.4, fill: false },
-        { data: clsLoss, label: 'Class Loss', borderColor: '#4CAF50', tension: 0.4, fill: false }
+        { data: boxLoss, label: 'Box Loss', borderColor: CHART_COLORS[0], tension: 0, fill: false },
+        { data: clsLoss, label: 'Class Loss', borderColor: CHART_COLORS[1], tension: 0, fill: false }
       ]
     };
   });
@@ -168,7 +169,8 @@ export class ModelDetail {
         }
       },
       x: {
-        grid: { display: false }
+        grid: { display: false },
+        ticks: { maxRotation: 0 }
       }
     }
   };
