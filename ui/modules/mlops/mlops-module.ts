@@ -1,35 +1,33 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { BaseChartDirective } from 'ng2-charts';
-import { Dataset } from './components/dataset/dataset';
-import { Deploy } from './components/deploy/deploy';
-import { TerminalLog } from './components/dialogs/terminal-log/terminal-log';
-import { ModelDetail } from './components/model-detail/model-detail';
-import { ModelList } from './components/model-list/model-list';
+import { Deploy } from './features/inference/deploy/deploy';
+import { TerminalLog } from './features/common/terminal-log/terminal-log';
+import { ModelDetail } from './features/training/model-detail/model-detail';
+import { ModelList } from './features/training/model-list/model-list';
 import { MlopsRoutingModule } from './mlops-routing-module';
-import { Dashboard } from './pages/dashboard/dashboard';
-import { Train } from './components/train/train';
+import { Dashboard } from './features/training/dashboard/dashboard';
+import { Train } from './features/training/train/train';
 import { SharedModule } from '../shared/shared-module';
-import { ModelValidation } from './components/model-validation/model-validation';
-import { ModelDetailCnn } from './components/model-detail-cnn/model-detail-cnn';
-import { ModelValidationCnn } from './components/model-validation-cnn/model-validation-cnn';
-import { DatasetsPage } from './pages/datasets/datasets';
-import { EvalSteps } from './components/eval-steps/eval-steps';
-import { EvaluationList } from './pages/evaluations/evaluations';
-import { EvaluationDetail } from './pages/evaluation-detail/evaluation-detail';
-import { ModelValidationPyfunc } from './components/model-validation-pyfunc/model-validation-pyfunc';
-import { ModelDetailV2 } from './components/model-detail-v2/model-detail-v2';
-import { RunDetailView } from './components/run-detail-view/run-detail-view';
-import { ImportModelDialog } from './components/dialogs/import-model/import-model';
-import { SlotViewDialog } from './components/dialogs/slot-view/slot-view';
-import { ImageViewerDialog } from './components/dialogs/image-viewer/image-viewer';
-import { TrainingStatusDialog } from './components/dialogs/training-status/training-status';
-import { TrainingCharts } from './components/training-charts/training-charts';
-import { DatasetGuideDialog } from './components/dialogs/dataset-guide/dataset-guide';
+import { ModelValidation } from './features/inference/model-validation/model-validation';
+import { ModelDetailCnn } from './features/training/model-detail-cnn/model-detail-cnn';
+import { ModelValidationCnn } from './features/inference/model-validation-cnn/model-validation-cnn';
+import { DatasetsPage } from './features/datasets/datasets-page/datasets';
+import { EvalSteps } from './features/evaluation/eval-steps/eval-steps';
+import { EvaluationList } from './features/evaluation/evaluations/evaluations';
+import { EvaluationDetail } from './features/evaluation/evaluation-detail/evaluation-detail';
+import { ModelValidationPyfunc } from './features/inference/model-validation-pyfunc/model-validation-pyfunc';
+import { ModelDetailV2 } from './features/training/model-detail-v2/model-detail-v2';
+import { RunDetailView } from './features/training/run-detail-view/run-detail-view';
+import { ImportModelDialog } from './features/training/import-model/import-model';
+import { SlotViewDialog } from './features/evaluation/slot-view/slot-view';
+import { ImageViewerDialog } from './features/training/image-viewer/image-viewer';
+import { TrainingStatusDialog } from './features/training/training-status/training-status';
+import { TrainingCharts } from './features/training/training-charts/training-charts';
+import { DatasetGuideDialog } from './features/datasets/dataset-guide/dataset-guide';
 
 @NgModule({
   declarations: [
-    Dataset,
     Train,
     ModelList,
     Dashboard,
