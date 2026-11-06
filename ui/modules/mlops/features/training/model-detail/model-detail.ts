@@ -123,10 +123,8 @@ export class ModelDetail {
         data: data[key],
         label: 'mAP@0.5',
         borderColor: CHART_COLORS[0],
-        backgroundColor: 'rgba(0, 35, 135, 0.1)',
-        fill: true,
+        fill: false,
         tension: 0,
-        pointRadius: 2
       }]
     };
   });

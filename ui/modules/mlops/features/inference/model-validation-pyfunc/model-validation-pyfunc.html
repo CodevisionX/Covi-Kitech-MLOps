@@ -111,11 +111,10 @@
     }
   </mat-card>
 
-  <!-- 검출 결과 -->
   @if (isDetection() && detResults().length) {
   <div class="summary-bar">
     <span>결과 {{ detSummary().total }}장</span>
-    <span class="chip" [class.ok]="detSummary().six === detSummary().total">
+    <span class="inline-tag chip" [class.ok]="detSummary().six === detSummary().total">
       박스 6개: {{ detSummary().six }} / {{ detSummary().total }}
     </span>
   </div>
@@ -125,9 +124,9 @@
       <div class="det-head">
         <span class="file-name" [matTooltip]="r.file.name">{{ r.file.name }}</span>
         @if (r.error) {
-        <span class="chip bad">오류</span>
+        <span class="inline-tag chip bad">오류</span>
         } @else {
-        <span class="chip" [class.ok]="r.boxes.length === PANEL_SLOTS" [class.bad]="r.boxes.length !== PANEL_SLOTS">
+        <span class="inline-tag chip" [class.ok]="r.boxes.length === PANEL_SLOTS" [class.bad]="r.boxes.length !== PANEL_SLOTS">
           박스 {{ r.boxes.length }}개
         </span>
         }
@@ -159,12 +158,11 @@
   </div>
   }
 
-  <!-- 인식 결과 -->
   @if (!isDetection() && recResults().length) {
   <div class="summary-bar">
     <span>결과 {{ recResults().length }}장 · {{ recLatencyMs() | number:'1.0-0' }} ms</span>
     @if (recSummary().acc !== null) {
-    <span class="chip" [class.ok]="recSummary().acc === 1" [class.bad]="recSummary().acc! < 1">
+    <span class="inline-tag chip" [class.ok]="recSummary().acc === 1" [class.bad]="recSummary().acc! < 1">
       정확도 {{ (recSummary().acc! * 100) | number:'1.1-1' }}% ({{ recSummary().correct }}/{{ recSummary().labeled }})
     </span>
     <label class="toggle"><input type="checkbox" [checked]="showOnlyWrong()"

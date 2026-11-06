@@ -1,11 +1,5 @@
 <div class="train-container">
-  <header class="train-header">
-    <div class="title-group">
-      <mat-icon style="color: var(--main-primary-color)">model_training</mat-icon>
-      <h1>AI 모델 학습 설정</h1>
-    </div>
-    <p class="subtitle">데이터셋을 확인하고 학습 파라미터를 최적화하여 모델 생성을 시작합니다.</p>
-  </header>
+  <app-page-header title="AI 모델 학습 설정" subtitle="데이터셋을 확인하고 학습 파라미터를 최적화하여 모델 생성을 시작합니다."></app-page-header>
 
   <section class="info-section">
     @if (showVersionCard) {
@@ -41,7 +35,7 @@
         @if (selectedVersion?.stats?.['counts']; as counts) {
         <div class="version-counts">
           @for (c of counts | keyvalue; track c.key) {
-          <span class="count-chip">{{ c.key }}: {{ $any(c.value)?.images ?? $any(c.value)?.samples ?? c.value }}</span>
+          <span class="inline-tag">{{ c.key }}: {{ $any(c.value)?.images ?? $any(c.value)?.samples ?? c.value }}</span>
           }
         </div>
         }
@@ -91,7 +85,6 @@
       @if (selectedModelName) {
       <div class="params-container">
         <div class="params-header">
-          <mat-icon>settings</mat-icon>
           <span>하이퍼파라미터 설정 ({{ selectedModelName }})</span>
         </div>
 

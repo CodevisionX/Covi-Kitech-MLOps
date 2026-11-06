@@ -1,18 +1,12 @@
-$primary-color: #002387;
-$border-radius: 12px;
-
 .eval-container {
-  padding: 32px;
-  background-color: #f8f9fa;
+  padding: 24px;
+  background-color: var(--bg-body);
   min-height: calc(100vh - 64px);
   box-sizing: border-box;
 }
 
 .create-card,
 .list-card {
-  border-radius: $border-radius !important;
-  border: 1px solid #eef0f5;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
   padding: 20px 24px;
   margin-bottom: 24px;
 }
@@ -21,12 +15,10 @@ $border-radius: 12px;
   display: flex;
   align-items: center;
   gap: 8px;
-  font-weight: 700;
-  font-size: 16px;
-  color: #1a1a1a;
+  font-weight: 600;
+  font-size: var(--text-section);
+  color: var(--text-main);
   margin-bottom: 16px;
-
-  mat-icon { color: $primary-color; }
 }
 
 .form-grid {
@@ -38,12 +30,13 @@ $border-radius: 12px;
 .toggle-params { margin-bottom: 8px; }
 
 .params-box {
-  background: #f5f7fa;
-  border-radius: 8px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
   padding: 12px 16px 0;
   margin-bottom: 12px;
 
-  .hint { margin: 0 0 12px; font-size: 13px; color: #6b7280; }
+  .hint { margin: 0 0 12px; font-size: var(--text-label); color: var(--text-muted); }
 }
 
 .params-grid {
@@ -66,11 +59,13 @@ $border-radius: 12px;
 .eval-table {
   width: 100%;
 
+  th.mat-mdc-header-cell, td.mat-mdc-cell { padding: 0 8px; }
+  th.mat-mdc-header-cell, td.mat-column-created { white-space: nowrap; }
   .num { font-variant-numeric: tabular-nums; }
-  .strong { font-weight: 700; color: $primary-color; }
+  .strong { font-weight: 600; color: var(--main-primary-color); }
   .actions { text-align: right; white-space: nowrap; > * { vertical-align: middle; } }
   .clickable { cursor: pointer; }
-  .clickable:hover { background: rgba(0, 35, 135, 0.04); }
+  .clickable:hover { background: var(--bg-subtle); }
 }
 
 .deploy-hint {
@@ -79,14 +74,14 @@ $border-radius: 12px;
   gap: 8px;
   margin: -4px 0 16px;
   padding: 10px 14px;
-  border-radius: 8px;
-  background: #f5f7fb;
-  color: #374151;
-  font-size: 13.5px;
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  color: var(--text-main);
+  font-size: var(--text-label);
   line-height: 1.6;
 
-  mat-icon { color: $primary-color; font-size: 18px; width: 18px; height: 18px; flex: none; margin-top: 2px; }
-  code { background: #e8ecf3; border-radius: 4px; padding: 0 5px; font-size: 12.5px; }
+  mat-icon { color: var(--main-primary-color); font-size: 18px; width: 18px; height: 18px; flex: none; margin-top: 2px; }
+  code { background: var(--neutral-bg); border-radius: var(--radius-sm); padding: 0 4px; font-family: var(--font-mono); font-size: var(--text-label); }
 }
 
 .pkg-btn {
@@ -95,8 +90,8 @@ $border-radius: 12px;
 }
 
 .status-msg {
-  font-size: 12px;
-  color: #6b7280;
+  font-size: var(--text-meta);
+  color: var(--text-muted);
   max-width: 260px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -107,25 +102,24 @@ $border-radius: 12px;
 .empty {
   text-align: center;
   padding: 32px 16px;
-  color: #4b5563;
+  color: var(--text-muted);
 
-  mat-icon { font-size: 40px; width: 40px; height: 40px; color: #c5cae9; }
+  mat-icon { font-size: 32px; width: 32px; height: 32px; color: var(--text-muted); }
   p { margin: 8px 0; }
-  .muted { color: #6b7280; font-size: 13px; }
-  a { color: $primary-color; font-weight: 600; }
+  .muted { font-size: var(--text-label); }
+  a { color: var(--main-primary-color); font-weight: 600; }
 }
 
-// 모델 선택 메뉴: 모델별 묶음 + 두 줄 항목 (오버레이라 전역 선택자로 지정)
 ::ng-deep .eval-model-panel {
   min-width: 420px;
   max-height: min(480px, 60vh) !important;
 
   .mat-mdc-optgroup-label {
     min-height: 36px;
-    font-size: 13px;
-    font-weight: 700;
-    color: #475569;
-    background: #f8fafc;
+    font-size: var(--text-label);
+    font-weight: 600;
+    color: var(--text-muted);
+    background: var(--bg-subtle);
   }
 
   .mat-mdc-option {
@@ -134,21 +128,25 @@ $border-radius: 12px;
     padding-bottom: 6px;
   }
 
-  .job-opt { display: flex; flex-direction: column; gap: 3px; line-height: 1.35; }
-  .job-opt-main { display: flex; align-items: center; gap: 8px; font-size: 14.5px; color: #1e293b; }
-  .job-id { font-weight: 700; color: #334155; min-width: 34px; }
+  .job-opt { display: flex; flex-direction: column; gap: 4px; line-height: 1.35; }
+  .job-opt-main { display: flex; align-items: center; gap: 8px; font-size: var(--text-body); color: var(--text-main); }
+  .job-id { font-weight: 600; min-width: 34px; font-variant-numeric: tabular-nums; }
   .job-origin { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .job-src {
     flex: none;
-    font-size: 11.5px;
+    font-size: var(--text-meta);
     font-weight: 600;
     padding: 1px 8px;
-    border-radius: 10px;
-    background: #f1f5f9;
-    color: #475569;
-    &.imported { background: #fff7ed; color: #c2410c; }
+    border-radius: var(--radius-sm);
+    background: var(--neutral-bg);
+    color: var(--neutral-color);
+    &.imported { background: var(--warning-bg); color: var(--warning-color); }
   }
-  .job-opt-sub { font-size: 12.5px; color: #64748b; padding-left: 42px; }
+  .job-opt-sub { font-size: var(--text-meta); color: var(--text-muted); padding-left: 42px; }
 }
 
 .project-select { width: 220px; }
+
+mat-card:has(.eval-table) {
+  overflow-x: auto;
+}

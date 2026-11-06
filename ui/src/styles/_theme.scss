@@ -40,6 +40,9 @@ html {
 
   @include mat.dialog-overrides((
     container-shape: var(--radius-lg),
+    subhead-size: var(--text-section),
+    subhead-weight: 600,
+    subhead-line-height: 24px,
   ));
 
   @include mat.form-field-overrides((

@@ -1,408 +1,172 @@
-:host {
-  --transition-speed: 0.25s;
-  --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-  --border-radius-lg: 12px;
-  --border-radius-md: 8px;
-  --select-bg: #f8f9fa;
-}
-
 .model-list-container {
   padding: 32px;
   max-width: 1400px;
   margin: 0 auto;
-  position: relative;
-  font-family: 'Inter', -apple-system, sans-serif;
+}
 
-  // 1. 페이지 헤더 (타이틀 & 프로젝트 선택)
-  // 2. 알고리즘 탭 (Variant Pills)
-  .experiment-tabs {
+.experiment-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 32px;
+  overflow-x: auto;
+  padding: 4px;
+
+  .tab-group {
     display: flex;
-    gap: 8px;
-    margin-bottom: 32px;
-    overflow-x: auto;
-    padding: 4px;
-
-    .tab-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 24px;
-      border-radius: 30px;
-      border: 1.5px solid #e2e8f0;
-      background: white;
-      color: #64748b;
-      font-weight: 600;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: all 0.2s ease;
-
-      .tab-icon {
-        font-size: 18px;
-        width: 18px;
-        height: 18px;
-        opacity: 0.7;
-      }
-
-      &:hover {
-        background: #f1f5f9;
-        border-color: var(--main-primary-color);
-        color: var(--main-primary-color);
-      }
-
-      &.active {
-        background: var(--main-primary-color);
-        color: white;
-        border-color: var(--main-primary-color);
-        box-shadow: 0 4px 12px rgba(0, 35, 135, 0.2);
-
-        .tab-icon {
-          opacity: 1;
-        }
-      }
-    }
-
-    .tab-group {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex: none;
-
-      & + .tab-group {
-        margin-left: 12px;
-        padding-left: 20px;
-        border-left: 1px solid #e2e8f0;
-      }
-    }
-
-    .tab-group-label {
-      font-size: 13px;
-      font-weight: 700;
-      color: #64748b;
-      margin-right: 2px;
-      white-space: nowrap;
-    }
-
-    .empty-tabs-msg {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      color: #94a3b8;
-      font-size: 14px;
-      padding: 12px;
-    }
-  }
-
-  // 3. 로딩 상태
-  .loading-shade {
-    position: absolute;
-    top: 200px;
-    left: 0;
-    right: 0;
-    z-index: 100;
-    display: flex;
-    flex-direction: column;
     align-items: center;
+    gap: 8px;
+    flex: none;
 
-    p {
-      margin-top: 12px;
-      color: var(--main-primary-color);
-      font-weight: 700;
-      font-size: 14px;
+    & + .tab-group {
+      margin-left: 12px;
+      padding-left: 20px;
+      border-left: 1px solid var(--border-color);
     }
   }
 
-  .content-area {
+  .tab-group-label {
+    font-size: var(--text-label);
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-right: 2px;
+    white-space: nowrap;
+  }
+
+  .empty-tabs-msg {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-muted);
+    padding: 12px;
+  }
+}
+
+.content-area {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.job-section {
+  .section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .table-scroll-wrapper {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+}
+
+table.custom-table {
+  width: 100%;
+  table-layout: fixed;
+
+  th.mat-mdc-header-cell {
+    background: var(--bg-subtle);
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: var(--text-label);
+    padding: 12px 16px;
+    text-align: center;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  td.mat-mdc-cell {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color);
+    vertical-align: middle;
+    text-align: center;
+    color: var(--text-main);
+  }
+
+  th.mat-column-modelInfo,
+  td.mat-column-modelInfo {
+    width: 30%;
+    text-align: left;
+  }
+
+  .mat-column-status { width: 140px; }
+  .mat-column-startTime { width: 180px; }
+  .mat-column-progress { width: 30%; }
+  .mat-column-startedAt { width: 130px; }
+  .mat-column-elapsed { width: 120px; }
+  .mat-column-statusView { width: 160px; overflow: visible; }
+  .mat-column-dashboard { width: 80px; }
+  .mat-column-management { width: 140px; }
+
+  .mat-column-actions,
+  .mat-column-cancel {
+    width: 80px;
+  }
+
+  .date-line {
+    font-size: var(--text-meta);
+    color: var(--text-muted);
+  }
+
+  .time-cell {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .model-info-cell {
     display: flex;
     flex-direction: column;
-    gap: 48px;
-    transition: filter 0.3s ease, opacity 0.3s ease;
+    gap: 4px;
 
-    &.blur {
-      filter: blur(4px);
-      pointer-events: none;
-      opacity: 0.5;
+    .run-name {
+      font-weight: 600;
+      color: var(--text-main);
     }
-  }
 
-  // 4. 잡 섹션 (테이블 레이아웃)
-  .job-section {
-    .section-title {
+    .tag-row {
       display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 20px;
-      font-size: 18px;
-      font-weight: 700;
-      color: #2d3748;
-
-      mat-icon {
-        font-size: 24px;
-        width: 24px;
-        height: 24px;
-      }
-
-      .icon-pending {
-        color: var(--main-primary-color);
-      }
-
-      .icon-history {
-        color: #718096;
-      }
-
-      .count-badge {
-        font-size: 12px;
-        padding: 2px 10px;
-        border-radius: 20px;
-        font-weight: 700;
-
-        &.primary {
-          background: var(--main-primary-color);
-          color: white;
-        }
-
-        &.grey {
-          background: #edf2f7;
-          color: #4a5568;
-        }
-      }
-    }
-
-    .table-scroll-wrapper {
-      background: white;
-      border-radius: var(--border-radius-lg);
-      box-shadow: var(--card-shadow);
-      border: 1px solid #e2e8f0;
-      overflow: hidden;
-
-      .table-empty-msg {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 60px 0;
-        color: #a0aec0;
-        gap: 10px;
-
-        mat-icon {
-          font-size: 40px;
-          width: 40px;
-          height: 40px;
-          opacity: 0.5;
-        }
-
-        span {
-          font-size: 15px;
-          font-weight: 500;
-        }
-      }
-    }
-  }
-
-  // 5. Material Table 커스텀
-  table.custom-table {
-    width: 100%;
-    table-layout: fixed;
-
-    th.mat-mdc-header-cell {
-      background: #f7fafc;
-      color: #4a5568;
-      font-weight: 700;
-      font-size: 13px;
-      padding: 16px;
-      text-align: center;
-      border-bottom: 1px solid #e2e8f0;
-    }
-
-    td.mat-mdc-cell {
-      padding: 14px 16px;
-      border-bottom: 1px solid #f7fafc;
-      vertical-align: middle;
-      text-align: center;
-      color: #2d3748;
-    }
-
-    // 컬럼 비율 제어
-    .mat-column-modelInfo {
-      width: 30%;
-      text-align: left !important;
-    }
-
-    .mat-column-status {
-      width: 140px;
-    }
-
-    .mat-column-startTime {
-      width: 180px;
-    }
-
-    .mat-column-progress {
-      width: 30%;
-    }
-
-    .mat-column-startedAt {
-      width: 130px;
-    }
-
-    .date-line {
-      font-size: 12px;
-      color: #64748b;
-    }
-
-    .mat-column-elapsed {
-      width: 120px;
-    }
-
-    .time-cell {
-      font-variant-numeric: tabular-nums;
-      white-space: nowrap;
-    }
-
-    .mat-column-statusView {
-      width: 140px;
-    }
-
-    .mat-column-dashboard {
-      width: 80px;
-    }
-
-    .mat-column-management {
-      width: 140px;
-    }
-
-    .mat-column-actions,
-    .mat-column-cancel {
-      width: 80px;
-    }
-
-    // 모델 정보 셀 디자인
-    .model-info-cell {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-
-      .run-name {
-        font-weight: 700;
-        color: #1a202c;
-        font-size: 14.5px;
-      }
-
-      .tag-row {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 4px;
-
-        .tag-mini {
-          background: #f1f5f9;
-          color: #475569;
-          font-size: 10px;
-          font-weight: 700;
-          padding: 2px 6px;
-          border-radius: 4px;
-          border: 1px solid #e2e8f0;
-        }
-      }
-    }
-
-    // 버튼별 활성화 색상 정의
-    .btn-dashboard {
-      mat-icon {
-        color: #1976d2; // 활성화 시 블루 (MLflow)
-        transition: color 0.2s;
-      }
-
-      &:hover:not(:disabled) {
-        background-color: rgba(25, 118, 210, 0.08);
-      }
-    }
-
-    .btn-log {
-      mat-icon {
-        color: #546e7a; // 활성화 시 슬레이트 그레이 (Terminal)
-        transition: color 0.2s;
-      }
-
-      &:hover:not(:disabled) {
-        background-color: rgba(84, 110, 122, 0.08);
-      }
-    }
-
-    // 비활성화(PENDING) 상태 공통 스타일
-    button:disabled {
-      cursor: not-allowed !important;
-      opacity: 0.55;
-      filter: grayscale(1); // 흑백 처리
-
-      mat-icon {
-        color: #94a3b8 !important; // 완전한 회색
-      }
-
-      // 비활성화된 버튼은 호버 효과 제거
-      &:hover {
-        background-color: transparent !important;
-      }
+      flex-wrap: wrap;
+      gap: 4px;
     }
   }
 }
 
-// 6. 상태 칩 (Status Chips)
-// 7. 결과 분석 버튼
 .btn-result-view {
   color: var(--main-primary-color);
-  font-weight: 700;
-  border-radius: 6px;
-  border: 1.5px solid var(--main-primary-color);
-  background: white;
-  transition: all 0.2s;
+  font-weight: 500;
+  border: 1px solid var(--main-primary-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  transition: background-color var(--transition-speed);
 
   mat-icon {
-    font-size: 18px;
-    width: 18px;
-    height: 18px;
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
     margin-right: 6px;
   }
 
   span {
-    font-size: 13px;
+    font-size: var(--text-label);
   }
 
   &:hover:not(:disabled) {
-    background: var(--main-primary-color);
-    color: white;
+    background: var(--main-primary-light);
   }
 
   &:disabled {
-    border-color: #e2e8f0;
-    color: #cbd5e0;
-
-    mat-icon {
-      color: #cbd5e0 !important;
-    }
+    border-color: var(--border-color);
   }
 }
 
-// 공용 아이콘 버튼
-button[mat-icon-button] {
-  color: #718096;
-
-  &:hover:not(:disabled) {
-    color: var(--main-primary-color);
-    background: #f7fafc;
-  }
-
-  &:disabled {
-    opacity: 0.3;
-  }
-}
-
-// 최고 성적 모델 요약 카드 (다른 카드와 같은 흰 바탕, 왼쪽 남색 선으로만 강조)
 .best-model-card {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-left: 4px solid var(--main-primary-color);
-  border-radius: 12px;
-  padding: 18px 24px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 16px 24px;
   margin-bottom: 24px;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
 
   .best-top {
     display: flex;
@@ -410,15 +174,18 @@ button[mat-icon-button] {
     gap: 32px;
   }
 
-  .best-main { flex: 1; min-width: 0; }
+  .best-main {
+    flex: 1;
+    min-width: 0;
+  }
 
   .best-details {
     display: flex;
     flex-direction: column;
     gap: 8px;
     margin-top: 16px;
-    padding-top: 14px;
-    border-top: 1px solid #eef2f7;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-color);
   }
 
   .detail-group {
@@ -429,20 +196,28 @@ button[mat-icon-button] {
     .group-title {
       flex: none;
       width: 72px;
-      font-size: 12.5px;
-      font-weight: 700;
-      color: #64748b;
+      font-size: var(--text-label);
+      font-weight: 500;
+      color: var(--text-muted);
     }
 
-    .items { display: flex; flex-wrap: wrap; gap: 6px 20px; }
+    .items {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 20px;
+    }
 
     .item {
       display: inline-flex;
-      gap: 6px;
-      font-size: 13.5px;
+      gap: 8px;
+      font-size: var(--text-label);
 
-      .k { color: #64748b; }
-      .v { color: #1e293b; font-weight: 600; font-variant-numeric: tabular-nums; }
+      .k { color: var(--text-muted); }
+      .v {
+        color: var(--text-main);
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+      }
     }
   }
 
@@ -450,32 +225,54 @@ button[mat-icon-button] {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    font-size: 12.5px;
-    font-weight: 700;
+    font-size: var(--text-label);
+    font-weight: 600;
     color: var(--main-primary-color);
 
-    mat-icon { font-size: 16px; width: 16px; height: 16px; }
+    mat-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+    }
   }
 
   .best-title {
     display: flex;
     align-items: baseline;
     gap: 8px;
-    margin: 4px 0 6px;
+    margin: 4px 0;
   }
 
-  .best-run-name { font-size: 20px; font-weight: 800; color: #1e293b; }
-  .best-job { font-size: 14px; font-weight: 600; color: #94a3b8; }
+  .best-run-name {
+    font-size: var(--text-page);
+    font-weight: 700;
+    color: var(--text-main);
+  }
+
+  .best-job {
+    font-size: var(--text-body);
+    font-weight: 500;
+    color: var(--text-muted);
+  }
 
   .best-sub {
     display: flex;
     flex-wrap: wrap;
     gap: 16px;
-    font-size: 13px;
-    color: #64748b;
+    font-size: var(--text-meta);
+    color: var(--text-muted);
 
-    span { display: inline-flex; align-items: center; gap: 4px; }
-    mat-icon { font-size: 15px; width: 15px; height: 15px; color: #94a3b8; }
+    span {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    mat-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+    }
   }
 
   .best-metric {
@@ -483,12 +280,17 @@ button[mat-icon-button] {
     flex-direction: column;
     align-items: flex-end;
     padding-left: 32px;
-    border-left: 1px solid #e2e8f0;
+    border-left: 1px solid var(--border-color);
 
-    .m-label { font-size: 12.5px; font-weight: 600; color: #64748b; }
+    .m-label {
+      font-size: var(--text-label);
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+
     .m-value {
-      font-size: 26px;
-      font-weight: 800;
+      font-size: var(--text-metric);
+      font-weight: 700;
       color: var(--main-primary-color);
       font-variant-numeric: tabular-nums;
     }
@@ -496,21 +298,18 @@ button[mat-icon-button] {
 
   .best-detail-btn {
     flex: none;
-    height: 40px;
-    border-radius: 8px;
-    font-weight: 600;
   }
 }
 
-// 표 안 최고 성적 표시
 .best-badge {
   flex: none;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 1px 8px;
-  border-radius: 10px;
-  background: #e8edf7;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  background: var(--main-primary-light);
   color: var(--main-primary-color);
+  font-size: var(--text-meta);
+  font-weight: 600;
+  line-height: 20px;
 }
 
 .run-name-wrapper {
@@ -519,235 +318,53 @@ button[mat-icon-button] {
   gap: 8px;
 }
 
-/* 서빙 중 아이콘 애니메이션 */
-.serving-badge-icon {
-  color: #2ecc71;
-  font-size: 18px;
-  width: 18px;
-  height: 18px;
-  animation: pulse-green 2s infinite;
-}
-
 .deployment-endpoint {
-  font-size: 10px;
-  color: #666;
   display: flex;
   align-items: center;
-  margin-top: 2px;
-}
+  gap: 4px;
+  margin-top: 4px;
+  font-size: var(--text-meta);
+  color: var(--text-muted);
 
-.deployment-endpoint mat-icon {
-  font-size: 12px;
-  width: 12px;
-  height: 12px;
-}
-
-@keyframes pulse-green {
-  0% {
-    transform: scale(0.95);
-    opacity: 0.7;
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
   }
-
-  70% {
-    transform: scale(1.1);
-    opacity: 1;
-  }
-
-  100% {
-    transform: scale(0.95);
-    opacity: 0.7;
-  }
-}
-
-.spinning {
-  animation: rotate 2s linear infinite;
 }
 
 .is-best-row {
-  background-color: #f8faff !important;
+  background-color: var(--highlight-bg);
 }
 
-@keyframes rotate {
-  from {
-    transform: rotate(0deg);
-  }
-
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes pulse-blue {
-  0% {
-    box-shadow: 0 0 0 0 rgba(66, 153, 225, 0.4);
-  }
-
-  70% {
-    box-shadow: 0 0 0 6px rgba(66, 153, 225, 0);
-  }
-
-  100% {
-    box-shadow: 0 0 0 0 rgba(66, 153, 225, 0);
-  }
-}
-
-// skeleton
-/* 8. Skeleton UI 애니메이션 및 스타일 */
-.skeleton-loader {
-  background: #f6f7f8;
-  background-image: linear-gradient(to right, #f6f7f8 0%, #edeef1 20%, #f6f7f8 40%, #f6f7f8 100%);
-  background-repeat: no-repeat;
-  background-size: 800px 100%;
-  display: inline-block;
-  position: relative;
-  animation: shimmer 1.5s infinite linear;
-  border-radius: 4px;
-}
-
-@keyframes shimmer {
-  0% { background-position: -468px 0; }
-  100% { background-position: 468px 0; }
-}
-
-.skeleton-container {
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
-  animation: fadeIn 0.3s ease-in;
-
-  .skeleton-tabs-row {
-    display: flex;
-    gap: 12px;
-
-    .tab-pill {
-      width: 100px;
-      height: 38px;
-      border-radius: 20px;
-    }
-  }
-
-  .skeleton-best-card {
-    width: 100%;
-    height: 140px;
-    border-radius: 12px;
-  }
-
-  .skeleton-section {
-    .section-title-line {
-      width: 150px;
-      height: 24px;
-      margin-bottom: 20px;
-    }
-
-    .table-box {
-      width: 100%;
-      height: 250px;
-      border-radius: 12px;
-      background: white;
-      border: 1px solid #e2e8f0;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-
-      .table-row {
-        display: flex;
-        gap: 16px;
-
-        .col {
-          height: 20px;
-          background: #f1f5f9;
-          border-radius: 4px;
-        }
-
-        .col-1 {
-          width: 40%;
-        }
-
-        .col-2 {
-          width: 20%;
-        }
-
-        .col-3 {
-          width: 20%;
-        }
-
-        .col-4 {
-          width: 20%;
-        }
-      }
-    }
-  }
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
-}
-
-.selector-skeleton {
-  width: 260px;
-  height: 32px;
-  border-radius: 6px;
-}
-
-/* 인라인 스켈레톤 전용 */
-.cell-skeleton-text { height: 16px; margin: 4px 0; border-radius: 4px; }
-.cell-skeleton-chip { width: 80px; height: 24px; border-radius: 6px; }
-.cell-skeleton-circle { width: 32px; height: 32px; border-radius: 50%; }
-.selector-skeleton { width: 200px; height: 28px; border-radius: 4px; }
-.tab-pill-skeleton { width: 100px; height: 38px; border-radius: 20px; margin-right: 8px; }
-.skeleton-best-card { width: 100%; height: 140px; border-radius: 12px; }
-
-.mat-mdc-table {
-  background: white;
-}
-
-// 5. Material Table 커스텀 내부 혹은 하단에 추가
 .no-data-cell {
-  padding: 60px 0 !important; // 충분한 높이 확보
-  text-align: center !important;
-  border-bottom: none !important;
+  padding: 48px 0;
+  text-align: center;
+  border-bottom: none;
 
   .empty-state {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    color: #94a3b8; // 슬레이트 그레이
-    gap: 12px;
+    gap: 8px;
+    color: var(--text-muted);
 
     mat-icon {
-      font-size: 48px;
-      width: 48px;
-      height: 48px;
-      opacity: 0.4;
+      font-size: 32px;
+      width: 32px;
+      height: 32px;
     }
 
     p {
       margin: 0;
-      font-size: 15px;
-      font-weight: 500;
-      letter-spacing: -0.01em;
     }
   }
 }
 
-// 스켈레톤 로딩 중에는 이 행이 보이지 않도록 처리 (HTML의 @if와 조합)
-.mat-mdc-no-data-row {
-  &:hover {
-    background-color: transparent !important;
-  }
-}
-/* 신규 모델 행 보조 정보 */
 .job-id {
   font-weight: 400;
-  font-size: 12px;
+  font-size: var(--text-meta);
   color: var(--text-muted);
 }
 
@@ -756,13 +373,13 @@ button[mat-icon-button] {
   align-items: center;
   gap: 4px;
   margin-top: 2px;
-  font-size: 12px;
+  font-size: var(--text-meta);
   color: var(--text-muted);
 
   mat-icon {
-    font-size: 14px;
-    width: 14px;
-    height: 14px;
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
   }
 
   &.imported {
@@ -779,25 +396,51 @@ button[mat-icon-button] {
 }
 
 .epoch-label {
-  font-size: 12px;
-  color: #64748b;
+  font-size: var(--text-meta);
+  color: var(--text-muted);
   white-space: nowrap;
 }
 
 .status-view-btn {
   white-space: nowrap;
-  mat-icon { margin-right: 2px; }
+
+  mat-icon {
+    margin-right: 2px;
+  }
 }
 
-// 모델 파일 업로드 버튼 (파일을 끌어다 놓을 수도 있음)
 .upload-btn {
-  height: 54px;
-  padding: 0 30px;
-  border-radius: 10px;
-  font-size: 16.5px;
-  font-weight: 700;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: var(--radius-md);
 
-  mat-icon { margin-right: 6px; font-size: 24px; width: 24px; height: 24px; }
+  mat-icon {
+    margin-right: 4px;
+  }
 
-  &.drop-over { box-shadow: 0 0 0 4px rgba(0, 35, 135, 0.2); }
+  &.drop-over {
+    outline: 2px solid var(--main-primary-color);
+    outline-offset: 2px;
+  }
 }
+
+.skeleton-loader {
+  display: inline-block;
+  background: var(--neutral-bg);
+  background-image: linear-gradient(to right, var(--neutral-bg) 0%, var(--bg-subtle) 20%, var(--neutral-bg) 40%, var(--neutral-bg) 100%);
+  background-repeat: no-repeat;
+  background-size: 800px 100%;
+  animation: shimmer 1.5s infinite linear;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes shimmer {
+  0% { background-position: -468px 0; }
+  100% { background-position: 468px 0; }
+}
+
+.cell-skeleton-text { height: 16px; margin: 4px 0; }
+.cell-skeleton-chip { width: 80px; height: 24px; }
+.cell-skeleton-circle { width: 32px; height: 32px; border-radius: 50%; }
+.tab-pill-skeleton { width: 100px; height: 36px; margin-right: 8px; border-radius: var(--radius-md); }
+.skeleton-best-card { width: 100%; height: 140px; border-radius: var(--radius-lg); }

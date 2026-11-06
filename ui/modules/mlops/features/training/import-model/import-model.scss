@@ -6,7 +6,7 @@
   .desc {
     margin: 0;
     color: var(--text-muted);
-    font-size: 13px;
+    font-size: var(--text-label);
     line-height: 1.5;
   }
 
@@ -24,48 +24,56 @@
     }
   }
 
-  // 업로드 칸: + 표시, 마우스를 올리면 조금 어두워지고 끌어다 놓기 안내가 나옴 (데이터셋 등록과 같은 모양)
   .drop-zone {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
-    padding: 26px 16px;
-    border: 1.5px dashed #c5cad3;
-    border-radius: 10px;
-    background: #f8f9fb;
-    text-align: center;
-    cursor: pointer;
     outline: none;
-    transition: background 0.15s, border-color 0.15s;
 
-    .dz-icon { font-size: 36px; width: 36px; height: 36px; color: #94a3b8; transition: color 0.15s; }
-    .dz-title { font-size: 15px; font-weight: 600; color: #334155; }
-    .dz-hint { font-size: 12.5px; color: #64748b; opacity: 0; transition: opacity 0.15s; }
-    code { background: #e8ecf2; border-radius: 4px; padding: 0 4px; font-size: 12px; }
+    .dz-icon {
+      font-size: 32px;
+      width: 32px;
+      height: 32px;
+      color: var(--text-muted);
+      transition: color var(--transition-speed);
+    }
 
-    &:hover, &:focus-visible {
-      background: #eceff3;
-      border-color: #94a3b8;
+    .dz-title {
+      font-size: var(--text-body);
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .dz-hint {
+      font-size: var(--text-meta);
+      color: var(--text-muted);
+      opacity: 0;
+      transition: opacity var(--transition-speed);
+    }
+
+    code {
+      background: var(--neutral-bg);
+      border-radius: var(--radius-sm);
+      padding: 0 4px;
+      font-size: var(--text-meta);
+    }
+
+    &:hover,
+    &:focus-visible,
+    &.drag-over {
       .dz-icon { color: var(--main-primary-color); }
       .dz-hint { opacity: 1; }
     }
-    &.over {
-      background: #e6ebf5;
-      border-color: var(--main-primary-color);
+
+    &.drag-over {
       border-style: solid;
-      .dz-icon { color: var(--main-primary-color); }
-      .dz-hint { opacity: 1; }
     }
+
     &.has-files {
       border-style: solid;
-      border-color: #c8e6c9;
-      background: #f6fbf6;
-      .dz-icon { color: #2e7d32; }
+      border-color: var(--success-color);
+      background: var(--success-bg);
+
+      .dz-icon { color: var(--success-color); }
       .dz-hint { opacity: 1; }
-      &:hover { background: #edf6ed; }
     }
-    &.disabled { cursor: default; opacity: 0.6; pointer-events: none; }
 
     .file-list {
       list-style: none;
@@ -75,11 +83,15 @@
       li {
         display: flex;
         align-items: center;
-        gap: 6px;
-        font-size: 13.5px;
-        color: #1e293b;
+        gap: 4px;
+        color: var(--text-main);
 
-        mat-icon { font-size: 16px; width: 16px; height: 16px; color: #64748b; }
+        mat-icon {
+          font-size: 16px;
+          width: 16px;
+          height: 16px;
+          color: var(--text-muted);
+        }
       }
     }
   }
@@ -87,14 +99,14 @@
   .error-box {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     color: var(--error-color);
-    font-size: 13px;
+    font-size: var(--text-label);
   }
 
   .hint {
     margin: 0;
-    font-size: 12px;
+    font-size: var(--text-meta);
     color: var(--text-muted);
   }
 }
