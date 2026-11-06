@@ -45,6 +45,10 @@ table {
   border: 1px solid var(--border-color);
 }
 
+.cdk-overlay-pane div.mat-mdc-select-panel {
+  max-height: min(480px, 60vh);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

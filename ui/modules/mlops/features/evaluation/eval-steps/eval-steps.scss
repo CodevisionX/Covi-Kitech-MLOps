@@ -6,7 +6,7 @@
 .line {
   flex: 1;
   height: 1px;
-  margin-top: 11px;
+  margin: 11px -37px 0;
   background: var(--border-color);
 
   &.done { background: var(--success-color); }
@@ -16,6 +16,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  position: relative;
   width: 96px;
   flex: none;
 
@@ -79,8 +80,7 @@
 }
 
 .compact {
-  .track { min-width: 320px; }
-  .line { margin-top: 9px; }
+  .line { margin: 9px -27px 0; }
   .step {
     width: 72px;
     .dot { width: 18px; height: 18px; }

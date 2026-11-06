@@ -226,7 +226,7 @@ export class EvaluationDetail implements OnInit, OnDestroy {
   openSlot(row: IEvaluationRow) {
     const rows = this.filtered();
     const data: SlotViewData = { evaluationId: this.id, rows, index: Math.max(0, rows.indexOf(row)) };
-    this.dialog.open(SlotViewDialog, { data, width: '1200px', maxWidth: '95vw', maxHeight: '95vh', autoFocus: false });
+    this.dialog.open(SlotViewDialog, { data, width: '1200px', height: '92vh', maxWidth: '95vw', autoFocus: false });
   }
 
   resultLabel(r: string): string {

@@ -73,7 +73,20 @@ $code-fg: #d4d4d4;
 .version-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
   font-size: var(--text-body);
+
+  th:nth-child(1) { width: 14%; }
+  th:nth-child(2) { width: 6%; }
+  th:nth-child(3) { width: 21%; }
+  th:nth-child(4) { width: 11%; }
+  th:nth-child(5) { width: 7%; }
+  th:nth-child(6) { width: 9%; }
+  th:nth-child(7),
+  th:nth-child(8) { width: 10%; }
+  th:nth-child(9) { width: 12%; }
+
+  td { overflow-wrap: anywhere; }
 
   th {
     text-align: left;
