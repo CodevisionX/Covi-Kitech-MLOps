@@ -136,3 +136,8 @@
     .hl-error { color: var(--error-color); font-weight: 600; }
   }
 }
+
+.status-chip[data-status='KILLED'] {
+  background: var(--error-bg);
+  color: var(--error-color);
+}

@@ -9,7 +9,7 @@ export function applyChartTheme(): void {
   defaults.font.size = 13;
   defaults.color = '#566072';
   defaults.borderColor = '#dfe3e8';
-  defaults.elements.point.radius = 0;
+  defaults.elements.point.radius = 2;
   defaults.elements.point.hoverRadius = 4;
   defaults.elements.line.borderWidth = 2;
   defaults.plugins.legend.labels.usePointStyle = true;

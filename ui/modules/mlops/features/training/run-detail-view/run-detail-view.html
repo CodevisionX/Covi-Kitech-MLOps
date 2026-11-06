@@ -1,5 +1,5 @@
 <div class="model-detail-container">
-  <app-page-header [title]="'Run Detail: ' + runId().substring(0, 8)" [showBack]="true" (back)="back.emit()">
+  <app-page-header [heading]="'Run Detail: ' + runId().substring(0, 8)" [showBack]="true" (back)="back.emit()">
     <app-breadcrumb parent="실험 목록" current="Run 상세 분석" (parentClick)="back.emit()"></app-breadcrumb>
     <span pageTitleExtra class="status-badge" [attr.data-status]="runInfo()?.status">{{ runInfo()?.status }}</span>
     <button mat-flat-button color="primary" class="deploy-btn"

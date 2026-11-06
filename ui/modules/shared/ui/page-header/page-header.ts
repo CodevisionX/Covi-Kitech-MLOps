@@ -7,7 +7,7 @@ import { Component, input, output } from '@angular/core';
   styleUrl: './page-header.scss',
 })
 export class PageHeader {
-  title = input.required<string>();
+  heading = input.required<string>();
   subtitle = input<string>();
   showBack = input(false);
   back = output<void>();
