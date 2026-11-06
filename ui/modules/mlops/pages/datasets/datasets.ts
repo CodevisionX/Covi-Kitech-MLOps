@@ -1,7 +1,6 @@
 import { Component, computed, inject, OnDestroy, OnInit, signal, TemplateRef, ViewChild } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { formatDistanceToNow } from 'date-fns';
-import { ko } from 'date-fns/locale';
+import { relativeTime } from '../../../shared/utils/format';
 import { DatasetApi } from '../../services/apis/dataset';
 import { Project } from '../../services/apis/project';
 import { Notification } from '../../services/notification';
@@ -486,9 +485,7 @@ export class DatasetsPage implements OnInit, OnDestroy {
   }
 
   relTime(s?: string | null): string {
-    if (!s) return '-';
-    const d = new Date(s);
-    return isNaN(d.getTime()) ? '-' : formatDistanceToNow(d, { addSuffix: true, locale: ko });
+    return relativeTime(s);
   }
 
   pretty(obj: any): string {

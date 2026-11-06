@@ -3,29 +3,6 @@
   background-color: #f8f9fa;
   min-height: calc(100vh - 64px);
 
-  .page-header {
-    margin-bottom: 32px;
-
-    h1 {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-size: 24px;
-      font-weight: 600;
-      color: #1a237e;
-
-      mat-icon {
-        color: var(--main-primary-color);
-        font-size: 28px;
-        width: 28px;
-        height: 28px;
-      }
-    }
-
-    p {
-      color: #666;
-    }
-  }
 }
 
 .model-info-section {

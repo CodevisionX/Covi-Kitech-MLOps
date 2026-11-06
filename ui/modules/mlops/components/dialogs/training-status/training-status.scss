@@ -9,13 +9,6 @@
   .actions { display: flex; align-items: center; gap: 4px; }
 }
 
-.status-chip {
-  padding: 3px 10px; border-radius: 8px; font-size: 12px; font-weight: 700;
-  background: #eceff1; color: #546e7a;
-  &[data-status="RUNNING"] { background: #e3f2fd; color: #1565c0; }
-  &[data-status="FINISHED"] { background: #e8f5e9; color: #2e7d32; }
-  &[data-status="FAILED"], &[data-status="KILLED"] { background: #ffebee; color: #c62828; }
-}
 .tag-mini { font-size: 11px; padding: 2px 8px; border-radius: 6px; background: #f1f5f9; color: #475569; }
 
 .summary {

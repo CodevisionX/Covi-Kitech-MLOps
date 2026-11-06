@@ -4,49 +4,6 @@
   min-height: 100vh;
 }
 
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-  margin-bottom: 24px;
-  flex-wrap: wrap;
-
-  .breadcrumb {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    color: var(--text-muted);
-    font-size: 14px;
-    margin-bottom: 12px;
-
-    .link {
-      display: flex; align-items: center; gap: 4px; cursor: pointer;
-      padding: 4px 8px; border-radius: 6px;
-      mat-icon { font-size: 18px; width: 18px; height: 18px; }
-      &:hover { background: var(--highlight-bg); color: var(--main-primary-color); }
-    }
-    .separator { font-size: 20px; width: 20px; height: 20px; color: #cbd5e1; }
-    .current { font-weight: 600; color: var(--text-main); }
-  }
-
-  .title-group {
-    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-    h1 { margin: 0; font-size: 26px; font-weight: 800; color: var(--text-main); }
-    .back-btn { background: var(--bg-card); border: 1px solid var(--border-color); }
-  }
-
-  .header-actions { display: flex; gap: 8px; }
-}
-
-.status-badge {
-  padding: 4px 12px; border-radius: 6px; font-size: 11px; font-weight: 800;
-  border: 1px solid transparent;
-  &[data-status="FINISHED"] { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
-  &[data-status="FAILED"] { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
-  &[data-status="RUNNING"] { background: #eff6ff; color: #1e40af; border-color: #bfdbfe; }
-}
-
 .imported-badge {
   padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 700;
   background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa;

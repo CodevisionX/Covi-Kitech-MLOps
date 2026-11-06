@@ -4,8 +4,7 @@ import { Chart, registerables, ChartConfiguration, ChartOptions } from 'chart.js
 import { Experiment } from '../../services/apis/experiment';
 import { Notification } from '../../services/notification';
 import { IMLflowRun } from '../../services/apis/models/experiment.model';
-import { formatDistanceToNow } from 'date-fns';
-import { ko } from 'date-fns/locale';
+import { relativeTime } from '../../../shared/utils/format';
 import { Deployment } from '../../services/apis/deployment';
 import { HttpErrorResponse, HttpResponse } from '@angular/common/http';
 
@@ -15,7 +14,6 @@ Chart.register(...registerables);
   selector: 'app-model-detail',
   standalone: false,
   templateUrl: './model-detail.html',
-  styleUrl: './model-detail.scss',
 })
 export class ModelDetail {
 
@@ -176,19 +174,7 @@ export class ModelDetail {
   };
 
   getRelativeTime(timestamp?: number | string | null): string {
-    if (!timestamp) return '-';
-
-    try {
-      // 숫자인 경우(MLflow 타임스탬프)와 문자열인 경우 모두 처리
-      const date = typeof timestamp === 'number' ? new Date(timestamp) : new Date(timestamp);
-
-      // 유효하지 않은 날짜 체크
-      if (isNaN(date.getTime())) return '-';
-
-      return formatDistanceToNow(date, { addSuffix: true, locale: ko });
-    } catch (error) {
-      return '-';
-    }
+    return relativeTime(timestamp);
   }
 
 }

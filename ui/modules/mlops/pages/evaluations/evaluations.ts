@@ -1,8 +1,7 @@
 import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { forkJoin } from 'rxjs';
-import { formatDistanceToNow } from 'date-fns';
-import { ko } from 'date-fns/locale';
+import { relativeTime } from '../../../shared/utils/format';
 import { EvaluationApi } from '../../services/apis/evaluation';
 import { DatasetApi } from '../../services/apis/dataset';
 import { Jobs } from '../../services/apis/job';
@@ -214,6 +213,6 @@ export class EvaluationList implements OnInit, OnDestroy {
   }
 
   relTime(d?: string | null): string {
-    return d ? formatDistanceToNow(new Date(d), { addSuffix: true, locale: ko }) : '-';
+    return relativeTime(d);
   }
 }

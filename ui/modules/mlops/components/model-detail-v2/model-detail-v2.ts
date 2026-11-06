@@ -2,8 +2,7 @@ import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
 import { ImageViewerDialog, ImageViewerData } from '../dialogs/image-viewer/image-viewer';
-import { formatDistanceToNow } from 'date-fns';
-import { ko } from 'date-fns/locale';
+import { relativeTime } from '../../../shared/utils/format';
 import { Experiment } from '../../services/apis/experiment';
 import { Deployment } from '../../services/apis/deployment';
 import { Jobs } from '../../services/apis/job';
@@ -172,8 +171,6 @@ export class ModelDetailV2 implements OnInit {
   }
 
   getRelativeTime(ts?: number | string | null): string {
-    if (!ts) return '-';
-    const d = new Date(ts);
-    return isNaN(d.getTime()) ? '-' : formatDistanceToNow(d, { addSuffix: true, locale: ko });
+    return relativeTime(ts);
   }
 }

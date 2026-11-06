@@ -1,16 +1,12 @@
 <div class="deploy-container">
-  <header class="page-header">
-    <div class="header-left">
-      <h1><mat-icon>hub</mat-icon>추론 테스트</h1>
-      <p>MLOps PC에 추론 서버를 띄워 모델이 열리고 예측되는지 확인합니다.</p>
-    </div>
+  <app-page-header title="추론 테스트" subtitle="MLOps PC에 추론 서버를 띄워 모델이 열리고 예측되는지 확인합니다.">
     <div class="summary-stats">
       <div class="stat-item">
         <span class="label">실행 중인 추론 서버</span>
         <span class="value">{{ isLoading() ? '...' : activeDeployments().length }}</span>
       </div>
     </div>
-  </header>
+  </app-page-header>
 
   <!-- <div class="resource-overview">
     @if (isLoading()) {

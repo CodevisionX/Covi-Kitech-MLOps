@@ -1,0 +1,5 @@
+<nav class="breadcrumb" aria-label="현재 위치">
+  <button type="button" class="link" (click)="parentClick.emit()">{{ parent() }}</button>
+  <mat-icon class="separator">chevron_right</mat-icon>
+  <span class="current">{{ current() }}</span>
+</nav>

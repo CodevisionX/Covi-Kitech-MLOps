@@ -19,6 +19,7 @@ import { EvaluationList } from './pages/evaluations/evaluations';
 import { EvaluationDetail } from './pages/evaluation-detail/evaluation-detail';
 import { ModelValidationPyfunc } from './components/model-validation-pyfunc/model-validation-pyfunc';
 import { ModelDetailV2 } from './components/model-detail-v2/model-detail-v2';
+import { RunDetailView } from './components/run-detail-view/run-detail-view';
 import { ImportModelDialog } from './components/dialogs/import-model/import-model';
 import { SlotViewDialog } from './components/dialogs/slot-view/slot-view';
 import { ImageViewerDialog } from './components/dialogs/image-viewer/image-viewer';
@@ -44,6 +45,7 @@ import { DatasetGuideDialog } from './components/dialogs/dataset-guide/dataset-g
     EvaluationDetail,
     ModelValidationPyfunc,
     ModelDetailV2,
+    RunDetailView,
     ImportModelDialog,
     SlotViewDialog,
     ImageViewerDialog,

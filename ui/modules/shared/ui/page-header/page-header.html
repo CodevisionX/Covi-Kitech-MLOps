@@ -1,0 +1,21 @@
+<header class="page-header">
+  <div class="main">
+    <ng-content select="app-breadcrumb"></ng-content>
+    <div class="title-row">
+      @if (showBack()) {
+      <button mat-icon-button class="back-btn" aria-label="뒤로" (click)="back.emit()">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      }
+      <h1>{{ title() }}</h1>
+      <ng-content select="[pageTitleExtra]"></ng-content>
+    </div>
+    @if (subtitle()) {
+    <p class="subtitle">{{ subtitle() }}</p>
+    }
+    <ng-content select="[pageSubtitle]"></ng-content>
+  </div>
+  <div class="actions">
+    <ng-content></ng-content>
+  </div>
+</header>

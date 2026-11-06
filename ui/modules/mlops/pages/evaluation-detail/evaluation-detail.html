@@ -1,31 +1,21 @@
 <div class="detail-container">
-  <nav class="breadcrumb">
-    <span class="link" (click)="goBack()"><mat-icon>fact_check</mat-icon>E2E 평가</span>
-    <mat-icon class="sep">chevron_right</mat-icon>
-    <span>평가 #{{ id }}</span>
-  </nav>
+  <app-breadcrumb parent="E2E 평가" [current]="'평가 #' + id" (parentClick)="goBack()"></app-breadcrumb>
 
   @if (evaluation(); as ev) {
-  <header class="page-header">
-    <div class="title">
-      <button mat-icon-button (click)="goBack()"><mat-icon>arrow_back</mat-icon></button>
-      <h1>{{ ev.name || '평가 #' + ev.id }}</h1>
-      <span class="status-badge" [attr.data-status]="ev.status">{{ ev.status }}</span>
-      @if (ev.status !== 'FINISHED' && ev.status !== 'FAILED') { <mat-spinner diameter="20"></mat-spinner> }
-    </div>
-    <div class="actions">
-      <button mat-stroked-button [disabled]="!isFinished()" (click)="downloadCsv()">
-        <mat-icon>table_view</mat-icon>결과 CSV 받기
-      </button>
-      <a mat-flat-button color="primary" [href]="api.packageUrl(ev.id)" [class.disabled]="!isFinished()"
-        [attr.aria-disabled]="!isFinished()" download
-        matTooltip="운영 PC의 models 폴더에 넣을 zip (models/detection/best.pt, models/recognition/inference.*, package_info.json). 운영 PC에서 models 폴더를 바꾸고 프로그램을 다시 시작합니다.">
-        <mat-icon>download</mat-icon>현장 배포 패키지 받기
-      </a>
-      <button mat-stroked-button (click)="toggleLogs()"><mat-icon>terminal</mat-icon>로그 {{ showLogs() ? '닫기' : '보기' }}</button>
-      <button mat-icon-button matTooltip="삭제" (click)="remove()"><mat-icon>delete</mat-icon></button>
-    </div>
-  </header>
+  <app-page-header [title]="ev.name || '평가 #' + ev.id" [showBack]="true" (back)="goBack()">
+    <span pageTitleExtra class="status-badge" [attr.data-status]="ev.status">{{ ev.status }}</span>
+    @if (ev.status !== 'FINISHED' && ev.status !== 'FAILED') { <mat-spinner pageTitleExtra diameter="20"></mat-spinner> }
+    <button mat-stroked-button [disabled]="!isFinished()" (click)="downloadCsv()">
+      <mat-icon>table_view</mat-icon>결과 CSV 받기
+    </button>
+    <a mat-flat-button color="primary" [href]="api.packageUrl(ev.id)" [class.disabled]="!isFinished()"
+      [attr.aria-disabled]="!isFinished()" download
+      matTooltip="운영 PC의 models 폴더에 넣을 zip (models/detection/best.pt, models/recognition/inference.*, package_info.json). 운영 PC에서 models 폴더를 바꾸고 프로그램을 다시 시작합니다.">
+      <mat-icon>download</mat-icon>현장 배포 패키지 받기
+    </a>
+    <button mat-stroked-button (click)="toggleLogs()"><mat-icon>terminal</mat-icon>로그 {{ showLogs() ? '닫기' : '보기' }}</button>
+    <button mat-icon-button matTooltip="삭제" (click)="remove()"><mat-icon>delete</mat-icon></button>
+  </app-page-header>
 
   <mat-card class="steps-card">
     <app-eval-steps [evaluation]="ev"></app-eval-steps>
