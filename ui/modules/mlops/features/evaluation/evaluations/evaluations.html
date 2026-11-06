@@ -1,5 +1,5 @@
 <div class="eval-container">
-  <app-page-header title="E2E 평가" subtitle="검출 모델과 인식 모델을 골라 현장과 같은 순서(검출 → 슬롯 정렬 → 자르기 → 인식)로 돌리고 슬롯별로 채점합니다.">
+  <app-page-header heading="E2E 평가" subtitle="검출 모델과 인식 모델을 골라 현장과 같은 순서(검출 → 슬롯 정렬 → 자르기 → 인식)로 돌리고 슬롯별로 채점합니다.">
     <mat-form-field appearance="outline" class="project-select" subscriptSizing="dynamic">
       <mat-label>프로젝트</mat-label>
       <mat-select [ngModel]="projectId()" (selectionChange)="onProjectChange($event.value)">

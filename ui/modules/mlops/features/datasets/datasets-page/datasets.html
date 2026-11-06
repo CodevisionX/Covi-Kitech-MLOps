@@ -1,5 +1,5 @@
 <div class="datasets-container">
-  <app-page-header title="데이터셋" subtitle="학습과 평가에 쓰는 데이터셋을 종류별·버전별로 관리합니다.">
+  <app-page-header heading="데이터셋" subtitle="학습과 평가에 쓰는 데이터셋을 종류별·버전별로 관리합니다.">
     <button pageTitleExtra mat-icon-button class="help-btn" (click)="openGuide()" matTooltip="업로드 가이드"><mat-icon>help_outline</mat-icon></button>
     <button mat-flat-button color="primary" class="register-btn" [class.drop-over]="dragOver()"
       (click)="openNewUpload()" [disabled]="!projectId() || uploading()"

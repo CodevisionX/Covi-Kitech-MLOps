@@ -1,5 +1,5 @@
 <div class="detail-container">
-  <app-page-header [title]="(variant() || 'Run') + ' · ' + runId().substring(0, 8)" [showBack]="true" (back)="goBack()">
+  <app-page-header [heading]="(variant() || 'Run') + ' · ' + runId().substring(0, 8)" [showBack]="true" (back)="goBack()">
     <app-breadcrumb parent="학습 이력" current="Run 상세" (parentClick)="goBack()"></app-breadcrumb>
     <span pageTitleExtra class="status-badge" [attr.data-status]="runInfo()?.status">{{ runInfo()?.status }}</span>
     @if (isImported()) {

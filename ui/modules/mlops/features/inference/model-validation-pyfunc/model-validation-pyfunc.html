@@ -1,5 +1,5 @@
 <div class="validation-container">
-  <app-page-header title="{{ isTimeseries() ? '시계열 모델 확인' : isDetection() ? '검출 모델 확인' : '인식 모델 확인' }} ({{ family() }})" [showBack]="true" (back)="goBack()">
+  <app-page-header heading="{{ isTimeseries() ? '시계열 모델 확인' : isDetection() ? '검출 모델 확인' : '인식 모델 확인' }} ({{ family() }})" [showBack]="true" (back)="goBack()">
     <p pageSubtitle>
       @if (isTimeseries()) {
       .npy 파일(샘플 1개 (윈도[, 채널]) 또는 여러 개 (샘플, 윈도[, 채널]))을 올려 예측 결과를 확인합니다.

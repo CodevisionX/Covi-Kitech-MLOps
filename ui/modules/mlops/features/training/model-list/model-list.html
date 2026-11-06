@@ -1,5 +1,5 @@
 <div class="model-list-container">
-  <app-page-header title="프로젝트 학습 관리" subtitle="실험별 학습 내역 및 MLflow 모델 상태를 실시간으로 모니터링합니다.">
+  <app-page-header heading="프로젝트 학습 관리" subtitle="실험별 학습 내역 및 MLflow 모델 상태를 실시간으로 모니터링합니다.">
     <button mat-flat-button color="primary" class="upload-btn" [class.drop-over]="uploadDragOver()"
       (click)="openImportDialog()" [disabled]="!selectedProjectId()"
       (dragover)="onUploadDragOver($event)" (dragleave)="uploadDragOver.set(false)" (drop)="onUploadDrop($event)"

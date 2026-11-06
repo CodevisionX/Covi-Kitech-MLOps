@@ -2,7 +2,7 @@
   <app-breadcrumb parent="E2E 평가" [current]="'평가 #' + id" (parentClick)="goBack()"></app-breadcrumb>
 
   @if (evaluation(); as ev) {
-  <app-page-header [title]="ev.name || '평가 #' + ev.id" [showBack]="true" (back)="goBack()">
+  <app-page-header [heading]="ev.name || '평가 #' + ev.id" [showBack]="true" (back)="goBack()">
     <span pageTitleExtra class="status-badge" [attr.data-status]="ev.status">{{ ev.status }}</span>
     @if (ev.status !== 'FINISHED' && ev.status !== 'FAILED') { <mat-spinner pageTitleExtra diameter="20"></mat-spinner> }
     <button mat-stroked-button [disabled]="!isFinished()" (click)="downloadCsv()">
