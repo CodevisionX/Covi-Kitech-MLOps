@@ -2,8 +2,7 @@
   <app-page-header heading="프로젝트 학습 관리" subtitle="실험별 학습 내역 및 MLflow 모델 상태를 실시간으로 모니터링합니다.">
     <button mat-flat-button color="primary" class="upload-btn" [class.drop-over]="uploadDragOver()"
       (click)="openImportDialog()" [disabled]="!selectedProjectId()"
-      (dragover)="onUploadDragOver($event)" (dragleave)="uploadDragOver.set(false)" (drop)="onUploadDrop($event)"
-      matTooltip="검출(.pt)·인식(inference.*) 모델 파일을 올려 학습한 모델과 같은 평가 데이터로 비교합니다. 파일을 이 버튼에 끌어다 놓아도 됩니다.">
+      (dragover)="onUploadDragOver($event)" (dragleave)="uploadDragOver.set(false)" (drop)="onUploadDrop($event)">
       <mat-icon>upload_file</mat-icon> 모델 파일 업로드
     </button>
   </app-page-header>

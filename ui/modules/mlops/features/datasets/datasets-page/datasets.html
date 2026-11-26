@@ -3,8 +3,7 @@
     <button pageTitleExtra mat-icon-button class="help-btn" (click)="openGuide()" matTooltip="업로드 가이드"><mat-icon>help_outline</mat-icon></button>
     <button mat-flat-button color="primary" class="register-btn" [class.drop-over]="dragOver()"
       (click)="openNewUpload()" [disabled]="!projectId() || uploading()"
-      (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)" (drop)="onDrop($event)"
-      matTooltip="폴더를 이 버튼에 끌어다 놓아도 됩니다">
+      (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)" (drop)="onDrop($event)">
       <mat-icon>add</mat-icon> 데이터셋 등록
     </button>
     @if (projects().length > 1) {
