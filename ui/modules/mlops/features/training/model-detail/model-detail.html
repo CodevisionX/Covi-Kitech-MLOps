@@ -1,0 +1,8 @@
+<app-run-detail-view [runId]="runId()" [runInfo]="runInfo()" [projectId]="projectId()"
+  [startedAt]="getRelativeTime(runInfo()?.start_time)" [isDeploying]="isDeploying()" variantFallback="YOLOv8"
+  [chartOptions]="chartOptions" performanceTitle="mAP (Accuracy)" [performanceChart]="mAPChartData()"
+  lossTitle="Loss (Training)" [lossChart]="lossChartData()" imagesTitle="탐지 결과 샘플"
+  [images]="[
+    { tag: 'Ground Truth', tagClass: 'label', url: groundTruthUrl(), alt: 'GT' },
+    { tag: 'Prediction', tagClass: 'pred', url: predictionUrl(), alt: 'Pred' }
+  ]" (back)="goBack()" (deploy)="onDeployModel()" (imageError)="onImgError($event)"></app-run-detail-view>

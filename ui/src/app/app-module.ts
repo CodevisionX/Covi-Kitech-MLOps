@@ -4,8 +4,8 @@ import { AppRoutingModule } from './app-routing-module';
 import { App } from './app';
 import { provideHttpClient, withInterceptors, withInterceptorsFromDi } from '@angular/common/http';
 import { MaterialModule } from '../../modules/shared/material-module';
-import { MlopsModule } from './../../modules/mlops/mlops-module';
-import { apiInterceptor } from './../../modules/mlops/interceptors/api.interceptor';
+import { MlopsModule } from '../../modules/mlops/mlops-module';
+import { apiInterceptor } from '../../modules/mlops/interceptors/api.interceptor';
 
 @NgModule({
   declarations: [

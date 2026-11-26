@@ -1,0 +1,212 @@
+.validation-container {
+  padding: var(--base-padding);
+  background-color: var(--bg-body);
+  min-height: calc(100vh - var(--header-height));
+}
+
+.model-info-section {
+  margin-bottom: 24px;
+
+  .info-card {
+    border: 1px solid var(--border-color);
+    background: var(--bg-card);
+    padding: 16px 24px;
+  }
+
+  .info-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 40px;
+  }
+
+  .info-item .value.highlight { color: var(--main-primary-color); }
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+
+    .inline-tag b { color: var(--main-primary-color); font-weight: 600; }
+  }
+}
+
+.test-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+
+  @media (max-width: 960px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.upload-card,
+.result-card {
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  background-color: var(--bg-card);
+
+  mat-card-header {
+    padding: 16px;
+    border-bottom: 1px solid var(--border-color);
+
+    mat-card-title {
+      font-size: var(--text-section);
+      font-weight: 600;
+      color: var(--text-main);
+    }
+  }
+
+  mat-card-content {
+    padding: 20px;
+  }
+}
+
+.drop-zone,
+.result-viewport {
+  height: 350px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.drop-zone {
+  mat-icon {
+    font-size: 32px;
+    width: 32px;
+    height: 32px;
+  }
+
+  p {
+    margin: 0;
+    font-size: var(--text-body);
+  }
+
+  .highlight {
+    color: var(--main-primary-color);
+    font-weight: 600;
+  }
+}
+
+.result-viewport {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background-color: var(--bg-subtle);
+
+  .empty-result {
+    text-align: center;
+    color: var(--text-muted);
+
+    mat-icon {
+      font-size: 32px;
+      width: 32px;
+      height: 32px;
+      margin-bottom: 8px;
+    }
+
+    p { margin: 0; }
+  }
+
+  .prediction-status-card {
+    width: 90%;
+    box-sizing: border-box;
+    padding: 24px;
+    border-radius: var(--radius-lg);
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    .result-icon {
+      font-size: 32px;
+      width: 32px;
+      height: 32px;
+      color: var(--main-primary-color);
+      margin-bottom: 12px;
+    }
+
+    .status-label {
+      font-size: var(--text-body);
+      color: var(--text-muted);
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+
+    .status-value {
+      font-size: var(--text-metric);
+      color: var(--main-primary-color);
+      font-weight: 600;
+      margin-bottom: 16px;
+
+      &.anomaly { color: var(--error-color); }
+    }
+
+    .raw-data-badge {
+      background: var(--neutral-bg);
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      font-size: var(--text-meta);
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    .index-details-list {
+      width: 100%;
+      box-sizing: border-box;
+      margin: 16px 0;
+      padding: 12px;
+      background: var(--bg-subtle);
+      border-radius: var(--radius-md);
+      text-align: left;
+
+      .list-header {
+        font-size: var(--text-label);
+        color: var(--text-muted);
+        font-weight: 500;
+        margin-bottom: 8px;
+      }
+
+      .index-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 4px 0;
+        border-bottom: 1px solid var(--border-color);
+
+        &:last-child { border-bottom: none; }
+
+        .idx-tag {
+          font-family: var(--font-mono);
+          background: var(--main-primary-light);
+          color: var(--main-primary-color);
+          padding: 2px 8px;
+          border-radius: var(--radius-sm);
+          font-size: var(--text-label);
+        }
+
+        .idx-label {
+          font-size: var(--text-label);
+          color: var(--text-main);
+        }
+      }
+    }
+  }
+}
+
+mat-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 16px !important;
+
+  button[mat-flat-button] {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 24px;
+  }
+}

@@ -1,0 +1,143 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.status-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px 8px;
+
+  .title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  h2 {
+    margin: 0;
+    font-size: var(--text-section);
+    font-weight: 700;
+  }
+
+  .job-id {
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+}
+
+.summary {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  padding: 4px 20px 12px;
+  border-bottom: 1px solid var(--border-color);
+
+  .progress {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 200px;
+  }
+
+  .label {
+    font-size: var(--text-meta);
+    color: var(--text-muted);
+  }
+
+  .fact {
+    display: flex;
+    flex-direction: column;
+    font-variant-numeric: tabular-nums;
+
+    label {
+      font-size: var(--text-label);
+      color: var(--text-muted);
+    }
+
+    span {
+      font-size: var(--text-body);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+  }
+}
+
+.muted {
+  font-size: var(--text-meta);
+}
+
+.status-tabs {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+
+  ::ng-deep .mat-mdc-tab-body-wrapper {
+    flex: 1;
+    min-height: 0;
+  }
+
+  ::ng-deep .mat-mdc-tab-header {
+    padding: 0 12px;
+  }
+}
+
+.tab-scroll {
+  height: 100%;
+  overflow: auto;
+  padding: 16px 20px;
+  box-sizing: border-box;
+}
+
+.log-count {
+  margin-left: 4px;
+  font-size: var(--text-meta);
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.log-body {
+  height: 100%;
+  overflow: auto;
+  box-sizing: border-box;
+  padding: 8px 20px;
+  background: var(--bg-subtle);
+  color: var(--text-main);
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  line-height: 1.5;
+
+  .log-line {
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  .log-empty {
+    color: var(--text-muted);
+    padding: 8px 0;
+  }
+
+  ::ng-deep {
+    .hl-epoch { color: var(--info-color); font-weight: 600; }
+    .hl-metric { color: var(--main-primary-color); }
+    .hl-success { color: var(--success-color); font-weight: 600; }
+    .hl-error { color: var(--error-color); font-weight: 600; }
+  }
+}
+
+.status-chip[data-status='KILLED'] {
+  background: var(--error-bg);
+  color: var(--error-color);
+}

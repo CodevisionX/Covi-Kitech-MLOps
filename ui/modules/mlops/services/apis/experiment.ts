@@ -2,7 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { BaseApi } from './baseApi';
 import { HttpClient } from '@angular/common/http';
 import { catchError, Observable } from 'rxjs';
-import { environment } from './../../../../src/environments/environment';
+import { environment } from '../../../../src/environments/environment';
 import { IMLflowRun } from './models/experiment.model';
 
 export interface IMetricSeries {

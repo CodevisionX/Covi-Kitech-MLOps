@@ -37,6 +37,7 @@
               }
             ],
             "styles": [
+              "node_modules/pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css",
               "src/styles.scss"
             ]
           },
@@ -118,6 +119,7 @@
               }
             ],
             "styles": [
+              "node_modules/pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css",
               "src/styles.scss"
             ]
           }

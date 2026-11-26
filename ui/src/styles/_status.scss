@@ -1,0 +1,40 @@
+.status-badge,
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--neutral-bg);
+  color: var(--neutral-color);
+  font-size: var(--text-meta);
+  font-weight: 600;
+  line-height: 18px;
+  white-space: nowrap;
+
+  &[data-status='FINISHED'],
+  &[data-status='READY'] {
+    background: var(--success-bg);
+    color: var(--success-color);
+  }
+
+  &[data-status='RUNNING'],
+  &[data-status='VALIDATING'],
+  &[data-status='DETECTING'],
+  &[data-status='RECOGNIZING'],
+  &[data-status='REGISTERING'],
+  &[data-status='BUILDING'],
+  &[data-status='CREATING'] {
+    background: var(--info-bg);
+    color: var(--info-color);
+  }
+
+  &[data-status='UPLOADING'] {
+    background: var(--warning-bg);
+    color: var(--warning-color);
+  }
+
+  &[data-status='FAILED'] {
+    background: var(--error-bg);
+    color: var(--error-color);
+  }
+}

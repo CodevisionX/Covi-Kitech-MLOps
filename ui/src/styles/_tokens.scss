@@ -1,0 +1,52 @@
+:root {
+  --main-primary-color: #002387;
+  --main-primary-light: #e9edf6;
+  --main-primary-dark: #001a63;
+  --main-secondary-color: #4b5563;
+
+  --success-color: #1f7a3d;
+  --warning-color: #8f5300;
+  --error-color: #b3261e;
+  --info-color: #0b5c94;
+  --neutral-color: #4a5363;
+
+  --success-bg: #e6f2ea;
+  --warning-bg: #f9efdd;
+  --error-bg: #f9e8e7;
+  --info-bg: #e4eff7;
+  --neutral-bg: #eceef1;
+
+  --bg-body: #f4f5f7;
+  --bg-card: #ffffff;
+  --bg-subtle: #f7f8fa;
+  --highlight-bg: #e9edf6;
+  --border-color: #dfe3e8;
+  --border-strong: #bcc3cd;
+
+  --text-main: #1a2130;
+  --text-muted: #566072;
+  --text-on-primary: #ffffff;
+
+  --text-page: 22px;
+  --text-section: 16px;
+  --text-body: 14px;
+  --text-label: 13px;
+  --text-meta: 13px;
+  --text-metric: 24px;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  --sidebar-width: 260px;
+  --header-height: 64px;
+  --card-radius: var(--radius-lg);
+  --base-padding: 24px;
+
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-overlay: 0 8px 24px rgba(16, 24, 40, 0.14);
+  --transition-speed: 150ms;
+  --font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Malgun Gothic', sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
